@@ -34,6 +34,19 @@ export default function ProfilePage() {
           <Link href="/auth/phone" className="btn-pill btn-primary w-full">
             Войти по телефону
           </Link>
+          {/* PUB-A-09 AC1: язык доступен и гостю; выбор сохранится и зафиксируется при регистрации */}
+          <div className="grid grid-cols-2 gap-2 w-full mt-6">
+            {(["ru", "ar"] as const).map((code) => (
+              <button key={code}
+                onClick={() => setUser({ preferredLocale: code })}
+                className={`h-12 rounded-2xl text-caption font-semibold flex items-center justify-center gap-2 ${
+                  user.preferredLocale === code ? "bg-[var(--color-text)] text-white" : "bg-[#F4F4F7]"
+                }`}>
+                <Flag code={code === "ru" ? "ru" : "ae"} size={20} />
+                {code === "ru" ? "Русский" : "العربية"}
+              </button>
+            ))}
+          </div>
         </div>
         <BottomNav />
       </div>

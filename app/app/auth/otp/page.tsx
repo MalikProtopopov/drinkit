@@ -39,6 +39,8 @@ export default function OtpPage() {
           name: r.user.name ?? undefined,
           defaultCarPlate: r.user.carPlate ?? undefined,
           defaultEmirate: r.user.emirate ?? undefined,
+          // PUB-A-09 AC4: при входе применяется язык из профиля
+          preferredLocale: (r.user.locale === "ar" ? "ar" : "ru"),
         });
         const next = sessionStorage.getItem("juicy-auth-next");
         if (r.created || !r.user.name) router.push("/auth/name");

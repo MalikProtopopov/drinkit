@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope } from "next/font/google";
+import { LocaleEffect } from "@/components/LocaleEffect";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -30,6 +31,7 @@ export default function RootLayout({
   return (
     <html lang="ru" className={`${manrope.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
+        <LocaleEffect />
         <main className="mobile-frame flex flex-col">{children}</main>
       </body>
     </html>
