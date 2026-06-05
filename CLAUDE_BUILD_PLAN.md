@@ -12,6 +12,15 @@
 3. `git push origin main` — репозиторий: https://github.com/MalikProtopopov/drinkit.git
 4. Отметить фичу выполненной в разделе Progress (в том же коммите).
 
+## Деплой на тест-сервер
+Тест-сервер `72.56.72.47` автоматически подтягивает `main` — настроено, делать ничего не нужно:
+- Каталог проекта: `/opt/drinkit`
+- Cron: каждые 30 минут запускается `/usr/local/bin/drinkit-pull.sh` (`git fetch` + `git reset --hard origin/main`)
+- Лог: `/var/log/drinkit-pull.log`
+- Доступы к серверу хранятся локально, в репозиторий не коммитятся.
+
+Т.е. достаточно `git push origin main` после фичи — максимум через 30 минут код окажется на сервере.
+
 | ID | Блок | User Stories |
 |---|---|---|
 | F01 | Backend-каркас: конфиг, БД, миграции-на-старте, JWT, Redis-fallback, docker-compose | — |
