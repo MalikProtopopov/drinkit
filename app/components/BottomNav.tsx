@@ -2,33 +2,35 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCartTotal } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 
 const tabs = [
-  { href: "/home", label: "Главная", icon: HomeIcon },
-  { href: "/menu", label: "Меню", icon: MenuIcon },
-  { href: "/orders", label: "Заказы", icon: ListIcon },
-  { href: "/profile", label: "Профиль", icon: UserIcon },
+  { href: "/home", key: "nav.home", icon: HomeIcon },
+  { href: "/menu", key: "nav.menu", icon: MenuIcon },
+  { href: "/orders", key: "nav.orders", icon: ListIcon },
+  { href: "/profile", key: "nav.profile", icon: UserIcon },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
   const cartCount = useCartTotal().count;
+  const { t } = useT();
 
   return (
     <nav className="sticky bottom-0 left-0 right-0 z-30 bg-white border-t border-[var(--color-border)] pb-safe">
       <ul className="flex items-center justify-around h-16 px-2">
-        {tabs.map((t) => {
-          const active = pathname.startsWith(t.href);
-          const showBadge = t.href === "/orders" && cartCount > 0;
+        {tabs.map((tab) => {
+          const active = pathname.startsWith(tab.href);
+          const showBadge = tab.href === "/orders" && cartCount > 0;
           return (
-            <li key={t.href} className="flex-1">
+            <li key={tab.href} className="flex-1">
               <Link
-                href={t.href}
+                href={tab.href}
                 className="flex flex-col items-center gap-0.5 py-1 relative"
                 style={{ color: active ? "var(--color-primary-500)" : "var(--color-text-muted)" }}
               >
-                <t.icon active={active} />
-                <span className="text-tiny font-medium">{t.label}</span>
+                <tab.icon active={active} />
+                <span className="text-tiny font-medium">{t(tab.key)}</span>
                 {showBadge && (
                   <span className="absolute top-0 right-[calc(50%-22px)] text-[10px] font-semibold bg-[var(--color-primary-500)] text-white rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
                     {cartCount}

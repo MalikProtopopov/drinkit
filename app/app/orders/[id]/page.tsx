@@ -2,21 +2,17 @@
 import { useCallback, useEffect, useRef, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { api, orderWs, STATUS_LABELS, type ApiOrder } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
-// единая цепочка статусов (§0.1)
-const STEPS = [
-  { status: "new", label: "Принят" },
-  { status: "in_progress", label: "Готовим" },
-  { status: "ready", label: "Готов" },
-  { status: "arrived", label: "Вы на месте" },
-  { status: "completed", label: "Получен" },
-];
+// единая цепочка статусов (§0.1); подписи — из словаря i18n (step.*)
+const STEPS = ["new", "in_progress", "ready", "arrived", "completed"];
 
 export default function OrderStatusPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const orderId = Number(id);
 
+  const { t } = useT();
   const [order, setOrder] = useState<ApiOrder | null>(null);
   const [showRating, setShowRating] = useState(false);
   const [couponToast, setCouponToast] = useState<string | null>(null);
@@ -52,7 +48,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
 
   if (!order) return <div className="flex-1 flex items-center justify-center muted">Загрузка…</div>;
 
-  const currentIdx = Math.max(0, STEPS.findIndex((s) => s.status === order.status));
+  const currentIdx = Math.max(0, STEPS.indexOf(order.status));
   const isRefund = order.status === "refund";
   const canArrive = order.status === "ready";
   const canRate = !order.rating && (order.status === "arrived" || order.status === "completed");
@@ -90,7 +86,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         <div className="rounded-3xl p-6 text-center mb-4" style={{ background: "#F4EEE4" }}>
           <div className="text-h1 mb-1" style={isRefund ? { color: "#DC2626" } : undefined}>
-            {st.label}
+            {order.paymentStatus !== "paid" ? t("status.unpaid") : t(`status.${order.status}`)}
           </div>
           <div className="muted text-body">
             {order.paymentStatus !== "paid" ? "заказ не оплачен" : `статус обновляется автоматически`}
@@ -102,7 +98,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
             {STEPS.map((s, i) => {
               const reached = i <= currentIdx;
               return (
-                <div key={s.status} className="flex-1 flex flex-col items-center relative">
+                <div key={s} className="flex-1 flex flex-col items-center relative">
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center text-tiny font-bold ${i === currentIdx ? "animate-pulseRing" : ""}`}
                        style={{ background: reached ? "var(--color-primary-500)" : "#E5E7EB",
                                 color: reached ? "#fff" : "var(--color-text-muted)" }}>
@@ -110,7 +106,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
                   </div>
                   <div className="text-tiny mt-1 text-center"
                        style={{ color: reached ? "var(--color-text)" : "var(--color-text-muted)" }}>
-                    {s.label}
+                    {t(`step.${s}`)}
                   </div>
                   {i < STEPS.length - 1 && (
                     <div className="absolute top-3.5 left-1/2 w-full h-0.5"
@@ -120,6 +116,15 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
               );
             })}
           </div>
+        )}
+
+        {/* H01 (PUB-A-02 AC5): заказ не оплачен — можно повторить оплату */}
+        {order.paymentStatus !== "paid" && order.status !== "refund" && (
+          <button
+            onClick={() => router.push(`/payment?orderId=${order.id}&total=${order.total}`)}
+            className="btn-pill btn-primary w-full mb-3">
+            {t("btn.pay")} · {order.total.toFixed(0)} AED
+          </button>
         )}
 
         {/* «Прибыл» — доступно только после ready (§0.1) */}
@@ -164,7 +169,8 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
               {item.addons.length > 0 && (
                 <div className="text-tiny muted mt-0.5">
                   {item.addons.map((a) =>
-                    `${a.name}${a.portions > 1 ? ` ×${a.portions}` : ""} (${a.amount}${a.unit === "ml" ? " мл" : " г"})`
+                    `${a.name}${a.portions > 1 ? ` ×${a.portions}` : ""} (${a.amount}${a.unit === "ml" ? " мл" : " г"})` +
+                    (a.price > 0 ? ` +${(a.price * a.portions).toFixed(0)} AED` : "")
                   ).join(" • ")}
                 </div>
               )}

@@ -5,9 +5,11 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { DrinkArt } from "@/components/DrinkArt";
 import { api, getToken, STATUS_LABELS, type ApiOrder } from "@/lib/api";
+import { useT } from "@/lib/i18n";
 
 export default function OrdersPage() {
   // PUB-A-07: список заказов клиента с бэкенда
+  const { t } = useT();
   const [orders, setOrders] = useState<ApiOrder[] | null>(null);
   const [guest, setGuest] = useState(false);
 
@@ -52,7 +54,7 @@ export default function OrdersPage() {
                       {o.items.map((i) => i.name).join(", ")}
                     </div>
                     <div className="text-tiny font-semibold mt-1" style={{ color: st.color }}>
-                      {o.paymentStatus !== "paid" ? "ожидает оплаты" : st.label}
+                      {o.paymentStatus !== "paid" ? t("status.unpaid") : t(`status.${o.status}`)}
                     </div>
                   </div>
                   <div className="text-h3 font-semibold">{o.total.toFixed(0)}</div>
