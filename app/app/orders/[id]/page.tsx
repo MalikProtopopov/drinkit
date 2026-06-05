@@ -178,8 +178,13 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
           <div className="border-t border-[var(--color-border)] my-2" />
           <Row label="Итого" value={`${order.total.toFixed(0)} AED`} big />
           <div className="border-t border-[var(--color-border)] my-2" />
+          <div className="text-caption muted">Имя · {order.customerName ?? "—"}</div>
           <div className="text-caption muted">Машина · {order.emirate} {order.carPlate}</div>
           <div className="text-caption muted">Телефон · {order.phone}</div>
+          <div className="text-caption muted">
+            Оформлен · {new Date(order.createdAt).toLocaleString("ru-RU", {
+              day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" })}
+          </div>
         </div>
 
         {/* история смен статусов (PUB-A-07 AC4) */}

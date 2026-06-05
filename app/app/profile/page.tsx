@@ -20,6 +20,19 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [plate, setPlate] = useState(user.defaultCarPlate ?? "");
   const [emirate, setEmirate] = useState(user.defaultEmirate ?? "Dubai");
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState(user.name ?? "");
+
+  const saveName = async () => {
+    const n = nameDraft.trim();
+    if (!n) return;
+    setUser({ name: n });
+    setEditingName(false);
+    try {
+      const { api } = await import("@/lib/api");
+      await api.updateMe({ name: n });
+    } catch {}
+  };
 
   if (!user.phone) {
     return (
@@ -91,7 +104,19 @@ export default function ProfilePage() {
             {initials}
           </div>
           <div className="flex-1">
-            <div className="text-h2">{user.name || "Гость"}</div>
+            {editingName ? (
+              <div className="flex gap-2 items-center">
+                <input value={nameDraft} onChange={(e) => setNameDraft(e.target.value)} autoFocus
+                       className="flex-1 h-10 px-3 rounded-xl bg-[#F4F4F7] outline-none text-h3" />
+                <button onClick={saveName} className="btn-pill btn-primary btn-sm px-4">OK</button>
+              </div>
+            ) : (
+              <button onClick={() => { setNameDraft(user.name ?? ""); setEditingName(true); }}
+                      className="text-left">
+                <div className="text-h2">{user.name || "Гость"}</div>
+                <div className="text-tiny muted">тап чтобы изменить имя</div>
+              </button>
+            )}
             <div className="text-caption muted">{user.phone}</div>
           </div>
         </div>
