@@ -18,3 +18,5 @@ docs/references/
 *.m4a
 *.xlsx
 Juicy_документы/*.docx
+backend/.venv/
+backend/juicy.db
