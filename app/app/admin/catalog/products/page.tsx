@@ -1,200 +1,123 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Modal, useToast } from "@/components/admin/AdminUI";
-import { adminProductRows, ProductSummary } from "@/lib/admin-mock";
+import { catalogApi, type AdminDrink, type DrinkCat } from "@/lib/adminApi";
 
-export default function ProductsListPage() {
+const STATUS_PILL: Record<string, { label: string; cls: string }> = {
+  draft: { label: "черновик", cls: "" },
+  published: { label: "опубликован", cls: "accent" },
+  hidden: { label: "скрыт", cls: "danger" },
+};
+
+/** ADM-S-05: напитки — статус черновик/опубликован/скрыт, цена базы, привязанные добавки. */
+function Inner() {
   const toast = useToast();
-  const [rows, setRows] = useState<ProductSummary[]>(adminProductRows);
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("Все");
-  const [newOpen, setNewOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newCategory, setNewCategory] = useState("Кофе");
+  const [rows, setRows] = useState<AdminDrink[]>([]);
+  const [cats, setCats] = useState<DrinkCat[]>([]);
+  const [open, setOpen] = useState(false);
+  const [nameRu, setNameRu] = useState("");
+  const [slug, setSlug] = useState("");
+  const [catId, setCatId] = useState<number | null>(null);
 
-  const categories = ["Все", ...Array.from(new Set(rows.map((p) => p.category)))];
-
-  const filtered = rows.filter(
-    (p) =>
-      (category === "Все" || p.category === category) &&
-      (search === "" || p.name.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  const createProduct = () => {
-    if (!newName.trim()) return;
-    const slug = newName.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "").slice(0, 30) || `p-${Date.now()}`;
-    const item: ProductSummary = {
-      id: `p-${Date.now()}`,
-      slug,
-      name: newName.trim(),
-      category: newCategory,
-      basePriceAed: 0,
-      kcal: 0,
-      variantCount: 1,
-      addonGroupCount: 0,
-      visible: false,
-      inStock: true,
-      hasVideo: false,
-      posterUrl: "",
-    };
-    setRows((r) => [item, ...r]);
-    setNewOpen(false);
-    setNewName("");
-    toast(`Создано черновое блюдо «${item.name}» — заполни детали`);
-  };
+  const load = useCallback(() => {
+    catalogApi.drinks().then(setRows).catch(() => {});
+    catalogApi.drinkCategories().then((c) => { setCats(c); setCatId((p) => p ?? c[0]?.id ?? null); })
+      .catch(() => {});
+  }, []);
+  useEffect(() => { load(); }, [load]);
 
   return (
-    <AdminShell
-      title="Блюда"
-      crumbs={[{ label: "Каталог" }, { label: "Блюда" }]}
-      actions={
-        <>
-          <button className="admin-btn" onClick={() => toast(`Экспортировано ${filtered.length} блюд в CSV`)}>
-            Экспорт
-          </button>
-          <button className="admin-btn primary" onClick={() => setNewOpen(true)}>
-            + Новое блюдо
-          </button>
-        </>
-      }
-    >
-      <div className="admin-filter-row">
-        <div className="admin-search">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5A6172" strokeWidth="2">
-            <circle cx="11" cy="11" r="7" />
-            <path d="m20 20-4-4" strokeLinecap="round" />
-          </svg>
-          <input
-            placeholder="Найти по названию"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-        <select className="admin-select" style={{ width: "auto" }} value={category} onChange={(e) => setCategory(e.target.value)}>
-          {categories.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-        <span className="admin-meta" style={{ marginLeft: "auto", alignSelf: "center" }}>
-          Показано <strong>{filtered.length}</strong> из <strong>{rows.length}</strong>
-        </span>
-      </div>
-
+    <>
       <div className="admin-panel">
         <table className="admin-table">
           <thead>
             <tr>
-              <th style={{ width: 48 }}></th>
-              <th>Название</th>
-              <th>Категория</th>
-              <th>Варианты</th>
-              <th>Группы допов</th>
-              <th>Цена от</th>
-              <th>КБЖУ</th>
-              <th>Медиа</th>
-              <th>Статус</th>
-              <th></th>
+              <th>Название</th><th>Slug</th><th>Категория</th><th>Цена базы</th>
+              <th>Ккал</th><th>Добавок привязано</th><th>Статус</th><th></th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((p) => (
-              <tr key={p.id} className={!p.visible ? "muted" : ""}>
+            {rows.map((d) => (
+              <tr key={d.id} className={d.status !== "published" ? "muted" : ""}>
                 <td>
-                  <div className="admin-thumb" style={{ background: "#F0EDE0" }}>
-                    <span className="admin-mono" style={{ fontSize: 9, color: "#5A6172" }}>
-                      {p.slug.slice(0, 3).toUpperCase()}
-                    </span>
-                  </div>
-                </td>
-                <td>
-                  <Link href={`/admin/catalog/products/${p.slug}`} style={{ fontWeight: 600, color: "#0F1115", textDecoration: "none" }}>
-                    {p.name}
+                  <Link href={`/admin/catalog/products/${d.slug}`}
+                        style={{ fontWeight: 600, color: "#0F1115", textDecoration: "none" }}>
+                    {d.name.ru}
                   </Link>
-                  {p.badge && (
-                    <span className="admin-pill accent" style={{ marginLeft: 6 }}>
-                      {p.badge}
-                    </span>
-                  )}
                 </td>
-                <td>{p.category}</td>
-                <td className="admin-num">{p.variantCount}</td>
-                <td className="admin-num">{p.addonGroupCount}</td>
-                <td className="admin-num">{p.basePriceAed} AED</td>
-                <td className="admin-num">{p.kcal} ккал</td>
+                <td><span className="admin-mono admin-meta">{d.slug}</span></td>
+                <td>{cats.find((c) => c.id === d.categoryId)?.name.ru ?? "—"}</td>
+                <td className="admin-num">{d.basePrice} AED</td>
+                <td className="admin-num">{d.kcal}</td>
+                <td className="admin-num">{d.bindings.length}</td>
                 <td>
-                  {p.hasVideo ? (
-                    <span className="admin-pill accent">video + poster</span>
-                  ) : (
-                    <span className="admin-pill warn">только poster</span>
-                  )}
-                </td>
-                <td>
-                  {!p.visible ? (
-                    <span className="admin-pill">скрыто</span>
-                  ) : !p.inStock ? (
-                    <span className="admin-pill danger">стоп</span>
-                  ) : (
-                    <span className="admin-pill accent">активно</span>
-                  )}
+                  <span className={`admin-pill ${STATUS_PILL[d.status]?.cls ?? ""}`}>
+                    {STATUS_PILL[d.status]?.label ?? d.status}
+                  </span>
                 </td>
                 <td style={{ textAlign: "right" }}>
-                  <Link href={`/admin/catalog/products/${p.slug}`} className="admin-btn sm">
-                    Открыть
-                  </Link>
+                  <Link href={`/admin/catalog/products/${d.slug}`} className="admin-btn sm">Открыть</Link>
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={10} style={{ textAlign: "center", padding: 40, color: "#5A6172" }}>
-                  Ничего не найдено по фильтрам.{" "}
-                  <button
-                    className="admin-btn ghost sm"
-                    onClick={() => { setSearch(""); setCategory("Все"); }}
-                  >
-                    Сбросить
-                  </button>
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>
+      <div style={{ marginTop: 12 }}>
+        <button className="admin-btn primary" onClick={() => setOpen(true)}>+ Новый напиток</button>
+      </div>
 
-      <Modal
-        open={newOpen}
-        title="Новое блюдо"
-        subtitle="Создадим черновик — остальные поля заполнишь в редакторе"
-        onClose={() => setNewOpen(false)}
-        onSubmit={createProduct}
-        submitDisabled={!newName.trim()}
-        submitLabel="Создать черновик"
-      >
-        <div className="admin-field">
-          <label className="admin-label">Название (RU)</label>
-          <input
-            className="admin-input"
-            autoFocus
-            placeholder="Например: Капучино карамель"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-          />
+      <Modal open={open} title="Новый напиток"
+             subtitle="Создаётся черновиком — публикация после заполнения"
+             onClose={() => setOpen(false)}
+             onSubmit={async () => {
+               try {
+                 await catalogApi.createDrink({
+                   slug: slug.trim(), name: { ru: nameRu.trim() }, description: {},
+                   status: "draft", basePrice: 0, kcal: 0, protein: 0, fat: 0, carbs: 0,
+                   categoryId: catId!,
+                 });
+                 setOpen(false); setNameRu(""); setSlug(""); load();
+                 toast("Черновик создан — открой и заполни");
+               } catch (e) { toast(e instanceof Error ? e.message : "Ошибка", "warn"); }
+             }}
+             submitDisabled={!nameRu.trim() || !slug.trim() || !catId}
+             submitLabel="Создать черновик">
+        <div className="admin-grid-2">
+          <div className="admin-field">
+            <label className="admin-label">Название (RU)</label>
+            <input className="admin-input" autoFocus value={nameRu}
+                   onChange={(e) => {
+                     setNameRu(e.target.value);
+                     setSlug(e.target.value.toLowerCase()
+                       .replace(/[^a-zа-яё0-9\s]/gi, "").trim().replace(/\s+/g, "-")
+                       .replace(/[а-яё]/g, "") || slug);
+                   }} />
+          </div>
+          <div className="admin-field">
+            <label className="admin-label">Slug (латиницей)</label>
+            <input className="admin-input mono" value={slug}
+                   onChange={(e) => setSlug(e.target.value.replace(/[^a-z0-9-]/g, ""))} />
+          </div>
         </div>
         <div className="admin-field">
           <label className="admin-label">Категория</label>
-          <select className="admin-select" value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
-            {categories.filter((c) => c !== "Все").map((c) => (
-              <option key={c}>{c}</option>
-            ))}
+          <select className="admin-select" value={catId ?? ""} onChange={(e) => setCatId(+e.target.value)}>
+            {cats.map((c) => <option key={c.id} value={c.id}>{c.name.ru}</option>)}
           </select>
         </div>
-        <p className="admin-meta">
-          После создания откроется редактор — там добавишь варианты, медиа, КБЖУ и привяжешь группы допов.
-        </p>
       </Modal>
+    </>
+  );
+}
+
+export default function ProductsListPage() {
+  return (
+    <AdminShell title="Напитки" crumbs={[{ label: "Каталог" }, { label: "Напитки" }]}>
+      <Inner />
     </AdminShell>
   );
 }

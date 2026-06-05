@@ -45,11 +45,34 @@ export default function CustomersPage() {
             <div className="admin-drawer-head">
               <div>
                 <div className="admin-panel-title">{detail.name ?? detail.phone}</div>
-                <div className="admin-mono admin-meta">{detail.phone} · {detail.emirate ?? ""} {detail.carPlate ?? ""}</div>
+                <div className="admin-mono admin-meta">{detail.phone}</div>
               </div>
               <button className="admin-btn ghost" onClick={() => setDetail(null)}>×</button>
             </div>
             <div className="admin-drawer-body">
+              {/* ADM-S-08 AC2 / PUB-A-06 AC3: редактирование личных данных из админки */}
+              <div className="admin-grid-2">
+                <div className="admin-field">
+                  <label className="admin-label">Имя</label>
+                  <input className="admin-input" value={detail.name ?? ""}
+                         onChange={(e) => setDetail({ ...detail, name: e.target.value })} />
+                </div>
+                <div className="admin-field">
+                  <label className="admin-label">Номер машины</label>
+                  <input className="admin-input mono" value={detail.carPlate ?? ""}
+                         onChange={(e) => setDetail({ ...detail, carPlate: e.target.value.toUpperCase() })} />
+                </div>
+              </div>
+              <button className="admin-btn primary sm" style={{ marginBottom: 14 }}
+                      onClick={async () => {
+                        const { adminApi } = await import("@/lib/adminApi");
+                        await adminApi.updateCustomer(detail.id, {
+                          name: detail.name, carPlate: detail.carPlate });
+                        adminApi.customers().then(setRows);
+                      }}>
+                Сохранить данные клиента
+              </button>
+              <div className="admin-divider" />
               <div className="admin-label" style={{ marginBottom: 6 }}>Заказы ({detail.orders.length})</div>
               {detail.orders.map((o: any) => (
                 <div key={o.id} style={{ padding: "8px 0", borderBottom: "1px solid #EFEDE3", fontSize: 13 }}>

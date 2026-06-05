@@ -25,9 +25,10 @@ const NAV_GROUPS: {
   {
     title: "Каталог",
     items: [
-      { href: "/admin/catalog/products", label: "Блюда", roles: ["super_admin"] },
-      { href: "/admin/catalog/addons", label: "Допы", roles: ["super_admin"] },
-      { href: "/admin/catalog/groups", label: "Группы и правила", roles: ["super_admin"] },
+      { href: "/admin/catalog/categories", label: "Категории напитков", roles: ["super_admin"] },
+      { href: "/admin/catalog/products", label: "Напитки", roles: ["super_admin"] },
+      { href: "/admin/catalog/addons", label: "Добавки", roles: ["super_admin"] },
+      { href: "/admin/catalog/groups", label: "Категории добавок и единицы", roles: ["super_admin"] },
     ],
   },
   {

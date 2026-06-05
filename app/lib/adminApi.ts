@@ -67,6 +67,8 @@ export const adminApi = {
       { method: "POST", body: JSON.stringify({ status: "refund", note }) }),
 
   customers: () => req<any[]>("/api/admin/customers"),
+  updateCustomer: (id: number, b: { name?: string; carPlate?: string; emirate?: string }) =>
+    req(`/api/admin/customers/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
   customer: (id: number) => req<any>(`/api/admin/customers/${id}`),
   payments: () => req<any[]>("/api/admin/payments"),
   coupons: () => req<any[]>("/api/admin/coupons"),
@@ -77,6 +79,56 @@ export const adminApi = {
     if (to) p.set("to", to);
     return req<any>(`/api/admin/dashboard?${p}`);
   },
+};
+
+// ---------- каталог (ADM-S-01..05) ----------
+export type I18n = { ru?: string; ar?: string };
+export type DrinkCat = { id: number; name: I18n; photoUrl?: string | null; videoUrl?: string | null;
+                         isActive: boolean; sort: number };
+export type Unit = { id: number; code: string; name: I18n };
+export type AddonCat = { id: number; name: I18n; iconUrl?: string | null; isActive: boolean;
+                         selectionType: "single" | "multi" | "counter" };
+export type AdminAddon = { id: number; name: I18n; imageUrl?: string | null; categoryId: number;
+  unitId: number; kcalPer100: number; proteinPer100: number; fatPer100: number; carbsPer100: number;
+  basePrice: number; isActive: boolean };
+export type Binding = { id?: number; addonId: number; priceOverride: number | null;
+  minPortions: number; defaultPortions: number; maxPortions: number; portionAmount: number;
+  selectionTypeOverride: string | null };
+export type AdminDrink = { id: number; slug: string; name: I18n; description: I18n; status: string;
+  previewUrl?: string | null; videoUrl?: string | null; basePrice: number;
+  kcal: number; protein: number; fat: number; carbs: number; categoryId: number; bindings: Binding[] };
+
+export const catalogApi = {
+  drinkCategories: () => req<DrinkCat[]>("/api/admin/catalog/drink-categories"),
+  createDrinkCategory: (b: Partial<DrinkCat>) =>
+    req<DrinkCat>("/api/admin/catalog/drink-categories", { method: "POST", body: JSON.stringify(b) }),
+  updateDrinkCategory: (id: number, b: Partial<DrinkCat>) =>
+    req<DrinkCat>(`/api/admin/catalog/drink-categories/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+
+  units: () => req<Unit[]>("/api/admin/catalog/units"),
+  createUnit: (b: { code: string; name: I18n }) =>
+    req<Unit>("/api/admin/catalog/units", { method: "POST", body: JSON.stringify(b) }),
+
+  addonCategories: () => req<AddonCat[]>("/api/admin/catalog/addon-categories"),
+  createAddonCategory: (b: Partial<AddonCat>) =>
+    req<AddonCat>("/api/admin/catalog/addon-categories", { method: "POST", body: JSON.stringify(b) }),
+  updateAddonCategory: (id: number, b: Partial<AddonCat>) =>
+    req<AddonCat>(`/api/admin/catalog/addon-categories/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+
+  addons: () => req<AdminAddon[]>("/api/admin/catalog/addons"),
+  createAddon: (b: Partial<AdminAddon>) =>
+    req<AdminAddon>("/api/admin/catalog/addons", { method: "POST", body: JSON.stringify(b) }),
+  updateAddon: (id: number, b: Partial<AdminAddon>) =>
+    req<AdminAddon>(`/api/admin/catalog/addons/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+
+  drinks: () => req<AdminDrink[]>("/api/admin/catalog/drinks"),
+  createDrink: (b: Partial<AdminDrink>) =>
+    req<AdminDrink>("/api/admin/catalog/drinks", { method: "POST", body: JSON.stringify(b) }),
+  updateDrink: (id: number, b: Partial<AdminDrink>) =>
+    req<AdminDrink>(`/api/admin/catalog/drinks/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+  setBindings: (drinkId: number, bindings: Binding[]) =>
+    req<AdminDrink>(`/api/admin/catalog/drinks/${drinkId}/bindings`,
+      { method: "PUT", body: JSON.stringify(bindings) }),
 };
 
 export function adminOrdersWs(): WebSocket {

@@ -11,6 +11,7 @@ function Detail({ id }: { id: number }) {
   const toast = useToast();
   const [order, setOrder] = useState<AdminOrder | null>(null);
   const [confirmRefund, setConfirmRefund] = useState(false);
+  const [refundReason, setRefundReason] = useState("");
   const wsRef = useRef<WebSocket | null>(null);
 
   const load = useCallback(() => {
@@ -162,10 +163,17 @@ function Detail({ id }: { id: number }) {
               </div>
             )}
             {order.status === "completed" && (
-              <button className="admin-btn danger" style={{ width: "100%", justifyContent: "center", marginTop: 8 }}
-                      onClick={() => setConfirmRefund(true)}>
-                Оформить возврат
-              </button>
+              <>
+                <input className="admin-input" placeholder="Причина возврата (обязательно)"
+                       value={refundReason} onChange={(e) => setRefundReason(e.target.value)}
+                       style={{ marginTop: 8 }} />
+                <button className="admin-btn danger"
+                        style={{ width: "100%", justifyContent: "center", marginTop: 8 }}
+                        disabled={!refundReason.trim()}
+                        onClick={() => setConfirmRefund(true)}>
+                  Оформить возврат
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -202,7 +210,7 @@ function Detail({ id }: { id: number }) {
           onCancel={() => setConfirmRefund(false)}
           onConfirm={() => {
             setConfirmRefund(false);
-            act(() => adminApi.refund(order.id, "оформлен из админки"), "Возврат оформлен");
+            act(() => adminApi.refund(order.id, refundReason.trim()), "Возврат оформлен");
           }}
         />
       </div>
