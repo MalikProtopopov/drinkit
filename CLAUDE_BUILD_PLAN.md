@@ -17,9 +17,14 @@
 - Каталог проекта: `/opt/drinkit`
 - Cron: каждые 30 минут запускается `/usr/local/bin/drinkit-pull.sh` (`git fetch` + `git reset --hard origin/main`)
 - Лог: `/var/log/drinkit-pull.log`
-- Доступы к серверу хранятся локально, в репозиторий не коммитятся.
 
 Т.е. достаточно `git push origin main` после фичи — максимум через 30 минут код окажется на сервере.
+
+### Доступ к серверу (SSH-ключ, без пароля)
+- Подключение: `ssh drinkit` (алиас в `~/.ssh/config` → root@72.56.72.47, ключ `~/.ssh/id_ed25519`)
+- Форс-пулл немедленно, не дожидаясь cron: `ssh drinkit /usr/local/bin/drinkit-pull.sh`
+- Посмотреть лог пуллов: `ssh drinkit tail -20 /var/log/drinkit-pull.log`
+- Пароли и приватные ключи в репозиторий не коммитятся — доступ только по ключу с этой машины.
 
 | ID | Блок | User Stories |
 |---|---|---|
