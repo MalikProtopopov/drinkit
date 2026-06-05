@@ -15,6 +15,7 @@ function Inner() {
   const [catOpen, setCatOpen] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
   const [nameRu, setNameRu] = useState("");
+  const [iconUrl, setIconUrl] = useState("");
   const [selType, setSelType] = useState<AddonCat["selectionType"]>("counter");
   const [unitCode, setUnitCode] = useState("");
   const [unitName, setUnitName] = useState("");
@@ -87,13 +88,18 @@ function Inner() {
 
       <Modal open={catOpen} title="Новая категория добавок" onClose={() => setCatOpen(false)}
              onSubmit={async () => {
-               await catalogApi.createAddonCategory({ name: { ru: nameRu }, isActive: true, selectionType: selType });
+               await catalogApi.createAddonCategory({ name: { ru: nameRu }, iconUrl: iconUrl || null,
+                 isActive: true, selectionType: selType });
                setCatOpen(false); setNameRu(""); load(); toast("Категория создана");
              }}
              submitDisabled={!nameRu.trim()} submitLabel="Создать">
         <div className="admin-field">
           <label className="admin-label">Название (RU)</label>
           <input className="admin-input" autoFocus value={nameRu} onChange={(e) => setNameRu(e.target.value)} />
+        </div>
+        <div className="admin-field">
+          <label className="admin-label">Фото для иконки (URL)</label>
+          <input className="admin-input mono" value={iconUrl} onChange={(e) => setIconUrl(e.target.value)} />
         </div>
         <div className="admin-field">
           <label className="admin-label">Тип выбора</label>

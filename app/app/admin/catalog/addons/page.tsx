@@ -38,7 +38,10 @@ function Inner() {
           <tbody>
             {rows.map((a) => (
               <tr key={a.id} className={!a.isActive ? "muted" : ""}>
-                <td><strong>{a.name.ru}</strong> <span className="admin-meta">{a.name.ar}</span></td>
+                <td><strong>{a.name.ru}</strong>{" "}
+                    {a.name.ar
+                      ? <span className="admin-meta">{a.name.ar}</span>
+                      : <span className="admin-pill warn">нет AR</span>}</td>
                 <td>{catName(a.categoryId)}</td>
                 <td><span className="admin-pill">{unitCode(a.unitId)}</span></td>
                 <td className="admin-num">{a.kcalPer100}</td>

@@ -47,6 +47,7 @@ function Inner() {
                         style={{ fontWeight: 600, color: "#0F1115", textDecoration: "none" }}>
                     {d.name.ru}
                   </Link>
+                  {!d.name.ar && <span className="admin-pill warn" style={{ marginLeft: 6 }}>нет AR</span>}
                 </td>
                 <td><span className="admin-mono admin-meta">{d.slug}</span></td>
                 <td>{cats.find((c) => c.id === d.categoryId)?.name.ru ?? "—"}</td>
