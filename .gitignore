@@ -8,7 +8,7 @@ __pycache__/
 .DS_Store
 test-results/
 # prototype has its own git repo
-app/
+/app/
 # media & raw sources (not code)
 mocs/
 new docs/

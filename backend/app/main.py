@@ -1,0 +1,52 @@
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+from .core.db import Base, SessionLocal, engine
+from .services.seed import seed
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # DECISION: create_all + сиды на старте вместо alembic — достаточно для MVP,
+    # миграции добавляются при первом изменении схемы в проде
+    Base.metadata.create_all(engine)
+    with SessionLocal() as db:
+        seed(db)
+    yield
+
+
+app = FastAPI(title="Juicy API", version="1.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError):
+    return JSONResponse(status_code=422, content={"code": "VALIDATION_ERROR", "detail": str(exc)})
+
+
+from .routers import admin_catalog, admin_orders, auth, catalog, coupons, dashboard, orders, payments, staff, ws  # noqa: E402
+
+app.include_router(catalog.router)
+app.include_router(auth.router)
+app.include_router(orders.router)
+app.include_router(payments.router)
+app.include_router(coupons.router)
+app.include_router(staff.router)
+app.include_router(admin_catalog.router)
+app.include_router(admin_orders.router)
+app.include_router(dashboard.router)
+app.include_router(ws.router)
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
