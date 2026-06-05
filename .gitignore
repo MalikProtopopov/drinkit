@@ -1,0 +1,20 @@
+# heavy / generated
+node_modules/
+.next/
+__pycache__/
+*.pyc
+.venv/
+.env
+.DS_Store
+test-results/
+# prototype has its own git repo
+app/
+# media & raw sources (not code)
+mocs/
+new docs/
+docs/*.pdf
+docs/*.docx
+docs/references/
+*.m4a
+*.xlsx
+Juicy_документы/*.docx
