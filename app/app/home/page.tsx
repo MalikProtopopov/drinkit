@@ -1,16 +1,19 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BottomNav } from "@/components/BottomNav";
 import { ApiProductCard, categoryBg } from "@/components/ApiProductCard";
 import { DrinkArt } from "@/components/DrinkArt";
 import { useCatalog } from "@/lib/useCatalog";
 
-export default function HomePage() {
-  // PUB-G-01: фото категории + активное название в переключателе; данные с бэкенда
+function HomeInner() {
+  // PUB-G-01: фото категории + активное название; AC4 — фильтр в query-параметре
   const router = useRouter();
-  const [activeCat, setActiveCat] = useState<number | null>(null);
+  const search = useSearchParams();
+  const activeCat = search.get("category") ? Number(search.get("category")) : null;
+  const setActiveCat = (id: number | null) =>
+    router.replace(id === null ? "/home" : `/home?category=${id}`, { scroll: false });
   const { categories, drinks, loading, error } = useCatalog(activeCat);
 
   const currentCat = useMemo(
@@ -110,5 +113,13 @@ export default function HomePage() {
 
       <BottomNav />
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="absolute inset-0" />}>
+      <HomeInner />
+    </Suspense>
   );
 }

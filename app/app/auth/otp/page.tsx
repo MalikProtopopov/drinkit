@@ -40,7 +40,12 @@ export default function OtpPage() {
           defaultCarPlate: r.user.carPlate ?? undefined,
           defaultEmirate: r.user.emirate ?? undefined,
         });
-        router.push(r.created || !r.user.name ? "/auth/name" : "/home");
+        const next = sessionStorage.getItem("juicy-auth-next");
+        if (r.created || !r.user.name) router.push("/auth/name");
+        else {
+          sessionStorage.removeItem("juicy-auth-next");
+          router.push(next || "/home");
+        }
       } catch {
         setError(true);
         setCode("");

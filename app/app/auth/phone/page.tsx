@@ -28,6 +28,9 @@ export default function PhonePage() {
 
   const submit = async () => {
     if (!valid || sending) return;
+    // G02 (PUB-G-04 AC2): запоминаем, куда вернуть после входа (например /checkout)
+    const next = new URLSearchParams(window.location.search).get("next");
+    if (next) sessionStorage.setItem("juicy-auth-next", next);
     const phone = "+971" + digits;
     setSending(true);
     try {

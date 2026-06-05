@@ -1,13 +1,18 @@
 "use client";
-import { useState } from "react";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { ApiProductCard } from "@/components/ApiProductCard";
 import { useCatalog } from "@/lib/useCatalog";
 
-export default function MenuPage() {
-  // PUB-G-01: категории и напитки приходят с бэкенда; фильтр — по id категории
-  const [activeCat, setActiveCat] = useState<number | null>(null);
+function MenuInner() {
+  // PUB-G-01 AC4: фильтр по категории — query-параметр, состояние шарится ссылкой
+  const router = useRouter();
+  const search = useSearchParams();
+  const activeCat = search.get("category") ? Number(search.get("category")) : null;
+  const setActiveCat = (id: number | null) =>
+    router.replace(id === null ? "/menu" : `/menu?category=${id}`, { scroll: false });
   const { categories, drinks, loading, error } = useCatalog(activeCat);
 
   return (
@@ -64,5 +69,13 @@ export default function MenuPage() {
 
       <BottomNav />
     </div>
+  );
+}
+
+export default function MenuPage() {
+  return (
+    <Suspense fallback={<div className="flex-1" />}>
+      <MenuInner />
+    </Suspense>
   );
 }

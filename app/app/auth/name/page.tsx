@@ -16,7 +16,9 @@ export default function NamePage() {
       const { api } = await import("@/lib/api");
       await api.updateMe({ name: n });
     } catch {}
-    router.replace("/home");
+    const next = sessionStorage.getItem("juicy-auth-next");
+    sessionStorage.removeItem("juicy-auth-next");
+    router.replace(next || "/home");
   };
 
   return (

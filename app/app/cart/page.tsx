@@ -15,7 +15,7 @@ export default function CartPage() {
 
   const goCheckout = () => {
     // PUB-G-04: вход требуется только при оформлении; корзина сохраняется
-    if (!getToken()) router.push("/auth/phone");
+    if (!getToken()) router.push("/auth/phone?next=/checkout");
     else router.push("/checkout");
   };
 
