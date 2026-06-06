@@ -38,3 +38,19 @@ def test_profile_update(client, customer):
 def test_profile_bad_locale(client, customer):
     r = client.patch("/api/auth/me", headers=customer["headers"], json={"locale": "fr"})
     assert r.status_code == 422
+
+
+def test_verify_normalizes_legacy_locale(client):
+    """Регресс: старый прототип присылал locale='en' — нормализуем, а не падаем."""
+    client.post("/api/auth/request-code", json={"phone": "+971506666666"})
+    r = client.post("/api/auth/verify", json={"phone": "+971506666666", "code": "1836",
+                                              "locale": "en"})
+    assert r.status_code == 200
+    assert r.json()["user"]["locale"] == "ru"
+
+
+def test_order_legacy_item_without_drink_id_422(client, customer):
+    """Регресс прод-бага: позиция без drinkId должна давать понятный 422, а не 500."""
+    r = client.post("/api/orders", json={"items": [{"quantity": 8, "addons": []}],
+                                         "carPlate": "X 1"}, headers=customer["headers"])
+    assert r.status_code == 422

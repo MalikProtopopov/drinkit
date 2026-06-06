@@ -40,6 +40,13 @@ function Editor({ slug }: { slug: string }) {
   };
 
   const saveBindings = async () => {
+    // валидация до запроса — иначе бэк ответит 422 PORTIONS_RANGE_INVALID
+    const bad = bindings.find((b) => !(0 <= b.minPortions && b.minPortions <= b.defaultPortions
+      && b.defaultPortions <= b.maxPortions && b.portionAmount > 0));
+    if (bad) {
+      toast(`«${addonName(bad.addonId)}»: нужно 0 ≤ мин ≤ дефолт ≤ макс и объём порции > 0`, "warn");
+      return;
+    }
     try {
       const d = await catalogApi.setBindings(drink.id, bindings);
       setDrink(d); setBindings(d.bindings);

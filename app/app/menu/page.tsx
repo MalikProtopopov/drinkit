@@ -10,7 +10,8 @@ function MenuInner() {
   // PUB-G-01 AC4: фильтр по категории — query-параметр, состояние шарится ссылкой
   const router = useRouter();
   const search = useSearchParams();
-  const activeCat = search.get("category") ? Number(search.get("category")) : null;
+  const catParam = Number(search.get("category"));
+  const activeCat = search.get("category") && Number.isInteger(catParam) ? catParam : null;
   const setActiveCat = (id: number | null) =>
     router.replace(id === null ? "/menu" : `/menu?category=${id}`, { scroll: false });
   const { categories, drinks, loading, error } = useCatalog(activeCat);

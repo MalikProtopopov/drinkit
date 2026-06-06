@@ -8,7 +8,10 @@ import { api, type ApiCoupon, type ApiUser } from "@/lib/api";
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const cart = useStore((s) => s.cart);
+  // позиции без drinkId добавлены старым прототипом — заказать их нельзя (защита от 422)
+  const rawCart = useStore((s) => s.cart);
+  const cart = rawCart.filter((i) => typeof i.drinkId === "number");
+  const legacyCount = rawCart.length - cart.length;
   const clearCart = useStore((s) => s.clearCart);
   const setUser = useStore((s) => s.setUser);
   const totals = useCartTotal();
@@ -135,6 +138,13 @@ export default function CheckoutPage() {
                value={`${Math.max(0, totals.subtotal - (couponId !== null ? cart[couponLine]?.unitPriceAed ?? 0 : 0)).toFixed(0)} AED`}
                big />
         </div>
+
+        {legacyCount > 0 && (
+          <div className="mt-3 text-center text-caption muted">
+            {legacyCount} поз. из старой версии корзины недоступны и не попадут в заказ —
+            добавьте напитки заново из меню
+          </div>
+        )}
 
         {error && <div className="mt-3 text-center text-caption" style={{ color: "var(--color-error)" }}>{error}</div>}
       </div>

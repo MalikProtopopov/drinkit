@@ -53,9 +53,11 @@ def verify(body: VerifyIn, db: Session = Depends(get_db)):
 
     user = db.scalar(select(User).where(User.phone == body.phone))
     created = False
+    # нормализация: старый прототип мог прислать locale="en" из localStorage
+    locale = body.locale if body.locale in settings.locales else settings.default_locale
     if not user:
         user = User(phone=body.phone, name=body.name,
-                    preferred_locale=body.locale or settings.default_locale)
+                    preferred_locale=locale)
         db.add(user)
         created = True
     elif body.name and not user.name:

@@ -162,6 +162,23 @@ export const useStore = create<AppState>()(
     }),
     {
       name: "juicy-mvp",
+      // v2: миграция после перехода прототип → API. У старых позиций корзины нет
+      // drinkId (серверного id) — такие позиции невозможно заказать (422 на POST /orders),
+      // выкидываем. Локаль "en" старого прототипа больше не поддерживается. Старые
+      // mock-заказы вычищаем — реальные приходят с бэкенда.
+      version: 2,
+      migrate: (persisted: unknown) => {
+        const s = persisted as Partial<AppState> & { user?: UserProfile };
+        return {
+          ...s,
+          cart: (s.cart ?? []).filter((i) => typeof i.drinkId === "number"),
+          orders: [],
+          user: {
+            ...(s.user ?? { preferredLocale: "ru" as const }),
+            preferredLocale: s.user?.preferredLocale === "ar" ? ("ar" as const) : ("ru" as const),
+          },
+        };
+      },
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
         onboardingSeen: s.onboardingSeen,

@@ -11,7 +11,8 @@ function HomeInner() {
   // PUB-G-01: фото категории + активное название; AC4 — фильтр в query-параметре
   const router = useRouter();
   const search = useSearchParams();
-  const activeCat = search.get("category") ? Number(search.get("category")) : null;
+  const catParam = Number(search.get("category"));
+  const activeCat = search.get("category") && Number.isInteger(catParam) ? catParam : null;
   const setActiveCat = (id: number | null) =>
     router.replace(id === null ? "/home" : `/home?category=${id}`, { scroll: false });
   const { categories, drinks, loading, error } = useCatalog(activeCat);
