@@ -20,7 +20,7 @@ class PhoneIn(BaseModel):
 
 class VerifyIn(BaseModel):
     phone: str
-    code: str
+    code: str = ""  # при выключенном OTP код не требуется
     name: str | None = None
     locale: str | None = None  # PUB-A-09 AC3: язык фиксируется при регистрации
 
@@ -30,11 +30,14 @@ def request_code(body: PhoneIn, db: Session = Depends(get_db)):
     """PUB-G-04: запрос SMS-кода. DECISION: SMS-провайдер не выбран (откр. вопрос Q2),
     в dev-режиме код фиксированный и возвращается в ответе; интеграция-адаптер
     подключается в services/sms.py при выборе провайдера."""
+    if not settings.auth_otp_enabled:
+        # OTP выключен: SMS не шлём, фронт сразу вызывает /verify без кода
+        return {"sent": False, "otpRequired": False}
     code = settings.otp_dev_code if settings.otp_dev_mode else f"{random.randint(0, 9999):04d}"
     db.add(OtpCode(phone=body.phone, code=code,
                    expires_at=datetime.utcnow() + timedelta(seconds=settings.otp_ttl_seconds)))
     db.commit()
-    resp = {"sent": True, "ttl": settings.otp_ttl_seconds}
+    resp = {"sent": True, "otpRequired": True, "ttl": settings.otp_ttl_seconds}
     if settings.otp_dev_mode:
         resp["devCode"] = code
     return resp
@@ -42,14 +45,15 @@ def request_code(body: PhoneIn, db: Session = Depends(get_db)):
 
 @router.post("/verify")
 def verify(body: VerifyIn, db: Session = Depends(get_db)):
-    otp = db.scalar(
-        select(OtpCode)
-        .where(OtpCode.phone == body.phone, OtpCode.code == body.code, OtpCode.used.is_(False))
-        .order_by(OtpCode.id.desc())
-    )
-    if not otp or otp.expires_at < datetime.utcnow():
-        raise HTTPException(401, "OTP_INVALID")
-    otp.used = True
+    if settings.auth_otp_enabled:
+        otp = db.scalar(
+            select(OtpCode)
+            .where(OtpCode.phone == body.phone, OtpCode.code == body.code, OtpCode.used.is_(False))
+            .order_by(OtpCode.id.desc())
+        )
+        if not otp or otp.expires_at < datetime.utcnow():
+            raise HTTPException(401, "OTP_INVALID")
+        otp.used = True
 
     user = db.scalar(select(User).where(User.phone == body.phone))
     created = False

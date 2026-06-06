@@ -24,6 +24,7 @@ export type CartItem = {
   // V2: серверные идентификаторы для POST /api/orders (PUB-G-05)
   drinkId?: number;
   drinkSlug?: string;
+  previewUrl?: string;
   serverAddons?: { addonId: number; portions: number }[];
   addonsLabel?: string;
 };

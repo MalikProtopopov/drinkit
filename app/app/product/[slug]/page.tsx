@@ -115,7 +115,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
       productId: String(drink.id), variantCode: "STD", quantity: 1,
       customName: customName || undefined,
       addons: [], productName: drink.name, productBg: bg, unitPriceAed: price,
-      drinkId: drink.id, drinkSlug: drink.slug,
+      drinkId: drink.id, drinkSlug: drink.slug, previewUrl: drink.previewUrl,
       serverAddons: selections, addonsLabel: label,
     });
     setToast("Добавлено в корзину");
@@ -130,9 +130,11 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
                className="absolute inset-0 w-full h-full object-cover"
                onError={(e) => ((e.target as HTMLVideoElement).style.display = "none")} />
       ) : null}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <DrinkArt glass="tall" liquid="#F0A340" size={260} />
-      </div>
+      {!drink.videoUrl && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <DrinkArt glass="tall" liquid="#F0A340" size={260} />
+        </div>
+      )}
       <div className="absolute inset-0 pointer-events-none"
            style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 14%, transparent 60%, rgba(0,0,0,0.25) 100%)" }} />
 

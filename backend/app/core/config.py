@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None
 
+    # Вход по телефону: OTP выключен (решение владельца — SMS пока не отправляем,
+    # телефон = контакт для выдачи; клиент мотивирован указать верный — заказ уже оплачен).
+    # При подключении SMS-провайдера включается AUTH_OTP_ENABLED=true без правок кода.
+    auth_otp_enabled: bool = False
     # OTP: в dev-режиме код фиксированный и возвращается в ответе API
     otp_dev_mode: bool = True
     otp_dev_code: str = "1836"

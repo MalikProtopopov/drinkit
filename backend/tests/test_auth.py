@@ -54,3 +54,19 @@ def test_order_legacy_item_without_drink_id_422(client, customer):
     r = client.post("/api/orders", json={"items": [{"quantity": 8, "addons": []}],
                                          "carPlate": "X 1"}, headers=customer["headers"])
     assert r.status_code == 422
+
+
+def test_login_without_otp_when_disabled(client):
+    """Решение владельца: OTP выключен — вход по телефону без кода."""
+    from app.core.config import settings
+    settings.auth_otp_enabled = False
+    try:
+        r = client.post("/api/auth/request-code", json={"phone": "+971505555555"})
+        assert r.status_code == 200 and r.json()["otpRequired"] is False
+        r = client.post("/api/auth/verify", json={"phone": "+971505555555", "name": "Без Кода"})
+        assert r.status_code == 200 and "token" in r.json()
+        # повторный вход тем же телефоном — тот же пользователь
+        r2 = client.post("/api/auth/verify", json={"phone": "+971505555555"})
+        assert r2.json()["created"] is False
+    finally:
+        settings.auth_otp_enabled = True

@@ -91,9 +91,9 @@ export const api = {
 
   // ---------- auth ----------
   requestCode: (phone: string) =>
-    req<{ sent: boolean; devCode?: string }>("/api/auth/request-code",
+    req<{ sent: boolean; otpRequired?: boolean; devCode?: string }>("/api/auth/request-code",
       { method: "POST", body: JSON.stringify({ phone }) }),
-  verify: (phone: string, code: string, name?: string, locale?: string) =>
+  verify: (phone: string, code = "", name?: string, locale?: string) =>
     req<{ token: string; user: ApiUser; created: boolean }>("/api/auth/verify",
       { method: "POST", body: JSON.stringify({ phone, code, name, locale }) }),
   me: () => req<ApiUser>("/api/auth/me"),

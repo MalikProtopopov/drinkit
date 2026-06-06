@@ -46,7 +46,12 @@ export default function CartPage() {
                  className="rounded-2xl bg-white border border-[var(--color-border)] p-3 flex gap-3">
               <div className="relative w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden"
                    style={{ background: item.productBg }}>
-                <DrinkArt glass="tall" liquid="#F0A340" size={70} showShadow={false} />
+                {item.previewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={item.previewUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                ) : (
+                  <DrinkArt glass="tall" liquid="#F0A340" size={70} showShadow={false} />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-h3 leading-tight truncate">{item.customName || item.productName}</div>

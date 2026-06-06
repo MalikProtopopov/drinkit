@@ -14,13 +14,37 @@ export function categoryBg(categoryId: number) {
 
 export function ApiProductCard({ drink }: { drink: ApiDrinkLite }) {
   const bg = categoryBg(drink.categoryId);
+  const hasMedia = Boolean(drink.videoUrl || drink.previewUrl);
   return (
     <Link href={`/product/${drink.slug}`} className="block group select-none">
       <div
         className="relative rounded-3xl overflow-hidden"
         style={{ background: bg, aspectRatio: "1/1.1" }}
       >
-        {drink.previewUrl ? (
+        {/* SVG-фолбэк рисуем только когда медиа нет (мок-видео из public/videos) */}
+        {!hasMedia && (
+          <div className="absolute inset-0 flex items-end justify-center pb-1 pointer-events-none">
+            <DrinkArt
+              glass={GLASS[drink.id % GLASS.length]}
+              liquid={LIQ[drink.id % LIQ.length]}
+              size={150}
+              showShadow={false}
+            />
+          </div>
+        )}
+        {drink.videoUrl ? (
+          <video
+            src={drink.videoUrl}
+            poster={drink.previewUrl}
+            muted
+            loop
+            playsInline
+            autoPlay
+            preload="metadata"
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={(e) => ((e.target as HTMLVideoElement).style.display = "none")}
+          />
+        ) : drink.previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={drink.previewUrl}
@@ -29,14 +53,6 @@ export function ApiProductCard({ drink }: { drink: ApiDrinkLite }) {
             onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
           />
         ) : null}
-        <div className="absolute inset-0 flex items-end justify-center pb-1 pointer-events-none">
-          <DrinkArt
-            glass={GLASS[drink.id % GLASS.length]}
-            liquid={LIQ[drink.id % LIQ.length]}
-            size={150}
-            showShadow={false}
-          />
-        </div>
       </div>
       <div className="px-1 pt-3 pb-1">
         <div className="text-[15px] font-medium leading-tight line-clamp-2 min-h-[36px]">

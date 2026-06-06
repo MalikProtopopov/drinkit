@@ -2,6 +2,7 @@ import os
 import tempfile
 
 os.environ["DATABASE_URL"] = f"sqlite:///{tempfile.mkdtemp()}/test.db"
+os.environ["AUTH_OTP_ENABLED"] = "true"  # OTP-флоу тестируем включённым
 
 import pytest
 from fastapi.testclient import TestClient

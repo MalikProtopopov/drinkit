@@ -34,14 +34,32 @@ export default function PhonePage() {
     const phone = "+971" + digits;
     setSending(true);
     try {
-      // PUB-G-04: запрос SMS-кода на бэке; в dev-режиме код приходит в ответе
-      const { api } = await import("@/lib/api");
+      const { api, setToken } = await import("@/lib/api");
       const r = await api.requestCode(phone);
-      if (r.devCode) sessionStorage.setItem("juicy-dev-otp", r.devCode);
       setUser({ phone });
+      if (r.otpRequired === false) {
+        // OTP выключен (решение владельца): телефон — контакт для выдачи, входим сразу
+        const locale = useStore.getState().user.preferredLocale;
+        const v = await api.verify(phone, "", undefined, locale === "ar" ? "ar" : "ru");
+        setToken(v.token);
+        useStore.getState().setUser({
+          name: v.user.name ?? undefined,
+          defaultCarPlate: v.user.carPlate ?? undefined,
+          defaultEmirate: v.user.emirate ?? undefined,
+          preferredLocale: v.user.locale === "ar" ? "ar" : "ru",
+        });
+        const nextUrl = sessionStorage.getItem("juicy-auth-next");
+        if (v.created || !v.user.name) router.push("/auth/name");
+        else {
+          sessionStorage.removeItem("juicy-auth-next");
+          router.push(nextUrl || "/home");
+        }
+        return;
+      }
+      // OTP включён (когда подключим SMS-провайдера) — обычный флоу с кодом
+      if (r.devCode) sessionStorage.setItem("juicy-dev-otp", r.devCode);
       router.push("/auth/otp");
     } catch {
-      // бэкенд недоступен — остаёмся в прототипном режиме
       setUser({ phone });
       router.push("/auth/otp");
     } finally {
@@ -66,7 +84,7 @@ export default function PhonePage() {
 
       <div className="flex-1 flex flex-col px-6 pt-6">
         <div className="text-center muted text-body mb-8">
-          Введи номер — мы отправим SMS&nbsp;с&nbsp;кодом
+          Введи номер телефона — по нему бариста выдаст оплаченный заказ
         </div>
 
         <div className="bg-[#F4F4F7] rounded-2xl px-5 h-16 flex items-center gap-3 mb-4">

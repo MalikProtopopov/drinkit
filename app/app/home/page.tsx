@@ -32,12 +32,18 @@ function HomeInner() {
             className="absolute inset-0 flex items-center justify-center"
             style={{ background: currentCat ? categoryBg(currentCat.id) : "#F4EEE4" }}
           >
-            {currentCat?.photoUrl ? (
+            {!featured?.videoUrl && <DrinkArt glass="tall" liquid="#F0A340" garnish="mint" size={220} />}
+            {featured?.videoUrl ? (
+              // full-bleed видео-петля featured-напитка (как в прототипе)
+              <video key={featured.id} src={featured.videoUrl} poster={featured.previewUrl}
+                     muted loop playsInline autoPlay
+                     className="absolute inset-0 w-full h-full object-cover"
+                     onError={(e) => ((e.target as HTMLVideoElement).style.display = "none")} />
+            ) : currentCat?.photoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={currentCat.photoUrl} alt="" className="absolute inset-0 w-full h-full object-cover"
                    onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
             ) : null}
-            <DrinkArt glass="tall" liquid="#F0A340" garnish="mint" size={220} />
           </div>
           <div className="absolute inset-x-0 bottom-0 h-[42%] pointer-events-none"
                style={{ background: "linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.05) 35%, rgba(0,0,0,0.45) 100%)" }} />

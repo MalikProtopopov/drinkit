@@ -18,7 +18,12 @@ def test_drinks_filter_by_category(client):
     cats = client.get("/api/categories").json()
     fresh = next(c for c in cats if c["name"] == "Фреши")
     drinks = client.get(f"/api/drinks?category={fresh['id']}").json()
-    assert {d["slug"] for d in drinks} == {"orange-fresh", "watermelon-fresh", "pomegranate-fresh"}
+    slugs = {d["slug"] for d in drinks}
+    assert {"orange-fresh", "watermelon-fresh", "pomegranate-fresh"} <= slugs
+    assert len(slugs) >= 10  # расширенный каталог
+    # у всех напитков — реальные видео и превью (моки из public/videos)
+    for d in drinks:
+        assert d["videoUrl"].startswith("/videos/") and d["previewUrl"].endswith(".jpg")
 
 
 def test_draft_not_in_catalog(client):
