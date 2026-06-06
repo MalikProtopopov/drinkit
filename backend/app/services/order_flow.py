@@ -12,14 +12,15 @@ from ..models.orders import (ORDER_STATUSES, Coupon, Order, OrderEvent, OrderIte
 from ..models.users import User
 from .i18n import t
 
-ACTIVE_STATUSES = ["new", "in_progress", "ready", "arrived"]  # ADM-M-01 AC2
+ACTIVE_STATUSES = ["new", "in_progress", "ready"]  # ADM-M-01 AC2
 
-# допустимые переходы единого поля статуса (§0.1)
+# Переходы статуса ГОТОВКИ. Прибытие клиента ("я на месте") — НЕ ступень цепочки,
+# а независимый флаг arrived_at: клиент мог заказать, уже стоя у точки, а бариста
+# мог забыть нажать «готово» — прибытие не должно от этого зависеть.
 TRANSITIONS = {
     "new": ["in_progress"],
     "in_progress": ["ready"],
-    "ready": ["arrived", "completed"],
-    "arrived": ["completed"],
+    "ready": ["completed"],
     "completed": ["refund"],  # возврат — опциональный модуль ADM-M-06
 }
 
@@ -32,7 +33,8 @@ def add_event(db: Session, order: Order, type_: str, status: str | None = None,
 
 def notify(order: Order):
     """Realtime по WebSocket (решение владельца, PUB-A-03 AC5)."""
-    msg = {"orderId": order.id, "status": order.status, "paymentStatus": order.payment_status}
+    msg = {"orderId": order.id, "status": order.status, "paymentStatus": order.payment_status,
+           "arrived": order.arrived_at is not None}
     pubsub.publish(f"order:{order.id}", msg)
     pubsub.publish("admin:orders", {**msg, "number": order.number})
 
@@ -132,8 +134,6 @@ def transition(db: Session, order: Order, new_status: str,
     if new_status not in allowed:
         raise HTTPException(409, f"INVALID_TRANSITION:{order.status}->{new_status}")
     order.status = new_status
-    if new_status == "arrived":
-        order.arrived_at = datetime.utcnow()
     if new_status == "in_progress" and by_staff_id:
         order.manager_id = by_staff_id  # «Взять в работу» закрепляет менеджера (ADM-M-02)
     add_event(db, order, "status_change", status=new_status,

@@ -30,6 +30,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 export type Staff = { id: number; email: string; name: string; role: string; disabled: boolean };
 export type AdminOrder = {
   id: number; number: number; status: string; paymentStatus: string;
+  arrived: boolean;
   customerName?: string; phone: string; carPlate: string; emirate?: string;
   subtotal: number; couponDiscount: number; total: number;
   managerId?: number; rating?: string | null; createdAt: string;
@@ -137,5 +138,5 @@ export function adminOrdersWs(): WebSocket {
 
 export const ADMIN_STATUS_LABEL: Record<string, string> = {
   new: "новый", in_progress: "в работе", ready: "готов, ждёт клиента",
-  arrived: "клиент ожидает получения", completed: "передан", refund: "возврат",
+  completed: "передан", refund: "возврат",
 };

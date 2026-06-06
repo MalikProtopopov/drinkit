@@ -20,6 +20,7 @@ def _order_row(o: Order) -> dict:
         "carPlate": o.car_plate, "emirate": o.emirate,
         "subtotal": o.subtotal, "couponDiscount": o.coupon_discount, "total": o.total,
         "managerId": o.manager_id, "rating": o.rating,
+        "arrived": o.arrived_at is not None,
         "createdAt": o.created_at.isoformat() if o.created_at else None,
         "items": [
             {

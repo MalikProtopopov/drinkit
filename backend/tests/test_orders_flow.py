@@ -10,32 +10,40 @@ def test_golden_path(client, customer, manager):
 
     oid = order["id"]
 
-    # клиент не может отметить «прибыл» до готовности (§0.1)
+    # «я на месте» — независимый флаг: доступен СРАЗУ после оплаты, до готовности
+    # (клиент мог заказать, уже стоя у точки; бариста мог забыть нажать «готово»)
     r = client.post(f"/api/orders/{oid}/arrived", headers=customer["headers"])
-    assert r.status_code == 409
+    assert r.status_code == 200
+    assert r.json()["arrived"] is True and r.json()["status"] == "new"
 
-    # менеджер: взять в работу → готов
+    # менеджер: взять в работу → готов (флаг прибытия виден поверх любого статуса)
     r = client.post(f"/api/admin/orders/{oid}/take", headers=manager["headers"])
     assert r.status_code == 200 and r.json()["status"] == "in_progress"
     assert r.json()["managerId"] is not None  # закрепление менеджера (ADM-M-02)
+    assert r.json()["arrived"] is True
 
     r = client.post(f"/api/admin/orders/{oid}/status", json={"status": "ready"},
                     headers=manager["headers"])
     assert r.json()["status"] == "ready"
 
-    # клиент приехал
+    # повторное «прибыл» идемпотентно
     r = client.post(f"/api/orders/{oid}/arrived", headers=customer["headers"])
-    assert r.status_code == 200 and r.json()["status"] == "arrived"
+    assert r.status_code == 200
 
     # менеджер передал
     r = client.post(f"/api/admin/orders/{oid}/status", json={"status": "completed"},
                     headers=manager["headers"])
     assert r.json()["status"] == "completed"
 
-    # история событий: created, paid, 4 смены статуса (ADM-M-04)
+    # после выдачи «прибыл» уже не ставится
+    r = client.post(f"/api/orders/{oid}/arrived", headers=customer["headers"])
+    assert r.status_code == 409
+
+    # история: created, paid, событие arrived, 3 смены статуса готовки (ADM-M-04)
     detail = client.get(f"/api/admin/orders/{oid}", headers=manager["headers"]).json()
     types = [e["type"] for e in detail["events"]]
-    assert types.count("status_change") == 4
+    assert types.count("status_change") == 3
+    assert "arrived" in types
     assert "created" in types and "paid" in types
 
 

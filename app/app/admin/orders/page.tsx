@@ -70,7 +70,7 @@ function OrdersInner() {
           </thead>
           <tbody>
             {rows.map((o) => (
-              <tr key={o.id} style={o.status === "arrived" ? { background: "#FFF7E5" } : undefined}>
+              <tr key={o.id} style={o.arrived && o.status !== "completed" ? { background: "#FFF7E5" } : undefined}>
                 <td>
                   <Link href={`/admin/orders/${o.id}`} className="admin-num"
                         style={{ color: "#0E0E10", fontWeight: 700, textDecoration: "none" }}>
@@ -87,10 +87,15 @@ function OrdersInner() {
                 </td>
                 <td className="admin-num">{o.total.toFixed(2)}</td>
                 <td>
-                  {/* видны оба аспекта статуса без захода в деталку (ADM-M-01 AC4) */}
-                  <span className={`admin-badge ${o.status === "arrived" ? "ready" : o.status}`}>
+                  {/* статус готовки + независимый флаг прибытия (ADM-M-01 AC4) */}
+                  <span className={`admin-badge ${o.status}`}>
                     {ADMIN_STATUS_LABEL[o.status] ?? o.status}
                   </span>
+                  {o.arrived && o.status !== "completed" && (
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#B45309", marginTop: 4 }}>
+                      🚗 клиент на месте
+                    </div>
+                  )}
                 </td>
                 <td>{o.rating === "like" ? "👍" : o.rating === "dislike" ? "👎" : "—"}</td>
                 <td style={{ textAlign: "right" }}>

@@ -6,16 +6,16 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..core.db import Base
 
 # Единая цепочка статусов (§0.1, решение владельца — ОДНО поле):
-ORDER_STATUSES = ["new", "in_progress", "ready", "arrived", "completed", "refund"]
+ORDER_STATUSES = ["new", "in_progress", "ready", "completed", "refund"]
 # кто имеет право ставить какой статус:
 STATUS_SETTER = {
     "new": "system",
     "in_progress": "staff",
     "ready": "staff",
-    "arrived": "customer",  # доступно только после ready
     "completed": "staff",
     "refund": "staff",  # опциональный модуль ADM-M-06
 }
+# прибытие клиента — независимый флаг Order.arrived_at (ставит клиент в любой момент после оплаты)
 
 
 class Order(Base):

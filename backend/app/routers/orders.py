@@ -39,6 +39,7 @@ class OrderIn(BaseModel):
 def order_payload(o: Order, full: bool = True) -> dict:
     data = {
         "id": o.id, "number": o.number, "status": o.status, "paymentStatus": o.payment_status,
+        "arrived": o.arrived_at is not None,
         "subtotal": o.subtotal, "couponDiscount": o.coupon_discount, "total": o.total,
         "createdAt": o.created_at.isoformat() if o.created_at else None,
         "rating": o.rating,
@@ -98,8 +99,10 @@ def order_detail(order_id: int, user: User = Depends(get_current_user), db: Sess
     o = _own_order(order_id, user, db)
     data = order_payload(o)
     # PUB-A-04 AC1: флаг «пора показать модалку оценки» — приехал, не завершён > N минут
+    # модалка оценки: прибыл, заказ не выдан дольше N минут — независимо от статуса готовки
     data["ratingPromptDue"] = bool(
-        o.rating is None and o.arrived_at is not None and o.status == "arrived"
+        o.rating is None and o.arrived_at is not None
+        and o.status not in ("completed", "refund")
         and datetime.utcnow() - o.arrived_at > timedelta(minutes=settings.rating_timeout_minutes)
     )
     return data
@@ -107,9 +110,21 @@ def order_detail(order_id: int, user: User = Depends(get_current_user), db: Sess
 
 @router.post("/{order_id}/arrived")
 def mark_arrived(order_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """PUB-A-03 AC2: «Прибыл, готов забрать» — только после ready (валидируется переходом)."""
+    """«Я на месте» — независимый флаг: доступен в любой момент после оплаты
+    (клиент мог заказать, уже стоя у точки; бариста мог забыть «готово»)."""
+    from datetime import datetime as _dt
+    from ..services.order_flow import add_event, notify
+
     o = _own_order(order_id, user, db)
-    transition(db, o, "arrived", by_user_id=user.id)
+    if o.payment_status != "paid":
+        raise HTTPException(409, "ORDER_NOT_PAID")
+    if o.status in ("completed", "refund"):
+        raise HTTPException(409, "ORDER_FINISHED")
+    if o.arrived_at is None:  # идемпотентно
+        o.arrived_at = _dt.utcnow()
+        add_event(db, o, "arrived", by_user_id=user.id)
+        db.commit()
+        notify(o)
     return order_payload(o)
 
 
@@ -126,7 +141,7 @@ def rate_order(order_id: int, body: RateIn,
     o = _own_order(order_id, user, db)
     if o.rating is not None:
         raise HTTPException(409, "ALREADY_RATED")
-    if o.status not in ("arrived", "completed"):
+    if o.status != "completed" and o.arrived_at is None:
         raise HTTPException(409, "ORDER_NOT_RATABLE")
     o.rating = body.rating
     o.rated_at = datetime.utcnow()

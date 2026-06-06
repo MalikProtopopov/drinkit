@@ -5,7 +5,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { ConfirmDialog, useToast } from "@/components/admin/AdminUI";
 import { adminApi, adminOrdersWs, ADMIN_STATUS_LABEL, type AdminOrder } from "@/lib/adminApi";
 
-const CHAIN = ["new", "in_progress", "ready", "arrived", "completed"];
+const CHAIN = ["new", "in_progress", "ready", "completed"];
 
 function Detail({ id }: { id: number }) {
   const toast = useToast();
@@ -151,15 +151,16 @@ function Detail({ id }: { id: number }) {
                 Готово, ожидает прибытия
               </button>
             )}
-            {(order.status === "ready" || order.status === "arrived") && (
+            {order.status === "ready" && (
               <button className="admin-btn primary" style={{ width: "100%", justifyContent: "center", padding: 10 }}
                       onClick={() => act(() => adminApi.setStatus(order.id, "completed"), "Передан клиенту")}>
                 Передан клиенту
               </button>
             )}
-            {order.status === "arrived" && (
+            {order.arrived && order.status !== "completed" && order.status !== "refund" && (
               <div style={{ marginTop: 10, padding: 10, background: "#FFF7E5", fontWeight: 600, borderRadius: 8 }}>
-                🚗 Клиент ожидает получения — вынесите заказ к машине {order.emirate} {order.carPlate}
+                🚗 Клиент уже на месте — машина {order.emirate} {order.carPlate}.
+                {order.status !== "ready" && " Заказ ещё готовится — приоритет!"}
               </div>
             )}
             {order.status === "completed" && (

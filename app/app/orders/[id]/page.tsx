@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { api, orderWs, STATUS_LABELS, type ApiOrder } from "@/lib/api";
 import { useT } from "@/lib/i18n";
 
-// единая цепочка статусов (§0.1); подписи — из словаря i18n (step.*)
-const STEPS = ["new", "in_progress", "ready", "arrived", "completed"];
+// цепочка статусов готовки; «я на месте» — независимый флаг, не ступень
+const STEPS = ["new", "in_progress", "ready", "completed"];
 
 export default function OrderStatusPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -50,8 +50,10 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
 
   const currentIdx = Math.max(0, STEPS.indexOf(order.status));
   const isRefund = order.status === "refund";
-  const canArrive = order.status === "ready";
-  const canRate = !order.rating && (order.status === "arrived" || order.status === "completed");
+  // «я на месте» доступно сразу после оплаты — клиент мог заказать, уже стоя у точки
+  const canArrive = order.paymentStatus === "paid" && !order.arrived
+    && order.status !== "completed" && !isRefund;
+  const canRate = !order.rating && (order.arrived || order.status === "completed");
   const st = STATUS_LABELS[order.status] ?? STATUS_LABELS.new;
 
   const markArrived = async () => {
@@ -127,13 +129,20 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
           </button>
         )}
 
-        {/* «Прибыл» — доступно только после ready (§0.1) */}
+        {/* «Я на месте» — независимый флаг, доступен в любой момент после оплаты */}
         <button onClick={markArrived} disabled={!canArrive}
                 className={`btn-pill w-full mb-3 ${canArrive ? "btn-primary" : "btn-soft is-disabled"}`}>
-          {order.status === "arrived" ? "✓ Бариста знает, что вы на месте"
+          {order.arrived && order.status !== "completed" ? "✓ Бариста знает, что вы на месте"
             : order.status === "completed" ? "Заказ получен — приятного!"
-            : "Прибыл, готов забрать"}
+            : "Я на месте — вынесите к машине"}
         </button>
+        {order.arrived && order.status !== "completed" && !isRefund && (
+          <div className="text-center text-caption muted mb-3">
+            {order.status === "ready"
+              ? "Напиток готов — бариста уже идёт к вам 🚗"
+              : "Готовим ваш напиток — вынесем, как только будет готов"}
+          </div>
+        )}
 
         {canRate && (
           <button onClick={() => setShowRating(true)} className="btn-pill btn-soft w-full mb-3">

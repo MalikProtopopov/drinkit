@@ -60,6 +60,7 @@ export type ApiDrink = ApiDrinkLite & {
 export type Selection = { addonId: number; portions: number };
 export type ApiOrder = {
   id: number; number: number; status: string; paymentStatus: string;
+  arrived: boolean;
   subtotal: number; couponDiscount: number; total: number; createdAt: string;
   rating: string | null; ratingPromptDue?: boolean;
   customerName?: string; phone?: string; carPlate?: string; emirate?: string;

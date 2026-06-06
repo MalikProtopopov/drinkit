@@ -27,7 +27,6 @@ const DICT: Record<string, { ru: string; ar: string }> = {
   "step.new": { ru: "Принят", ar: "تم القبول" },
   "step.in_progress": { ru: "Готовим", ar: "نحضّر" },
   "step.ready": { ru: "Готов", ar: "جاهز" },
-  "step.arrived": { ru: "Вы на месте", ar: "وصلت" },
   "step.completed": { ru: "Получен", ar: "استلمت" },
 };
 
