@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from . import models  # noqa: F401  — регистрирует все таблицы в Base.metadata
 from .core.db import Base, SessionLocal, engine
 from .services.seed import seed
 

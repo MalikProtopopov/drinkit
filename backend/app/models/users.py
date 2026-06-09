@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, String, func
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from ..core.db import Base
@@ -31,6 +31,8 @@ class StaffUser(Base):
     password_hash: Mapped[str] = mapped_column(String(200))
     name: Mapped[str] = mapped_column(String(80))
     role: Mapped[str] = mapped_column(String(20), default="manager")  # super_admin | manager
+    # GRABZI: привязка сотрудника к точке (план §5.9). manager обязан иметь; super_admin = None.
+    location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"), nullable=True)
     disabled: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

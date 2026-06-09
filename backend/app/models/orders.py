@@ -24,6 +24,9 @@ class Order(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     number: Mapped[int] = mapped_column(Integer, unique=True, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    # GRABZI: точка, где сделан заказ (план §5.1). nullable для исторических заказов Juicy.
+    location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"), nullable=True,
+                                                    index=True)
     status: Mapped[str] = mapped_column(String(15), default="new", index=True)
     payment_status: Mapped[str] = mapped_column(String(15), default="pending")  # pending|paid|failed|refunded
 
