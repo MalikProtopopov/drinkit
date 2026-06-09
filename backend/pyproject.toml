@@ -36,6 +36,12 @@ freezegun = "*"
 ruff = "^0.9"
 mypy = "^1.14"
 
+[tool.poetry.scripts]
+api = "app.cli:run_api"
+migrate = "app.cli:run_migrate"
+seed = "app.cli:run_seed"
+seed-grabzi = "app.cli:run_seed_grabzi"
+
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers"
 markers = ["unit", "integration", "concurrency", "contract", "e2e"]
