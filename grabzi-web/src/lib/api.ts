@@ -140,3 +140,54 @@ export const api = {
 
   order: (id: number) => apiFetch(`/api/orders/${id}`, OrderSchema, { cache: "no-store" }),
 };
+
+// ---- админка (экран готовки) ----
+const StaffSchema = z.object({
+  token: z.string(),
+  staff: z.object({ id: z.number(), name: z.string(), role: z.string(), locationId: z.number().nullable() }),
+});
+
+export const AdminOrderSchema = z.object({
+  id: z.number(), number: z.number(), status: z.string(),
+  locationId: z.number().nullable(),
+  carPlate: z.string().nullable(), emirate: z.string().nullable(),
+  arrived: z.boolean(), createdAt: z.string().nullable(),
+  items: z.array(z.object({ name: z.string(), quantity: z.number() })),
+});
+export type AdminOrder = z.infer<typeof AdminOrderSchema>;
+
+const LocStatusSchema = z.object({
+  locationId: z.number(), name: z.string(), status: z.string(),
+  soldToday: z.number(), limit: z.number().nullable(), remaining: z.number().nullable(),
+  isOpen: z.boolean(),
+}).nullable();
+
+function staffHeaders(): Record<string, string> {
+  const t = typeof window !== "undefined" ? window.localStorage.getItem("grabzi_staff_token") : null;
+  return t ? { Authorization: `Bearer ${t}` } : {};
+}
+
+async function adminFetch<S extends z.ZodTypeAny>(path: string, schema: S, init?: RequestInit) {
+  const res = await fetch(`${API_URL}${path}`, {
+    ...init, headers: { "Content-Type": "application/json", ...staffHeaders(), ...init?.headers },
+    cache: "no-store",
+  });
+  if (!res.ok) throw new ApiError(res.status, `HTTP_${res.status}`);
+  return schema.parse(await res.json()) as z.infer<S>;
+}
+
+export const admin = {
+  async login(email: string, password: string) {
+    const r = await apiFetch("/api/staff/login", StaffSchema, {
+      method: "POST", body: JSON.stringify({ email, password }), auth: false,
+    });
+    if (typeof window !== "undefined") window.localStorage.setItem("grabzi_staff_token", r.token);
+    return r.staff;
+  },
+  orders: (active = true) => adminFetch(`/api/admin/orders?active=${active}`, z.array(AdminOrderSchema)),
+  take: (id: number) => adminFetch(`/api/admin/orders/${id}/take`, AdminOrderSchema, { method: "POST" }),
+  setStatus: (id: number, status: "ready" | "completed") =>
+    adminFetch(`/api/admin/orders/${id}/status`, AdminOrderSchema,
+      { method: "POST", body: JSON.stringify({ status }) }),
+  locationStatus: () => adminFetch("/api/admin/location-status", LocStatusSchema),
+};
