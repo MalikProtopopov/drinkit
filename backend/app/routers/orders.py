@@ -29,6 +29,7 @@ class ItemIn(BaseModel):
 
 class OrderIn(BaseModel):
     items: list[ItemIn]
+    locationId: int | None = None  # GRABZI: точка заказа (план §5.1); legacy Juicy — None
     customerName: str | None = None
     carPlate: str | None = None
     emirate: str | None = None

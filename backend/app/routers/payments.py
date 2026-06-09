@@ -4,10 +4,11 @@ from sqlalchemy.orm import Session
 
 from ..core.config import settings
 from ..core.db import get_db
+from ..core.errors import Err, http_error
 from ..core.security import get_current_user
 from ..models.orders import Order, Payment
 from ..models.users import User
-from ..services.order_flow import mark_paid
+from ..services.order_flow import LimitExceededError, mark_paid
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
 
@@ -63,7 +64,13 @@ def create_checkout(body: CheckoutIn, user: User = Depends(get_current_user),
     # mock-режим: webhook эмулируется немедленно
     payment.provider_id = f"mock_{payment.id}"
     payment.status = "succeeded"
-    mark_paid(db, order, provider_id=payment.provider_id)
+    try:
+        mark_paid(db, order, provider_id=payment.provider_id)
+    except LimitExceededError as e:
+        # гонка: лимит точки исчерпан в момент оплаты — заказ возвращён (план §5.3)
+        payment.status = "refunded"
+        db.commit()
+        raise http_error(409, Err.LOCATION_LIMIT_REACHED, remaining=e.remaining)
     return {"checkoutUrl": f"/orders/{order.id}?paid=1", "mock": True}
 
 
@@ -88,5 +95,10 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db),
         payment = db.get(Payment, int(meta.get("payment_id", 0)))
         if order and payment and order.payment_status != "paid":
             payment.status = "succeeded"
-            mark_paid(db, order, provider_id=payment.provider_id)
+            try:
+                mark_paid(db, order, provider_id=payment.provider_id)
+            except LimitExceededError:
+                # лимит исчерпан — заказ возвращён внутри mark_paid; деньги вернуть провайдеру
+                payment.status = "refunded"
+                db.commit()
     return {"received": True}
