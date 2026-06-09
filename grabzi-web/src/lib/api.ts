@@ -139,6 +139,13 @@ export const api = {
     }),
 
   order: (id: number) => apiFetch(`/api/orders/${id}`, OrderSchema, { cache: "no-store" }),
+
+  drink: (slug: string) =>
+    apiFetch(`/api/drinks/${slug}?locale=en`, z.object({
+      id: z.number(), slug: z.string(), name: z.string(),
+      description: z.string().nullable(), previewUrl: z.string().nullable(),
+      basePrice: z.number(), kcal: z.number().nullable(),
+    }), { auth: false }),
 };
 
 // ---- админка (экран готовки) ----

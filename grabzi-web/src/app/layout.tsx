@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { Nav } from "@/components/Nav";
+import { OfflineBanner } from "@/components/OfflineBanner";
 
 export const metadata: Metadata = {
   title: "GRABZI — Ice V'60 Coffee",
@@ -16,7 +18,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   // EN-only сейчас; dir=ltr. AR/RTL — задел (логические CSS, переключение dir на будущее).
   return (
     <html lang="en" dir="ltr">
-      <body>{children}</body>
+      <body>
+        <OfflineBanner />
+        <Nav />
+        <div className="has-bottom-nav">{children}</div>
+      </body>
     </html>
   );
 }
