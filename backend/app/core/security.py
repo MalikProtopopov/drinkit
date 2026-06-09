@@ -77,3 +77,21 @@ def require_super_admin(staff=Depends(get_current_staff)):
     if staff.role != "super_admin":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "FORBIDDEN")
     return staff
+
+
+def require_manager_or_super(staff=Depends(get_current_staff)):
+    """Доступ для manager и super_admin (план §5.15): операции, доступные оператору точки."""
+    if staff.role not in ("manager", "super_admin"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "FORBIDDEN")
+    return staff
+
+
+def manager_scope_location(staff) -> int | None:
+    """Локация, к которой ограничен сотрудник (план §5.9).
+
+    manager с заданным location_id → ограничен этой точкой; super_admin или
+    manager без локации (legacy) → None (без ограничения).
+    """
+    if staff.role == "manager" and getattr(staff, "location_id", None) is not None:
+        return staff.location_id
+    return None

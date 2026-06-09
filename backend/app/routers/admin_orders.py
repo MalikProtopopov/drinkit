@@ -5,17 +5,27 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from ..core.db import get_db
-from ..core.security import get_current_staff, require_super_admin
+from ..core.errors import Err, http_error
+from ..core.security import (get_current_staff, manager_scope_location,
+                             require_super_admin)
 from ..models.orders import Coupon, Order, Payment
 from ..models.users import StaffUser, User
-from ..services.order_flow import ACTIVE_STATUSES, add_event, transition
+from ..services.order_flow import ACTIVE_STATUSES, transition
 
 router = APIRouter(prefix="/api/admin", tags=["admin-orders"])
+
+
+def _assert_scope(o: Order, staff: StaffUser):
+    """Менеджер видит/трогает заказы только своей точки (план §5.9). 403 на чужую."""
+    scope = manager_scope_location(staff)
+    if scope is not None and o.location_id != scope:
+        raise http_error(403, Err.FOREIGN_LOCATION)
 
 
 def _order_row(o: Order) -> dict:
     return {
         "id": o.id, "number": o.number, "status": o.status, "paymentStatus": o.payment_status,
+        "locationId": o.location_id,
         "customerName": o.customer_name, "phone": o.phone,
         "carPlate": o.car_plate, "emirate": o.emirate,
         "subtotal": o.subtotal, "couponDiscount": o.coupon_discount, "total": o.total,
@@ -41,6 +51,7 @@ def _order_row(o: Order) -> dict:
 def admin_orders(
     active: bool | None = Query(None, description="фильтр по активности (ADM-M-01 AC2)"),
     manager_id: int | None = Query(None),
+    location_id: int | None = Query(None, description="super_admin: фильтр по точке (план §5.9)"),
     unassigned: bool = Query(False, description="заказы без менеджера"),
     staff: StaffUser = Depends(get_current_staff),
     db: Session = Depends(get_db),
@@ -54,6 +65,12 @@ def admin_orders(
         q = q.where(Order.manager_id == manager_id)
     if unassigned:
         q = q.where(Order.manager_id.is_(None))
+    # скоуп точки: менеджер форсированно ограничен своей; super_admin — по фильтру
+    scope = manager_scope_location(staff)
+    if scope is not None:
+        q = q.where(Order.location_id == scope)
+    elif location_id is not None:
+        q = q.where(Order.location_id == location_id)
     orders = db.scalars(q.order_by(Order.id.desc())).all()
     return [_order_row(o) for o in orders]
 
@@ -64,6 +81,7 @@ def admin_order_detail(order_id: int, staff: StaffUser = Depends(get_current_sta
     o = db.get(Order, order_id)
     if not o:
         raise HTTPException(404, "NOT_FOUND")
+    _assert_scope(o, staff)
     data = _order_row(o)
     data["events"] = [
         {"type": e.type, "status": e.status, "byStaffId": e.by_staff_id, "byUserId": e.by_user_id,
@@ -80,6 +98,7 @@ def take_order(order_id: int, staff: StaffUser = Depends(get_current_staff),
     o = db.get(Order, order_id)
     if not o:
         raise HTTPException(404, "NOT_FOUND")
+    _assert_scope(o, staff)
     if o.payment_status != "paid":
         raise HTTPException(409, "ORDER_NOT_PAID")
     transition(db, o, "in_progress", by_staff_id=staff.id)
@@ -98,6 +117,7 @@ def set_status(order_id: int, body: StatusIn, staff: StaffUser = Depends(get_cur
     o = db.get(Order, order_id)
     if not o:
         raise HTTPException(404, "NOT_FOUND")
+    _assert_scope(o, staff)
     if body.status not in ("ready", "completed"):
         raise HTTPException(422, "VALIDATION_ERROR")
     transition(db, o, body.status, by_staff_id=staff.id, note=body.note)
@@ -107,19 +127,14 @@ def set_status(order_id: int, body: StatusIn, staff: StaffUser = Depends(get_cur
 @router.post("/orders/{order_id}/refund")
 def refund_order(order_id: int, body: StatusIn | None = None,
                  staff: StaffUser = Depends(get_current_staff), db: Session = Depends(get_db)):
-    """ADM-M-06 (опциональный модуль): возврат. Полный возврат заказа;
-    DECISION: Stripe Refund вызывается при наличии ключа, в mock-режиме помечается локально.
-    Применённый купон аннулируется не возвращаясь (открытый вопрос Q18 — зафиксировано так)."""
+    """ADM-M-06 (опциональный модуль): возврат. Через единый order_flow.refund_order —
+    возвращает напитки в дневной лимит точки того же дня (план §5.4)."""
+    from ..services.order_flow import refund_order as flow_refund
     o = db.get(Order, order_id)
     if not o:
         raise HTTPException(404, "NOT_FOUND")
-    transition(db, o, "refund", by_staff_id=staff.id, note=(body.note if body else None))
-    o.payment_status = "refunded"
-    for p in o.payments:
-        if p.status == "succeeded":
-            p.status = "refunded"
-    add_event(db, o, "refund", by_staff_id=staff.id)
-    db.commit()
+    _assert_scope(o, staff)
+    flow_refund(db, o, by_staff_id=staff.id, note=(body.note if body else None))
     return _order_row(o)
 
 
