@@ -1,0 +1,54 @@
+[tool.poetry]
+name = "grabzi-backend"
+version = "1.0.0"
+description = "Juicy / GRABZI drive-through ordering API"
+authors = ["GRABZI Team"]
+packages = [{ include = "app" }]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.115"
+uvicorn = { extras = ["standard"], version = "^0.34" }
+sqlalchemy = "^2.0"
+# psycopg3: для прод-образа рекомендуется [c] (компиляция), [binary] — для dev/быстрого старта
+psycopg = { extras = ["binary"], version = "^3.2" }
+alembic = "^1.14"
+pydantic = "^2.10"
+pydantic-settings = "^2.7"
+pyjwt = "^2.10"
+passlib = "^1.7"
+python-multipart = "^0.0.20"
+email-validator = "^2.2"
+redis = "^5.2"
+stripe = "^11.4"
+boto3 = "^1.35"
+slowapi = "^0.1.9"
+structlog = "^25.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3"
+pytest-cov = "^6.0"
+pytest-repeat = "*"
+httpx = "^0.28"
+testcontainers = { extras = ["postgres"], version = "^4.9" }
+factory-boy = "*"
+freezegun = "*"
+ruff = "^0.9"
+mypy = "^1.14"
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+markers = ["unit", "integration", "concurrency", "contract", "e2e"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+strict = false
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

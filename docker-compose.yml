@@ -1,22 +1,70 @@
-version: "3.9"
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: juicy
-      POSTGRES_USER: juicy
-      POSTGRES_PASSWORD: juicy
+      POSTGRES_DB: ${POSTGRES_DB:-grabzi}
+      POSTGRES_USER: ${POSTGRES_USER:-grabzi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-grabzi}
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-grabzi} -d ${POSTGRES_DB:-grabzi}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  minio:                                    # локальное объектное хранилище медиа (план §5.13)
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-grabzi}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-grabzi-minio}
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      retries: 20
+
+  createbuckets:                            # one-shot: создать bucket + public-read префикса
+    image: minio/mc:latest
+    depends_on:
+      minio: { condition: service_healthy }
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-grabzi} ${MINIO_ROOT_PASSWORD:-grabzi-minio};
+      mc mb -p local/${MINIO_BUCKET:-grabzi-media};
+      mc anonymous set download local/${MINIO_BUCKET:-grabzi-media};
+      exit 0;"
+
   backend:
     build: ./backend
     environment:
-      DATABASE_URL: postgresql+psycopg://juicy:juicy@db:5432/juicy
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-grabzi}:${POSTGRES_PASSWORD:-grabzi}@db:5432/${POSTGRES_DB:-grabzi}
       REDIS_URL: redis://redis:6379/0
+      # S3/MinIO: запись изнутри docker по minio:9000, ссылки клиенту — по localhost:9000
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_URL: http://localhost:9000
+      S3_ACCESS_KEY: ${MINIO_ROOT_USER:-grabzi}
+      S3_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-grabzi-minio}
+      S3_BUCKET: ${MINIO_BUCKET:-grabzi-media}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    # прод-путь: миграции Alembic перед стартом (вместо create_all)
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     ports: ["8000:8000"]
-    depends_on: [db, redis]
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      minio: { condition: service_healthy }
+
 volumes:
   pgdata:
+  miniodata:
