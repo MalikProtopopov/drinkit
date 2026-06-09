@@ -29,6 +29,18 @@ class Settings(BaseSettings):
 
     rating_timeout_minutes: int = 15  # захардкоженный порог из требований (PUB-A-04)
 
+    # Объектное хранилище медиа (MinIO в dev, любой S3 в проде; план §5.13).
+    # Без s3_bucket аплоад выключен (503 MEDIA_STORAGE_DISABLED), URL-инпуты остаются фолбэком.
+    s3_endpoint_url: str | None = None      # запись изнутри docker (minio:9000)
+    s3_public_url: str | None = None        # база для отдаваемых ссылок (CDN/localhost)
+    s3_access_key: str | None = None
+    s3_secret_key: str | None = None
+    s3_bucket: str | None = None
+    s3_region: str = "us-east-1"
+
+    # CORS: список origin'ов через запятую (CSV) — фикс ревизии под pydantic-settings v2
+    cors_origins: str = "*"
+
     class Config:
         env_file = ".env"
 

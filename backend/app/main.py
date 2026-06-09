@@ -21,9 +21,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Juicy API", version="1.0", lifespan=lifespan)
 
+from .core.config import settings  # noqa: E402
+
+_cors = ["*"] if settings.cors_origins.strip() == "*" else [
+    o.strip() for o in settings.cors_origins.split(",") if o.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -34,9 +39,9 @@ async def value_error_handler(request: Request, exc: ValueError):
     return JSONResponse(status_code=422, content={"code": "VALIDATION_ERROR", "detail": str(exc)})
 
 
-from .routers import (admin_catalog, admin_locations, admin_orders, admin_settings,  # noqa: E402
-                      auth, catalog, content, coupons, dashboard, locations, orders,
-                      payments, staff, ws)
+from .routers import (admin_catalog, admin_locations, admin_media, admin_orders,  # noqa: E402
+                      admin_settings, auth, catalog, content, coupons, dashboard,
+                      locations, orders, payments, staff, ws)
 
 app.include_router(catalog.router)
 app.include_router(locations.router)
@@ -50,6 +55,7 @@ app.include_router(admin_orders.router)
 app.include_router(admin_locations.router)
 app.include_router(admin_locations.status_router)
 app.include_router(admin_settings.router)
+app.include_router(admin_media.router)
 app.include_router(content.router)
 app.include_router(content.public_router)
 app.include_router(dashboard.router)
