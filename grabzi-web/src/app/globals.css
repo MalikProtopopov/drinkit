@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+/* Дизайн-токены GRABZI — реальная палитра живого grabzi.ae (фронт-спека §2).
+   Карточки — статичные PNG (не видео). Только логические CSS-свойства (AR/RTL-задел). */
+:root {
+  --color-brand: #c44429;        /* терракота — бренд, CTA */
+  --color-brand-hover: #a8381f;
+  --color-brand-press: #780406;  /* тёмно-красная кнопка темы */
+  --color-cream: #e8d5c7;
+  --color-cream-yellow: #fff8d4;
+  --color-teal: #29c4b4;
+  --color-teal-soft: #98c3c9;
+  --color-lime: #b5bd62;
+  --color-heading: #a42325;
+  --color-ink: #1a1410;
+  --color-muted: #6b5d52;
+  --color-border: #e4d9cb;
+  --color-paper: #ffffff;
+  --color-danger: #dc2626;
+  --color-success: #16a34a;
+  /* stock-токены темы — бейджи остатка / sold-out / статусы локаций */
+  --color-instock: #3ed660;
+  --color-lowstock: #ee9441;
+  --color-outofstock: #c8c8c8;
+  --radius-card: 20px;
+  --radius-pill: 9999px;
+}
+
+@theme inline {
+  --color-brand: var(--color-brand);
+  --color-brand-hover: var(--color-brand-hover);
+  --color-brand-press: var(--color-brand-press);
+  --color-cream: var(--color-cream);
+  --color-cream-yellow: var(--color-cream-yellow);
+  --color-teal: var(--color-teal);
+  --color-lime: var(--color-lime);
+  --color-heading: var(--color-heading);
+  --color-ink: var(--color-ink);
+  --color-muted: var(--color-muted);
+  --color-border: var(--color-border);
+  --color-instock: var(--color-instock);
+  --color-lowstock: var(--color-lowstock);
+  --color-outofstock: var(--color-outofstock);
+  --font-display: "Grenadine MVB", "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-cream-yellow);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: var(--font-display); color: var(--color-heading); margin: 0; }
+button { font-family: inherit; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+
+/* фокус-видимость (a11y-пробел Juicy) */
+:focus-visible { outline: 2px solid var(--color-teal); outline-offset: 2px; }
+
+/* утилиты бренда */
+.btn-primary {
+  background: var(--color-brand); color: #fff; border: none;
+  border-radius: var(--radius-pill); padding-block: 14px; padding-inline: 24px;
+  font-weight: 800; font-size: 16px; min-block-size: 52px; transition: background .15s;
+}
+.btn-primary:hover:not(:disabled) { background: var(--color-brand-hover); }
+.btn-primary:active:not(:disabled) { background: var(--color-brand-press); }
+.btn-primary:disabled { background: var(--color-outofstock); cursor: not-allowed; }
+.card {
+  background: var(--color-paper); border: 1px solid var(--color-border);
+  border-radius: var(--radius-card); padding: 16px;
+}
+.badge {
+  display: inline-flex; align-items: center; gap: 4px; border-radius: var(--radius-pill);
+  padding-inline: 10px; padding-block: 4px; font-size: 13px; font-weight: 700; color: #fff;
+}
+.badge--open { background: var(--color-instock); }
+.badge--low { background: var(--color-lowstock); }
+.badge--out, .badge--closed, .badge--paused { background: var(--color-outofstock); color: #333; }
+.skeleton { background: #eee5da; border-radius: 12px; animation: pulse 1.2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
