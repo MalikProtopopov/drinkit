@@ -71,7 +71,11 @@ def notify(order: Order):
     msg = {"orderId": order.id, "status": order.status, "paymentStatus": order.payment_status,
            "arrived": order.arrived_at is not None}
     pubsub.publish(f"order:{order.id}", msg)
-    pubsub.publish("admin:orders", {**msg, "number": order.number})
+    admin_msg = {**msg, "number": order.number, "locationId": order.location_id}
+    pubsub.publish("admin:orders", admin_msg)
+    # per-location канал для скоупа менеджера (WS §13)
+    if order.location_id is not None:
+        pubsub.publish(f"admin:orders:{order.location_id}", admin_msg)
 
 
 def next_order_number(db: Session) -> int:
