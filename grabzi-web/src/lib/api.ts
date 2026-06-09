@@ -20,11 +20,11 @@ function token(): string | null {
   return window.localStorage.getItem("grabzi_token");
 }
 
-export async function apiFetch<T>(
+export async function apiFetch<S extends z.ZodTypeAny>(
   path: string,
-  schema: z.ZodType<T>,
+  schema: S,
   init?: RequestInit & { auth?: boolean },
-): Promise<T> {
+): Promise<z.infer<S>> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const t = token();
   if (t && init?.auth !== false) headers["Authorization"] = `Bearer ${t}`;
@@ -96,6 +96,16 @@ export const OrderSchema = z.object({
   total: z.number(),
 });
 
+const VerifySchema = z.object({
+  token: z.string(),
+  user: z.object({ id: z.number(), name: z.string().nullable(), phone: z.string() }),
+  created: z.boolean().optional(),
+});
+
+const CheckoutSchema = z.object({ checkoutUrl: z.string(), mock: z.boolean() });
+
+export type OrderItemInput = { drinkId: number; quantity: number };
+
 // ---- эндпоинты ----
 export const api = {
   locations: () => apiFetch("/api/locations?locale=en", z.array(LocationSchema), { auth: false, cache: "no-store" }),
@@ -107,4 +117,26 @@ export const api = {
       z.array(DrinkSchema),
       { auth: false },
     ),
+
+  /** Авто-логин по телефону без OTP (план §4.7): code пустой. Сохраняет токен. */
+  async login(phone: string, name?: string) {
+    const res = await apiFetch("/api/auth/verify", VerifySchema, {
+      method: "POST",
+      body: JSON.stringify({ phone, code: "", name, locale: "en" }),
+      auth: false,
+    });
+    if (typeof window !== "undefined") window.localStorage.setItem("grabzi_token", res.token);
+    return res;
+  },
+
+  createOrder: (body: { locationId: number; items: OrderItemInput[]; carPlate: string; customerName?: string }) =>
+    apiFetch("/api/orders?locale=en", OrderSchema, { method: "POST", body: JSON.stringify(body) }),
+
+  checkout: (orderId: number) =>
+    apiFetch("/api/payments/checkout-session", CheckoutSchema, {
+      method: "POST",
+      body: JSON.stringify({ orderId }),
+    }),
+
+  order: (id: number) => apiFetch(`/api/orders/${id}`, OrderSchema, { cache: "no-store" }),
 };
