@@ -34,9 +34,11 @@ async def value_error_handler(request: Request, exc: ValueError):
     return JSONResponse(status_code=422, content={"code": "VALIDATION_ERROR", "detail": str(exc)})
 
 
-from .routers import admin_catalog, admin_orders, auth, catalog, coupons, dashboard, orders, payments, staff, ws  # noqa: E402
+from .routers import (admin_catalog, admin_orders, auth, catalog, coupons, dashboard,  # noqa: E402
+                      locations, orders, payments, staff, ws)
 
 app.include_router(catalog.router)
+app.include_router(locations.router)
 app.include_router(auth.router)
 app.include_router(orders.router)
 app.include_router(payments.router)

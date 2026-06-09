@@ -54,6 +54,7 @@ def list_categories(locale: str = Query("ru"), db: Session = Depends(get_db)):
 @router.get("/drinks")
 def list_drinks(
     category: int | None = Query(None, description="фильтр по id категории (query-параметр, PUB-G-01 AC4)"),
+    location_id: int | None = Query(None, description="GRABZI: точка — для пометки soldOut по стоп-листу"),
     locale: str = Query("ru"),
     db: Session = Depends(get_db),
 ):
@@ -62,11 +63,14 @@ def list_drinks(
     if category is not None:
         q = q.where(Drink.category_id == category)
     drinks = db.scalars(q).all()
+    from ..services.location_service import stopped_drink_ids  # стоп-лист по локации (§5.15)
+    stopped = stopped_drink_ids(db, location_id)
     return [
         {
             "id": d.id, "slug": d.slug, "name": t(d.name, locale),
             "previewUrl": d.preview_url, "videoUrl": d.video_url,
             "basePrice": d.base_price, "kcal": d.kcal, "categoryId": d.category_id,
+            "soldOut": d.id in stopped,   # GRABZI: помечаем, не скрываем (фронт гасит степпер)
         }
         for d in drinks
     ]
