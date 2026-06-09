@@ -1,6 +1,6 @@
-# GRABZI — план реализации (v7, исполняемый)
+# GRABZI — план реализации (v8, исполняемый)
 
-> **Версия v7:** проект = **готовый бэкенд+админка Juicy, доработанные под GRABZI, + отдельный фронт GRABZI** (§A). v6: видимость после оплаты на `payment_status`, авто-логин по телефону без OTP. **v7 закрывает пробелы админки** (аудит Juicy): загрузка медиа, CMS контента, операционная пауза точки, остаток на экране менеджера, граница «админка vs конфиг» — §5.11.
+> **Версия v8:** проект = **готовый бэкенд+админка Juicy, доработанные под GRABZI, + отдельный фронт GRABZI** (§A). **v8 — детальный, заземлённый в коде дизайн доработок админки** (§5.12–§5.17, по результатам адверсариальной ревизии): локальный S3/MinIO + drag-and-drop (§5.13), пауза точки только super_admin + опц. история (§5.14), стоп-лист по локации (§5.15), панель остатка у менеджера (§5.16), экран настроек global/per-location (§5.17), и **общий фундамент** — Alembic вместо `create_all`, замещение мока `/admin/outlets`, единый роутер локаций, счётчик вне `notify()` (§5.12).
 
 > **Суть (главное).** Делаем проект **GRABZI на базе готового кода Juicy**: берём **бэкенд и админку Juicy** как основу и **дорабатываем под требования GRABZI** (локации, лимиты, часы, привязка сотрудников, аналитика по точкам). Поверх — **отдельный фронтенд GRABZI** в дизайне GRABZI (desktop + mobile), подключённый к этому бэкенду. Что в GRABZI не нужно (добавки, купоны, онбординг, ввод имени, корзина) — просто не используем; код Juicy не ломаем.
 >
@@ -357,7 +357,7 @@ POST   /api/admin/content                   (key, title, body, sort, is_active)
 PATCH  /api/admin/content/{id}              (любые поля)
 GET    /api/content?locale=en               → публичный контент инфо-страницы/блоков
 
-# Загрузка медиа (§5.11.2) — нового в Juicy нет
+# Загрузка медиа (§5.13) — нового в Juicy нет
 POST   /api/admin/media   (multipart file)  → { url }   // в объектное хранилище; URL пишем в drink/category/location
 
 # Дашборд (дорабатываем Juicy: + группировка по локациям)
@@ -374,7 +374,7 @@ GET    /api/admin/dashboard?from=&to=&location_id=   → метрики + раз
 
 ### 5.8. UI — админка (раздел «Locations», класс B на Juicy-админ-ките)
 - `/admin/locations` — таблица: name, address, **limit/day (или «No limit»)**, **sold today / remaining**, is_open, **accepting/paused**, status; кнопки «New location», **«Pause/Resume»** на строке.
-- Модалка/форма локации: **name** (EN), **description**, **address**, coordinates, **фото точки** (загрузка §5.11.2), **working_hours — редактор открытия/закрытия по каждому дню недели** (§5.5), timezone, **daily_drink_limit (пусто = без лимита)**, **accepting_orders (пауза)**, color, is_active.
+- Модалка/форма локации: **name** (EN), **description**, **address**, coordinates, **фото точки** (загрузка §5.13), **working_hours — редактор открытия/закрытия по каждому дню недели** (§5.5), timezone, **daily_drink_limit (пусто = без лимита)**, **accepting_orders (пауза)**, color, is_active.
 - `/admin/locations/[id]` — карточка: редактирование; график sold/remaining по дням (исторический, `daily?date=`); кнопка ручной корректировки дня (`adjust-day`); кнопка **«Pause/Resume orders»**; **список закреплённых сотрудников** (§5.9).
 - Пункт «Locations» в сайдбаре `AdminShell`.
 
@@ -424,22 +424,82 @@ GET   /api/admin/orders?location_id= (super_admin: фильтр; manager: игн
 - Видео-петли карточек GRABZI — загружаются здесь же.
 > **Решено (§12.12):** заводим объектное хранилище и аплоад из админки (URL-only-фолбэк не выбран).
 
-**5.11.3. Операционная пауза точки (accepting_orders) — новое поле + кнопка.**
-Отдельно от `is_active` (полностью скрыть точку) и от расписания часов вводим **ручную операционную паузу**:
-- поле `locations.accepting_orders` (bool, default true);
-- в админке (и на рабочем экране менеджера своей точки) — кнопка **«Pause orders / Resume»**;
-- **итоговая доступность заказа:** `is_active && accepting_orders && schedule_open(now)`. Пауза → публично точка «Temporarily not accepting orders», заказ блокируется (тот же 409 `LOCATION_CLOSED`/отдельный `LOCATION_PAUSED`).
-- Кто может: super_admin — любую точку; **менеджер — ставить паузу только своей** точке.
+**5.11.3. Операционная пауза точки — только super_admin** (детально §5.14).
+Ручная пауза приёма заказов (отдельно от `is_active` и расписания), поле `locations.accepting_orders`. **Пересмотр:** управление паузой — **исключительно super_admin** (менеджер не должен иметь рычаг «выключить точку»; риск злоупотребления). Менеджер видит статус своей точки read-only (§5.16). Опциональная история событий точки — §5.14.
 
-**5.11.4. Стоп-лист напитка по локации — осознанное исключение (Р7) + рычаги.**
-Матрицу «напиток × локация» не делаем (Р7). Но фиксируем бизнес-нужду «напиток закончился»:
-- **сейчас доступный рычаг:** статус напитка в каталоге (`draft|published|hidden`) — `hidden` снимает напиток с продажи **глобально** (во всех точках). Этого достаточно для общего стоп-листа.
-- **по-локационный стоп-лист** (снять напиток в одной точке) — **вне базового скоупа**, помечен в §12 как расширение (потребует лёгкую таблицу `location_drink_stops`).
+**5.11.4. Стоп-лист напитка по локации — ДЕЛАЕМ** (детально §5.15).
+**Пересмотр Р7:** делаем операционный стоп «кончилось здесь» (таблица `location_drink_stops`), отдельной осью от глобального `Drink.status=hidden`. Управляет менеджер своей точки + super_admin. Не матрица видимости — лёгкий рантайм-оверлей доступности.
 
-**5.11.5. Настройки: что в админке, что в конфиге.**
-Явная граница (в Juicy экрана настроек нет — это by design):
-- **В админке (данные):** локации (часы/лимит/пауза/описание/адрес/контент), сотрудники+привязка, каталог (напитки/категории/медиа), контент сайта.
-- **В конфиге/env (инфраструктура):** Apple Pay вкл/выкл, OTP вкл/выкл, валюта/дефолтная TZ, ключи Stripe. Отдельный «экран настроек» в админке **не делаем** на старте (если понадобится — добавим `/admin/settings`, §12).
+**5.11.5. Экран настроек — ДЕЛАЕМ** (детально §5.17).
+**Пересмотр:** `/admin/settings` (только super_admin) с чётким разделением **global (`app_settings`) vs per-location (`locations`) vs env (read-only)** — чтобы разделы не путались.
+
+> Детальные, заземлённые в коде проекты §5.11.2–5.11.5 раскрыты ниже (§5.12–§5.17). Предварительно — §5.12 фиксирует общие предусловия и реалии кодовой базы, без которых эти доработки не лягут чисто.
+
+---
+
+## 5A. Детальный дизайн доработок админки (заземлён в коде Juicy)
+
+### 5.12. Фундамент локаций и реалии кодовой базы (предусловие §5.13–§5.17)
+> Адверсариальная ревизия выявила сквозные предусловия — без них пять доработок конфликтуют между собой и с кодом. Фиксируем их как **общую первую задачу**.
+
+- **Замещаем существующий мок `/admin/outlets`, а не плодим второй раздел.** В Juicy уже есть `app/app/admin/outlets/page.tsx` + `[id]/page.tsx` + `app/lib/admin-mock.ts` (матрица Меню×Точки, кнопка «Закрыть точку», `outletScope` сотрудников). Раздел **«Точки/Locations» замещает их**: эволюционируем эти страницы на реальный API (переиспользуем крошки/табы) **или** удаляем outlets-мок и данные `admin-mock`. **DoD: в админке остаётся ОДНО дерево точек**, мок удалён/мигрирован.
+- **Единый «фундамент локаций» — одна задача, один владелец (Фаза 3):** `Location` (+ `LocationDailyCounter`), `StaffUser.location_id`, `Order.location_id`, **`OrderIn.locationId`** (`orders.py`), и проброс `locationId` в **staff `/me` payload + Staff TS-тип** (`adminApi.ts`) — иначе фронтовый скоуп менеджера молча не работает (токен несёт только `sub/kind/role`). Всё §5.13–5.17 это **только потребляют**.
+- **Миграции: в проекте НЕТ Alembic.** `main.py` использует `Base.metadata.create_all` (явное решение «Alembic до первого изменения схемы в проде»). `create_all` создаёт только отсутствующие таблицы — **ALTER существующих не делает**, поэтому новые колонки (`Order.location_id`, `StaffUser.location_id`, `locations.accepting_orders`) на засеянной БД **не применятся**. Решение: **вводим Alembic сейчас** (это и есть то самое первое изменение схемы) — `alembic init` + первая ревизия со всеми новыми таблицами/колонками. Для dev допустим разрушительный reset (`drop juicy.db`/volume). Внести в DoD каждой фазы со схемой.
+- **SQLite FK PRAGMA.** Дефолтная БД — SQLite, `db.py` не включает `PRAGMA foreign_keys=ON` → `ON DELETE CASCADE` (стоп-лист, история) молча игнорируется в dev. Включить connection-event-listener `PRAGMA foreign_keys=ON`, либо не заявлять БД-целостность и чистить в коде.
+- **Один роутер `backend/app/routers/admin_locations.py` с ПЕР-ЭНДПОИНТНЫМИ гардами** (НЕ роутер-уровневый `require_super_admin`): `PATCH`/`pause`/`history`/настройки — `super_admin`; `stops`/`location-status` — `require_manager_or_super` + scope «своя точка». Три дизайна целились в один файл — собираем в один модуль, один `include_router`.
+- **Счётчик лимита — НЕ внутри `notify()`.** `notify(order)` чист (только publish), не имеет ни `db`, ни `location_id`. Инкремент — **явным шагом в `mark_paid`** (после commit), декремент — в `order_flow.refund_order` (переносим инлайновый refund из `admin_orders.py` в `order_flow`, чтобы он проходил через ту же точку и слал `notify` с `location_id`). **Лимит-гейт** (`409 LOCATION_LIMIT_REACHED`) добавляется в ту же helper-доступности, что `LOCATION_PAUSED`/`LOCATION_CLOSED` (§5.3 это уже предполагал — здесь фиксируем место).
+- **Расписание — одно имя поля: `working_hours`** (не `schedule`); `schedule_open`/`next_open_at` читают его.
+- **Статус точки — НЕ хранимая enum-колонка.** Единственный ручной тумблер — `accepting_orders` (bool). Презентационный статус `open/paused/closed` **вычисляется на чтении** из `is_active + accepting_orders + schedule_open(now)`. Панель менеджера (§5.16) потребляет вычисленный статус, своей `Location.status` не вводит.
+- **Единый WS-канал `location:{id}`** для статуса/паузы/стопа/счётчика (а не три разных) — фронту одна подписка на панель точки.
+
+### 5.13. Медиа: локальный S3 (MinIO) + drag-and-drop загрузка везде
+> §12.12 решено: аплоад в объектное хранилище. В Juicy медиа — только URL-строка, файл-аплоада нет. Добавляем **один** storage-слой, **один** аплоад-эндпоинт, **один** drag-and-drop компонент на всю админку.
+
+- **docker-compose:** сервисы `minio` (`minio/minio`, порты 9000 API / 9001 console, том `miniodata`) + одноразовый `minio-init` (`minio/mc`: создаёт бакет `grabzi-media`, делает префикс `media/` публичным на чтение). `backend` получает блок env и `depends_on: minio`.
+- **Конфиг:** `requirements.txt += boto3` (синхронный, под текущий sync-стек; `python-multipart` уже есть). `config.py += s3_endpoint_url/s3_public_url/s3_access_key/s3_secret_key/s3_bucket/s3_region` (все опциональны; без `s3_bucket` аплоад → `503 MEDIA_STORAGE_DISABLED`, остальное работает). Две раздельные переменные адреса: `S3_ENDPOINT_URL` (запись изнутри docker `minio:9000`) и `S3_PUBLIC_URL` (ссылка для браузера/CDN) — убирает костыль «внутренний хост в публичной ссылке».
+- **Storage-слой `backend/app/services/storage.py`** — единственное место про boto3: `upload(file, folder)` (валидация MIME jpeg/png/webp/mp4/webm + размер ≤25МБ, ключ `media/{folder}/{uuid}{ext}` — имя файла пользователя не используется → нет path-traversal), `delete(key)`, `media_url(key)`.
+- **Хранение ссылки (фикс ревизии — без ложного обещания «смена провайдера = только env»):** в строковых полях БД храним **относительный ключ/путь** (`media/drinks/ab12.mp4`), а абсолютный URL собираем **на чтении** одним хелпером `media_url(key)` (база — `S3_PUBLIC_URL`). Это даёт честный provider-swap **без переписывания строк в БД** и единообразно работает с уже существующими относительными путями сидов (`/videos/*.mp4`). Поля остаются `String(300)`, новая «media»-таблица не нужна.
+- **Эндпоинт** `POST /api/admin/media` (multipart) в новом `admin_media.py`, гард `require_super_admin` (как весь `/api/admin/catalog`). Возвращает `{ key, url, contentType, size }`. Существующие JSON-эндпоинты каталога **не меняем** — фронт кладёт ключ в то же поле обычным PATCH.
+- **Фронт — один компонент** `app/components/admin/MediaUploadField.tsx` (drag-and-drop + клик, превью img/video-loop, прогресс через XHR, кнопка очистки, URL-инпут как фолбэк). Заменяет ВСЕ текстовые URL-инпуты медиа: `products/[slug]` (`previewUrl`,`videoUrl`), `categories` (`photoUrl`,`videoUrl`), `addons` (`imageUrl`,`iconUrl`), опц. `locations.image_url`. `adminApi.ts += uploadMedia()` (FormData+XHR-прогресс; общий парсер ошибки `safeDetail` вынести из `req()` и переиспользовать — DRY). CSS-классы dropzone в `admin.css`.
+- **Роль:** загрузка медиа — **super_admin** (каталог и так super-only). На manager-видимом экране локации поле image_url у менеджера отсутствует/disabled.
+- **Поддерживаемость:** один сервис знает про S3; MinIO→AWS/R2/Yandex — смена env, без кода/фронта; приватный режим — заменить `media_url` на presigned-GET (одна функция); очистка осиротевших файлов — `storage.delete(key)` (ключ уже в поле), фоновым GC позже.
+
+### 5.14. Операционная пауза точки (super_admin) + опциональная история
+- **Поле** `locations.accepting_orders` (bool, default true) — единственный ручной тумблер. Доступность: `is_open = is_active AND accepting_orders AND schedule_open(now)` (один множитель в существующей формуле, без дублирования логики).
+- **Коды 409 различаем:** расписание → `LOCATION_CLOSED {next_open_at}`; ручная пауза → `LOCATION_PAUSED {}` (бессрочна, без `next_open_at`). Проверка — в той же helper-доступности (порядок: `is_active`→`accepting_orders`→`schedule_open`).
+- **Эндпоинт** `POST /api/admin/locations/{id}/pause` `{accepting_orders, reason?}` — **`require_super_admin`** (пер-эндпоинтный Depends; менеджер с JWT → 403). Идемпотентно (повтор того же состояния — no-op). Отдельно от `PATCH /locations/{id}` (полное редактирование). WS-публикация в `location:{id}`.
+- **(ОПЦИОНАЛЬНО) История** `location_status_events` по точному паттерну `OrderEvent` (`location_id`, `action` `pause|open`, `by_staff_id`, `reason`, `created_at`; `cascade=all,delete-orphan`). Длительность паузы — **вычисляется на чтении** (интервал `pause`→следующий `open`), не хранится. `GET /api/admin/locations/{id}/history` (super_admin) → `[{action, byStaffName, reason, at, durationMinutes|null}]`. UI — таймлайн копией таймлайна заказа (`admin-timeline*`). Базовая пауза работает **без** этой таблицы; блок включаемый.
+- **UI:** в сайдбаре «Точки» (`roles:['super_admin']`); на строке — «Поставить на паузу»/«Возобновить приём» + бейдж «На паузе». Кнопки рендерятся только для super_admin. Авто-возобновление по таймеру — вне скоупа (пауза снимается вручную).
+
+### 5.15. Стоп-лист напитка по локации
+- **Модель** `location_drink_stops` (`backend/app/models/catalog.py`): `location_id FK→locations ON DELETE CASCADE`, `drink_id FK→drinks ON DELETE CASCADE`, `reason String(200)?`, `by_staff_id FK→staff_users?`, `created_at`; `UniqueConstraint(location_id, drink_id)`. **Стоп = наличие строки**, снятие = hard delete. (Аудит «кто/когда» — событие `drink_stopped/drink_resumed` в журнале точки §5.14, отдельной колонкой `drink_id`, не в `note`.) `drink_id`/`location_id` — настоящие FK (не Integer-снэпшот, как `OrderItem.drink_id`).
+- **Две независимые оси** (не дублируют, не мутируют друг друга): глобальный `Drink.status=hidden` (нет нигде, `DRINK_NOT_AVAILABLE`) vs локальный стоп (`DRINK_UNAVAILABLE_AT_LOCATION`, в каталоге «sold out»). Порядок: сначала глобальный статус, потом локальный стоп. **Р7 не нарушаем** — это рантайм-оверлей поверх единого published-каталога, не матрица-копия каталога на точку.
+- **API** (поддерево `/{location_id}/stops` в `admin_locations.py`): `POST {drinkId, reason?}` (идемпотентно), `DELETE /{drink_id}` (идемпотентно, нет строки → 204), `GET` список. Гард `require_manager_or_super` + **scope «своя точка»** (manager и `staff.location_id != location_id` → `403 NOT_YOUR_LOCATION`). После мутации — событие + WS `location:{id}`.
+- **Роль:** super_admin — любая точка; **manager — своя точка** (стоп «кончилось» происходит десятки раз в день за стойкой; запирать на super_admin = неактуальный каталог). Контраст с паузой ВСЕЙ точки (super_admin only) — стоп одного напитка низкорисковый и обратимый.
+- **Применение №1 (каталог):** `catalog.py` `list_drinks/drink_detail/drink_preview` принимают `location_id: int|None`. Helper `stopped_drink_ids(db, location_id) -> set[int]` (один запрос). `list_drinks` НЕ скрывает напиток, а помечает `soldOut: true` (скрытие = плохой UX). **Фикс ревизии:** контракт `drink_preview` (источник цены) НЕ ослабляем — `soldOut` добавляем только в payload `list_drinks/drink_detail` через `stopped_drink_ids`, не трогая 404-логику preview. Фронт `api.ts` пробрасывает `location_id`, `ApiDrinkLite += soldOut?`, карточка гасит степпер.
+- **Применение №2 (заказ):** стоп-проверка `DRINK_UNAVAILABLE_AT_LOCATION` — в `create_order` (**до/независимо** от `drink_preview`, чтобы ослабление detail-страницы не утекло в ценообразование) и повторно в `mark_paid` (товар мог кончиться за время чекаута). `order.location_id` из `OrderIn` (§5.12).
+- **UI:** на `/admin/locations/[id]` секция «Стоп-лист» (тоггл В продаже/Стоп по каждому напитку + reason) для super_admin; быстрый тоггл-чипы на рабочем экране менеджера рядом с панелью остатка (бариста снимает в 2 тапа). WS `location:{id}` обновляет realtime.
+
+### 5.16. Остаток/лимит точки на рабочем экране менеджера
+- **Данные:** `LocationDailyCounter(location_id, business_date, sold_count, updated_at)` — материализованный агрегат (инкремент O(1), без `COUNT(*)`). `business_date` — по `location.timezone` (обнуление в местную полночь, ленивая строка на первый заказ дня, без cron). Инкремент в `mark_paid`, декремент в `order_flow.refund_order` того же дня (§5.12 — НЕ в `notify()`).
+- **Эндпоинт** `GET /api/admin/location-status` (`get_current_staff` — доступно обоим): manager → своя точка (по `staff.location_id`); `?location_id=` и `?scope=all` (агрегат Σ) → super_admin. Ответ `{locationId, name, status(вычислен), soldToday, limit, remaining, pausedReason, nextOpenAt, updatedAt}`. Realtime — WS `location:{id}` (событие `counter`), фолбэк поллинг 10с при обрыве.
+- **UX-панель** — sticky под топ-баром на `/admin/orders`, над фильтрами; **не дёргает** перезагрузку таблицы заказов. Зоны: статус-индикатор + имя точки | `Sold today N / Limit M · Remaining K` (или `No limit`) + прогресс-бар | live-индикатор. Пороги: <80% синий, ≥80% жёлтый «почти лимит», ≥100% красный «SOLD OUT»; пауза/закрытие → серый. Статус (open/paused/closed) — **вычисленный на чтении** (§5.12), не хранимая enum.
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│ ● Bay Avenue     Sold today 86 / Limit 100 · Remaining 14  ⚠ почти    │
+│   Открыта        ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░  86%        ⟳ live · 1 с    │
+└──────────────────────────────────────────────────────────────────────┘
+```
+- **Роль:** видят оба; manager — своя точка read-only (без селектора, без кнопок паузы); super_admin — селектор «Все точки/конкретная» + действия паузы (§5.14). Связь с лимитом: при `sold ≥ limit` сервер реально отклоняет заказ (`409 LOCATION_LIMIT_REACHED`, §5.12), панель не просто информативна.
+
+### 5.17. Экран настроек `/admin/settings` (super_admin) — global vs per-location
+> §12.15: делаем, но узко — только **глобальные бизнес-дефолты**. Секреты/инфра — read-only из env. Операционные параметры точки — в `/admin/locations`, **не дублируются**.
+
+- **Три уровня конфигурации:** (1) **env/инфра** (`config.py`, `.env`) — меняет DevOps, в админке read-only; (2) **`app_settings`** (глобальные дефолты) — super_admin на `/admin/settings`; (3) **`locations`** (per-location) — редактируется в «Точки», НЕ здесь. Резолв: per-location → глобальный дефолт → константа.
+- **Модель** `app_settings` (типизированный key-value, не «блоб»): `key PK`, `value JSON {"v":...}`, `updated_at`, `updated_by`. Реестр `SETTINGS_SCHEMA` в коде (`settings_registry.py`) — единый источник типов/дефолтов/валидации; новый параметр = строка в реестре, без миграции. `get_setting(db,key)` с lazy-fallback на дефолт (сид не обязателен). **Фикс ревизии:** дефолты контактов (email/phone) в реестре = `None` (реальные значения — через сид-данные, не код-литералами).
+- **Что в `app_settings` (Defaults/General):** `default_daily_drink_limit`, `display_currency=AED`, `default_timezone=Asia/Dubai`, `default_locale`, `support_contact_email/phone`, и (если бизнесу нужно в рантайме) тоглы фич. **Фикс ревизии:** глобальные дефолты должны **реально читаться** при создании точки — `POST /api/admin/locations` инициализирует `daily_drink_limit/timezone` из `get_setting(...)`, иначе контрол декоративный. **Фич-флаги — один владелец:** если публичный сайт уже читает фронт-флаг (Р3.2/Р8), НЕ дублируем в `app_settings`; иначе делаем `app_settings` каноном и сайт читает резолв через публичный эндпоинт.
+- **API** `GET/PATCH /api/admin/settings` (роутер-уровневый `require_super_admin`). GET → `{editable:{general,defaults}, readonly:{integrations}}`; секреты — только статус `configured|missing`, без значений. PATCH — только editable-ключи (env/integrations → `403 READONLY_SETTING`; неизвестный ключ → `422`).
+- **UI** `/admin/settings` (пункт «Настройки» `roles:['super_admin']`), 3 вкладки: **General** (locale, контакты, тоглы), **Defaults** (дефолт-лимит/валюта/TZ + явная подпись «дефолты для новых точек; параметры точки — в разделе Точки» со ссылкой), **Integrations** (read-only карточки Stripe/OTP/JWT/S3/DB/Redis + константы `rating_timeout_minutes`/`locales`). Защита от путаницы global↔per-location: экран явно отсылает в Locations за per-loc-параметрами.
 
 ---
 
@@ -486,23 +546,27 @@ GET   /api/admin/orders?location_id= (super_admin: фильтр; manager: игн
 |---|---|---|---|
 | Логин `/admin/login` | ✅ | ✅ | как в Juicy |
 | Дашборд `/admin` | 🟡 | ✅ | как в Juicy **+ дорабатываем: группировка `?location_id=`, сравнение лимитов, локация менеджера (§5.10)** |
-| Заказы `/admin/orders[/id]` | ✅ `/staff` | ✅ | как в Juicy **+ фильтр по `location_id`; менеджер видит только свою точку + мини-панель sold/remaining своей точки (§5.9/§5.10)** |
+| Заказы `/admin/orders[/id]` | ✅ `/staff` | ✅ | как в Juicy **+ фильтр `location_id`; менеджер — только своя точка + sticky-панель остатка (§5.16) + быстрый стоп-лист (§5.15)** |
 | Покупатели `/admin/customers` | 🟡 | ✅ | как в Juicy |
-| Каталог: Categories/Products | ❌ | ✅ | как в Juicy **+ загрузка медиа (фото/видео) §5.11.2** |
+| Каталог: Categories/Products | ❌ | ✅ | как в Juicy **+ drag-and-drop загрузка медиа (§5.13)** |
 | Каталог: Addons/Groups/Units | ❌ | ✅ | **в навигации GRABZI не показываем** |
-| **Locations** | ❌ | ❌ | **НОВОЕ (§5.8): описание/адрес/фото/часы по дням/лимит/пауза** |
+| **Точки `/admin/locations`** | ❌ (мок `/admin/outlets`) | ❌ | **НОВОЕ (§5.8/§5.14/§5.15): описание/адрес/фото/часы/лимит/пауза(super_admin)/стоп-лист; ЗАМЕЩАЕТ мок `/admin/outlets` (§5.12)** |
 | Платежи `/admin/payments` | 🟡 | ✅ | как в Juicy |
 | Купоны `/admin/coupons` | ❌ | ✅ | **в навигации GRABZI не показываем (Р8)** |
-| Персонал `/admin/staff` | ✅ | ✅ | как в Juicy **+ привязка сотрудника к локации (§5.9)** |
-| **Content** `/admin/content` | ❌ | ❌ | **НОВОЕ (§5.11.1): Story/Contact/соцсети/блоки — в скоупе** |
-| **Media-аплоад** | ❌ | ❌ (URL-only) | **НОВОЕ (§5.11.2): загрузка фото/видео в хранилище** |
+| Персонал `/admin/staff` | ✅ | ✅ | как в Juicy **+ привязка к локации (`location_id` в форме/`/me`/типе, §5.9/§5.12)** |
+| **Content** `/admin/content` | ❌ | ❌ | **НОВОЕ (§5.11.1): Story/Contact/соцсети/блоки** |
+| **Настройки** `/admin/settings` | ❌ | ❌ | **НОВОЕ (§5.17, super_admin): global-дефолты; env read-only; per-location — в Точках** |
+| **Media-аплоад** `POST /api/admin/media` | ❌ | ❌ (URL-only) | **НОВОЕ (§5.13): MinIO + один drag-and-drop компонент** |
 
 ---
 
 ## 8. Данные и миграции
 
-- **Alembic-миграции (дорабатываем схему Juicy):** `locations` (вкл. `description`, `daily_drink_limit nullable`, **`accepting_orders`**, **`image_url`**), `location_daily_counters`, `info_blocks`, `orders.location_id (nullable)`, **`staff_users.location_id (nullable, FK locations)`** (§5.9). **Новый статус заказа НЕ добавляем** — видимость после оплаты на существующем `payment_status` (§5.1). Контент-поля (`drinks.name/description`, `drink_categories.name`, `locations.name/description`, `info_blocks.*`) — JSON i18n `{en[,ar]}` (заполняем `en`; AR — §3.3).
-- **Медиа-хранилище (§5.11.2):** объектное S3-совместимое хранилище для аплоада фото/видео; в БД — только URL. (Фолбэк без хранилища — URL-only, §12.)
+- **⚠️ Реальность миграций (фикс ревизии): в проекте НЕТ Alembic** — `main.py` использует `Base.metadata.create_all` (создаёт только отсутствующие таблицы, **ALTER не делает**). Новые колонки к существующим таблицам на засеянной БД **не применятся**. Решение: **вводим Alembic** (первая ревизия со всеми изменениями) либо для dev — разрушительный reset. Включить `PRAGMA foreign_keys=ON` для SQLite (иначе `ON DELETE CASCADE` молча игнорируется). См. §5.12.
+- **Новые таблицы/колонки (одна ревизия, §5.12 «фундамент»):** `locations` (`name/description/address/coordinates/working_hours/timezone/daily_drink_limit nullable/accepting_orders/image_url/color/is_active/sort`), `location_daily_counters` (`location_id, business_date, sold_count`, uniq), `location_drink_stops` (§5.15), `location_status_events` (опц., §5.14), `app_settings` (§5.17), `info_blocks` (§5.11.1); колонки `orders.location_id`, **`staff_users.location_id`**, поле `OrderIn.locationId` + `locationId` в staff `/me`/Staff-типе. **Статус заказа НЕ добавляем** — видимость после оплаты на существующем `payment_status` (§5.1).
+- **Замещаем мок `/admin/outlets`** (§5.12): удалить/мигрировать `app/app/admin/outlets/**` + outlet-данные `admin-mock.ts` — одно дерево «Точки».
+- **Медиа-хранилище (§5.13):** локальный MinIO (docker-compose) для аплоада; в БД — **относительный ключ**, абсолютный URL — на чтении (`media_url(key)`), единообразно с относительными путями сидов.
+- **Контент-поля** (`drinks.name/description`, `drink_categories.name`, `locations.name/description`, `info_blocks.*`) — JSON i18n `{en[,ar]}` (заполняем `en`; AR — §3.3).
 - **Сиды GRABZI:**
   - Локации: 1–N точек с `working_hours` Пн–Сб 5:30–22:00 / Вс 10:00–18:00, `timezone=Asia/Dubai`, `daily_drink_limit` (напр. 150 — отсылка к «150 в день» из их Story; или `null` = без лимита).
   - Каталог: импорт напитков из `grabzi_parser/output/products.json` (+ из `/pages/menu`: Choco berry 34, Melon spark 37 …) как `drinks` (EN-имена с эмодзи, base_price, медиа). Категории — из меню.
@@ -522,11 +586,11 @@ GET   /api/admin/orders?location_id= (super_admin: фильтр; manager: игн
 **Фаза 2 — Каталог + одностраничное создание заказа (3–4 д).** Каталог логикой Juicy; **страница `/order` (§4.2): категории+напитки+`+/–`, контакты, Pay**; деталка `/product/[slug]` — за флагом (Р3.2); добавки/купоны скрыты.
 *DoD:* выбрал категорию → видны все её напитки со счётчиками; собрал заказ без корзины/добавок; превышение остатка → модалка и блок Pay; e2e «order page → Pay».
 
-**Фаза 3 — Локации + оплата-then-видимость бэкенд (4–5 д).** Модели/миграции/сиды (`locations` вкл. `accepting_orders`,`location_daily_counters`); `GET /api/locations(+id)`; `schedule_open`/`is_open`(с учётом паузы)/`remaining`; **авто-логин по телефону без OTP (§4.7) + `POST /api/orders` → `payment_status="pending"` (лимит не трогает, менеджеру не виден)**; **`mark_paid` в вебхуке: списание лимита под row-lock + `payment_status="paid"`, idempotent**; авто-refund при провале; refund-декремент; уборка зависших; 409-контракты (`LOCATION_CLOSED`/`LOCATION_PAUSED`).
-*DoD:* юнит-тесты остатка/часов (TZ-граница); **неоплаченный (`pending`) не виден менеджеру и не в статистике, лимит не тронут**; **тест гонки**: K параллельных оплат у точки с лимитом L не уводят `committed_drinks > L` (лишние авто-возвращаются); повторный вебхук не списывает дважды; refund возвращает лимит в тот же день; авто-логин по телефону без OTP (новый/существующий номер) корректно создаёт/находит юзера и привязывает заказ.
+**Фаза 3 — Фундамент локаций + Alembic + оплата-then-видимость бэкенд (5–6 д).** **Вводим Alembic** (§5.12) — первая ревизия со всем фундаментом: `Location`,`LocationDailyCounter`,`location_drink_stops`,`app_settings`,`info_blocks`, `Order.location_id`, `StaffUser.location_id`, `OrderIn.locationId`, `locationId` в staff `/me`/типе; `PRAGMA foreign_keys=ON`. **Замещаем мок `/admin/outlets`** (удалить/мигрировать). `GET /api/locations(+id)`; `schedule_open`/`is_open`(с паузой)/`remaining`; авто-логин по телефону без OTP (§4.7); `POST /api/orders` → `payment_status="pending"`; **`mark_paid`: списание лимита под row-lock + `payment_status="paid"` + инкремент `LocationDailyCounter` (НЕ в `notify()`, §5.12)**; **`order_flow.refund_order`** (перенос инлайнового refund из `admin_orders.py`) с декрементом; лимит-гейт `409 LOCATION_LIMIT_REACHED`; 409 `LOCATION_CLOSED`/`LOCATION_PAUSED`; стоп-проверка `DRINK_UNAVAILABLE_AT_LOCATION` в `create_order`+`mark_paid`.
+*DoD:* Alembic-ревизия применяется на засеянной БД (колонки реально добавлены); мок outlets удалён — одно дерево точек; неоплаченный не виден менеджеру/в статистике; **тест гонки** (K оплат не уводят за лимит L); idempotent-вебхук; refund возвращает лимит в тот же день; авто-логин (новый/существующий номер); стоп-напиток отклоняется на заказе.
 
-**Фаза 4 — Админка: локации + сотрудники + контент + медиа + аналитика (4–5 д).** В **админке Juicy** (дорабатываем): `/admin/locations` (CRUD: описание/адрес/фото/**часы по дням**/лимит-или-без/**пауза**, sold/remaining, история, `adjust-day`); **`staff_users.location_id` в `/admin/staff`**; **доступ менеджера — только заказы своей точки (фильтр + 403) + мини-панель остатка**; **дашборд: группировка `?location_id=`, сравнение лимитов, локация менеджера (§5.10)**; **`/admin/content` (CMS info_blocks §5.11.1)**; **аплоад медиа `POST /api/admin/media` (§5.11.2)**; купоны/добавки в навигации не показываем.
-*DoD:* супер-админ создаёт точку (часы по дням, лимит-или-без, фото), ставит **паузу** точке, прикрепляет менеджера; **менеджер видит только свою точку (чужой заказ → 403) и остаток своей точки**; редактирует **Story/Contact/соцсети** из `/admin/content`; **загружает фото/видео напитка**; дашборд показывает sold/limit/remaining по точкам и локацию менеджера.
+**Фаза 4 — Админка: точки + сотрудники + медиа + контент + настройки + аналитика (5–6 д).** Один роутер `admin_locations.py` (пер-эндпоинтные гарды, §5.12). `/admin/locations` (CRUD: описание/адрес/фото/**часы по дням**/лимит/**пауза super_admin**/**стоп-лист**, sold/remaining, опц. история, `adjust-day`); **`staff_users.location_id` в `/admin/staff`** (+ `/me`/тип); **доступ менеджера — только своя точка (фильтр + 403) + sticky-панель остатка (§5.16) + быстрый стоп-лист (§5.15)**; **дашборд `?location_id=`** (сравнение лимитов, локация менеджера, §5.10); **`/admin/content`** (CMS, §5.11.1); **`POST /api/admin/media` + drag-and-drop компонент** (MinIO, §5.13); **`/admin/settings`** (super_admin, global/per-location/env, §5.17); купоны/добавки скрыты.
+*DoD:* super_admin создаёт точку (часы/лимит/фото), **ставит паузу (менеджер — не может, 403)**, стопит напиток, прикрепляет менеджера; **менеджер видит только свою точку (чужой заказ → 403), остаток своей точки, стопит напиток в своей точке**; редактирует Story/Contact/соцсети; **drag-and-drop загрузка фото/видео**; настройки: global-дефолты редактируются, env — read-only, per-location отсылает в Точки; дашборд показывает sold/limit/remaining по точкам.
 
 **Фаза 5 — Публичный UX локаций + мои заказы + инфо (3–4 д).** Выбор локации перед `/order` (остаток/часы/sold-out/closed/paused); индикатор остатка; обработка 409; WS/поллинг; **`/orders` с авто-логином по телефону (§4.4/§4.7)**; **`/profile` без купонов**; оценка без купона; `/info` (4 секции, контент из `info_blocks`).
 *DoD:* нельзя заказать в закрытой/распроданной/паузнутой точке; гость по телефону подгружает историю; профиль без купонов; остаток в реальном времени; инфо-страница берёт Story/Contact из админки.
@@ -540,7 +604,7 @@ GET   /api/admin/orders?location_id= (super_admin: фильтр; manager: игн
 
 ## 10. Карта переиспользования из Juicy
 
-- **Бэкенд+админка — основа из Juicy, переиспользуем целиком:** `users/staff/catalog/orders`, флоу заказа, статусы, «я на месте» (`arrived_at`), оценки, дашборд, WS, Stripe, весь `/admin/*`. Купоны и добавки — в коде есть, в GRABZI просто не выводим. **Дорабатываем/добавляем:** `locations`(описание/часы-по-дням/лимит-nullable/**пауза**/**фото**),`location_daily_counters`,`info_blocks`, `orders.location_id`, авто-логин по телефону (§4.7), списание/возврат лимита в `mark_paid` (на существующем `payment_status`), **`staff_users.location_id`**, `is_open`(расписание+пауза), доступ менеджера по локации, **дашборд `?location_id=`**, **CMS контента `/admin/content`**, **аплоад медиа `/api/admin/media`**, `ws/locations`.
+- **Бэкенд+админка — основа из Juicy, переиспользуем целиком:** `users/staff/catalog/orders`, флоу заказа, статусы, «я на месте», оценки, дашборд, WS, Stripe, весь `/admin/*`. Купоны/добавки — в коде есть, не выводим. **Вводим Alembic** (§5.12). **Дорабатываем/добавляем:** `locations`(описание/часы/лимит-nullable/**пауза**/фото),`location_daily_counters`,**`location_drink_stops`**,**`app_settings`**,(опц.)`location_status_events`,`info_blocks`; `orders.location_id`,**`staff_users.location_id`**(+`/me`/тип),`OrderIn.locationId`; авто-логин по телефону (§4.7); списание/возврат лимита в `mark_paid`/`order_flow.refund_order` (на `payment_status`, не в `notify()`); лимит-гейт+пауза+стоп в helper-доступности; `is_open`(расписание+пауза); доступ менеджера по локации; дашборд `?location_id=`; **storage-слой+MinIO+`/api/admin/media`**; **CMS `/admin/content`**; **`/admin/settings`**; единый WS-канал `location:{id}`. **Замещаем мок `/admin/outlets`.**
 - **Фронт публичный GRABZI — отдельное приложение (логика из Juicy, дизайн GRABZI):** `/home /order /product/[slug](опц.) /orders /profile /auth/*` + новые `/outlets`,`/info`. Корзина/онбординг/ввод-имени — не используются (Р3.1/Р9).
 
 ---
@@ -554,9 +618,15 @@ GET   /api/admin/orders?location_id= (super_admin: фильтр; manager: игн
 - [ ] **Часы по дням недели:** разное время открытия/закрытия по дням применяется; выходной день блокирует заказ; часы выводятся на публичной странице локаций.
 - [ ] **Привязка сотрудника к локации:** менеджер видит/берёт заказы только своей точки; чужой заказ → 403; супер-админ видит все.
 - [ ] **Аналитика:** дашборд показывает sold/limit/remaining по каждой точке и локацию менеджера; менеджер на рабочем экране видит остаток своей точки.
-- [ ] **Операционная пауза точки:** «Pause orders» блокирует заказ (`LOCATION_PAUSED`) отдельно от расписания и `is_active`; менеджер ставит паузу только своей точке; «Resume» возвращает приём.
+- [ ] **Операционная пауза точки (super_admin only):** «Pause» блокирует заказ (`LOCATION_PAUSED`) отдельно от расписания/`is_active`; **менеджер паузу НЕ может (403)**; «Resume» возвращает; (опц.) история открытий/закрытий с длительностью.
+- [ ] **Стоп-лист по локации:** menager своей точки/super_admin стопит напиток → в каталоге «sold out», заказ отклоняется `DRINK_UNAVAILABLE_AT_LOCATION`; глобальный `hidden` и локальный стоп независимы.
+- [ ] **Лимит-гейт на сервере:** при `sold ≥ limit` заказ реально отклоняется `409 LOCATION_LIMIT_REACHED` (панель не только информативна).
+- [ ] **Миграции:** Alembic-ревизия реально добавляет колонки на засеянной БД (`create_all` бы не добавил); `PRAGMA foreign_keys=ON` в SQLite.
+- [ ] **Замещение outlets:** мок `/admin/outlets` удалён/мигрирован — в админке одно дерево точек.
+- [ ] **Счётчик не в `notify()`:** инкремент в `mark_paid`, декремент в `order_flow.refund_order`; `notify()` остаётся чистым.
 - [ ] **Контент-CMS:** Story/Contact/соцсети редактируются из `/admin/content` и сразу видны на `/info` без релиза.
-- [ ] **Загрузка медиа:** фото/видео напитка/категории/локации загружаются файлом в админке (не только URL).
+- [ ] **Загрузка медиа:** drag-and-drop фото/видео в админке (MinIO); в БД — относительный ключ, URL собирается на чтении.
+- [ ] **Настройки:** `/admin/settings` (super_admin) правит global-дефолты; env — read-only; per-location НЕ дублируется (отсылка в Точки).
 - [ ] **Заказ фиксирует `location_id`** (видно в истории/аналитике).
 - [ ] Каталог без добавок: заказ создаётся без addon-строк; цена = base×qty; **купоны не выпускаются** (дизлайк без купона).
 - [ ] **Создание заказа — одна страница:** выбор категории показывает все её напитки со счётчиками; превышение остатка → модалка + блок Pay.
@@ -585,11 +655,14 @@ GET   /api/admin/orders?location_id= (super_admin: фильтр; manager: игн
 9. **OTP при входе/истории** — сейчас **выключен** (`auth_otp_enabled=false`), авто-логин по телефону без кода (§4.7). На будущее можно включить флагом (код в Juicy есть), чтобы подтверждать владение номером.
 10. **`/menu` vs `/order`** — в GRABZI это **один экран** (страница создания заказа §4.2 = просмотр напитков по категориям + счётчики). Отдельного browse-only `/menu` не делаем, чтобы не дублировать; пункт «Menu» в навигации ведёт на `/order`.
 11. **Где живёт фронт GRABZI** — отдельное Next.js-приложение (новая папка/проект), использует свой API-клиент к доработанному бэкенду Juicy. Juicy-фронт (`app/`) не трогаем.
-12. ✅ **РЕШЕНО — медиа: аплоад в объектное хранилище** (S3-совместимое) `POST /api/admin/media` (§5.11.2). URL-only — не выбран.
-13. ✅ **РЕШЕНО — главная hardcode в v1:** hero/баннеры/секции из конфигурации темы GRABZI, не из админки. CMS-hero — только если позже понадобится (§5.11.1).
-14. ✅ **РЕШЕНО — по-локационный стоп-лист НЕ делаем сейчас** (Р7). Рычаг «кончилось» — статус напитка `hidden` глобально. `location_drink_stops` — только при будущей необходимости (§5.11.4).
-15. **Экран настроек `/admin/settings`** — на старте не делаем; инфраструктурные параметры в env (§5.11.5). Добавим, если заказчику нужно менять их без разработчика.
-16. **TRN/налоговые реквизиты точки** (для чеков) — в Juicy-моке у аутлета был TRN; если нужны в чеках GRABZI, добавить `locations.trn` (сейчас не закладываем).
+12. ✅ **РЕШЕНО — медиа: локальный S3 (MinIO) + drag-and-drop** `POST /api/admin/media` (§5.13). В БД — относительный ключ, URL на чтении.
+13. ✅ **РЕШЕНО — главная hardcode в v1:** hero/баннеры из конфигурации темы GRABZI, не из админки. CMS-hero — позже при необходимости.
+14. ✅ **РЕШЕНО — по-локационный стоп-лист ДЕЛАЕМ** (§5.15): `location_drink_stops`, отдельная ось от глобального `hidden`. Управляет менеджер своей точки + super_admin.
+15. ✅ **РЕШЕНО — экран настроек ДЕЛАЕМ** `/admin/settings` (super_admin, §5.17): global-дефолты в `app_settings`, env read-only, per-location в Точках.
+16. ✅ **РЕШЕНО — пауза точки только super_admin** (§5.14, пересмотр Р13). Менеджер — read-only статус.
+17. **TRN/налоговые реквизиты точки** (для чеков) — в Juicy-моке у аутлета был TRN; если нужны в чеках, добавить `locations.trn` (сейчас не закладываем).
+18. **Авто-возобновление паузы по таймеру** — вне скоупа (пауза снимается вручную); при нужде — `locations.paused_until` + фон.
+19. **Зачёт лимита** — по `mark_paid` (оплата=продажа). Если бизнес считает по факту выдачи — переключить на `transition→completed`. Дефолт — оплата.
 
 ---
 
@@ -603,4 +676,6 @@ _Изменения v4→v5 (ключевая смена рамки): **§A — 
 
 _Изменения v6→v7 (ревизия админки по аудиту Juicy — закрытие пробелов управления): добавлен раздел **§5.11**: (1) **CMS контента** `/admin/content` (Story/Contact/соцсети/блоки) — теперь в скоупе, не опционально; (2) **загрузка медиа** `POST /api/admin/media` в объектное хранилище (в Juicy был только URL-ввод); (3) **операционная пауза точки** `accepting_orders` + кнопка «Pause/Resume» и `LOCATION_PAUSED` (отдельно от расписания и `is_active`); (4) **менеджер видит остаток своей точки** на рабочем экране; (5) **дашборд Juicy дорабатывается** под `?location_id=` (раньше группировки не было); (6) явная граница **«админка (данные) vs env-конфиг (инфраструктура)»**, осознанные исключения (по-локационный стоп-лист, TRN, экран настроек) вынесены в §12. Модель `locations` += `accepting_orders`,`image_url`._
 
-_Изменения v5→v6 (ревизия на пробелы по коду Juicy): (1) **видимость заказа после оплаты — на существующем `payment_status`** Juicy (менеджерский список уже фильтрует `paid`), **новый статус `pending_payment` НЕ вводим** (§5.1/§5.3) — меньше изменений, нет конфликта со статус-машиной; (2) **авторизация по телефону без OTP** (Р/§4.7): `POST /api/orders` остаётся под авторизацией, но вход — авто-логин по телефону (новый номер → создаём юзера; существующий → находим и авторизуем), `user_id` всегда проставлен; (3) «Мои заказы» гостя = тот же авто-логин без OTP (OTP — усиление на будущее, §12.9); (4) уточнено: `/menu` = `/order` один экран (§12.10), фронт GRABZI — отдельное Next-приложение (§12.11). Источник фактуры: `grabzi_parser/`, разбор бандла `order.grabzi.ae`, аудит `app/`+`backend/` (модель `orders`, `admin_orders` фильтр `paid`, `get_current_user` на create-order)._
+_Изменения v5→v6 (ревизия на пробелы по коду Juicy): (1) **видимость заказа после оплаты — на существующем `payment_status`** Juicy (менеджерский список уже фильтрует `paid`), **новый статус `pending_payment` НЕ вводим** (§5.1/§5.3); (2) **авторизация по телефону без OTP** (§4.7): авто-логин (новый номер → создаём юзера; существующий → находим и авторизуем); (3) «Мои заказы» гостя = тот же авто-логин; (4) `/menu` = `/order` один экран, фронт GRABZI — отдельное Next-приложение._
+
+_Изменения v7→v8 (детальный дизайн админки + адверсариальная ревизия, через воркфлоу research→design→critique, заземление в коде): добавлены **§5.12–§5.17**. По вводным заказчика: **локальный S3 (MinIO) + drag-and-drop везде** (§5.13), **пауза точки — только super_admin** + опц. история `location_status_events` (§5.14, пересмотр Р13), **стоп-лист по локации ДЕЛАЕМ** `location_drink_stops` (§5.15, пересмотр Р7/§12.14), **панель остатка у менеджера** с ASCII-UX (§5.16), **экран настроек `/admin/settings`** global/per-location/env (§5.17, пересмотр §12.15). Критики выявили и исправлены сквозные проблемы (§5.12): **в проекте НЕТ Alembic** (`create_all` не делает ALTER — вводим Alembic), **существующий мок `/admin/outlets` замещаем** (а не плодим второй раздел), **счётчик лимита — НЕ в `notify()`** (явный шаг в `mark_paid` + `order_flow.refund_order`), **один роутер `admin_locations.py` с пер-эндпоинтными гардами**, **`OrderIn.locationId` + `locationId` в staff `/me`/типе** (иначе скоуп менеджера не работает), **медиа хранит относительный ключ** (URL на чтении — честный provider-swap), **SQLite `PRAGMA foreign_keys=ON`**, статус точки — вычисляемый, не хранимая enum, единый WS-канал `location:{id}`. Источник: воркфлоу `grabzi-admin-design` (12 агентов), аудит `backend/app/*`+`app/app/admin/*`._
