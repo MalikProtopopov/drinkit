@@ -1,0 +1,246 @@
+{
+  "base_url": "https://grabzi.ae/",
+  "parsed_at": "2026-06-09 20:44:04",
+  "meta": {
+    "title": "GRABZI",
+    "og_site_name": "GRABZI",
+    "og_title": "GRABZI",
+    "og_description": "GRABZI",
+    "og_url": "https://grabzi.ae/",
+    "theme_color": "",
+    "fonts": [
+      "Grenadine MVB Black",
+      "Grenadine MVB Extra Bold Italic"
+    ]
+  },
+  "nav": [
+    {
+      "label": "Menu",
+      "url": "https://grabzi.ae/pages/menu",
+      "kind": "page"
+    },
+    {
+      "label": "Shop Story",
+      "url": "https://grabzi.ae/pages/story/story-q52jw1no",
+      "kind": "page"
+    },
+    {
+      "label": "Working hours",
+      "url": "https://grabzi.ae/pages/working-hours/working",
+      "kind": "page"
+    },
+    {
+      "label": "Contact us",
+      "url": "https://grabzi.ae/pages/contact-us",
+      "kind": "page"
+    },
+    {
+      "label": "Cherry Bomb Ice v60' s 🍒💣",
+      "url": "https://grabzi.ae/products/cherry-bomb-ice-v60-s",
+      "kind": "product"
+    },
+    {
+      "label": "Classic Ice V60' s 🧊",
+      "url": "https://grabzi.ae/products/ice-v60-s",
+      "kind": "product"
+    }
+  ],
+  "collections": [
+    {
+      "id": 655694135590,
+      "title": "Home page",
+      "handle": "frontpage",
+      "description": null,
+      "products_count": 0,
+      "url": "https://grabzi.ae/collections/frontpage"
+    }
+  ],
+  "products": [
+    {
+      "id": 10288971284774,
+      "title": "Cherry Bomb Ice v60' s 🍒💣",
+      "handle": "cherry-bomb-ice-v60-s",
+      "url": "https://grabzi.ae/products/cherry-bomb-ice-v60-s",
+      "description": "",
+      "vendor": "GRABZI",
+      "product_type": "",
+      "tags": [],
+      "price_min": 36.0,
+      "price_max": 36.0,
+      "currency": "AED",
+      "available": true,
+      "options": [
+        {
+          "name": "Title",
+          "position": 1,
+          "values": [
+            "Default Title"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": 51627205329190,
+          "title": "Default Title",
+          "sku": null,
+          "price": 36.0,
+          "compare_at_price": null,
+          "available": true,
+          "options": [
+            "Default Title",
+            null,
+            null
+          ]
+        }
+      ],
+      "images": [
+        "https://cdn.shopify.com/s/files/1/0960/7364/6374/files/sticker_ba8277b5-e4cf-473c-9fe1-4a96f397e7af.png?v=1761642666"
+      ],
+      "created_at": "2025-10-28T11:39:17+04:00",
+      "updated_at": "2026-06-09T21:43:59+04:00"
+    },
+    {
+      "id": 10288345481510,
+      "title": "Classic Ice V60' s 🧊",
+      "handle": "ice-v60-s",
+      "url": "https://grabzi.ae/products/ice-v60-s",
+      "description": "If its bad brew , Give us A bad Review !🤣",
+      "vendor": "GRABZI",
+      "product_type": "",
+      "tags": [],
+      "price_min": 28.0,
+      "price_max": 28.0,
+      "currency": "AED",
+      "available": true,
+      "options": [
+        {
+          "name": "Title",
+          "position": 1,
+          "values": [
+            "Default Title"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "id": 51617561542950,
+          "title": "Default Title",
+          "sku": null,
+          "price": 28.0,
+          "compare_at_price": null,
+          "available": true,
+          "options": [
+            "Default Title",
+            null,
+            null
+          ]
+        }
+      ],
+      "images": [
+        "https://cdn.shopify.com/s/files/1/0960/7364/6374/files/GRABZI1-107.png?v=1753789918"
+      ],
+      "created_at": "2025-10-27T13:02:58+04:00",
+      "updated_at": "2026-06-09T21:43:59+04:00"
+    }
+  ],
+  "pages": [
+    {
+      "handle": "contact-us",
+      "url": "https://grabzi.ae/pages/contact-us",
+      "title": "Contact us",
+      "text": "Contact us\ngrabzi150@gmail.com\n+971556676679",
+      "links": []
+    },
+    {
+      "handle": "menu",
+      "url": "https://grabzi.ae/pages/menu",
+      "title": "Menu",
+      "text": "Menu\nClassic ice v60 's 🧊\nDHS. 28.00\nChoco berry ice v60 's 🍫🍇\nDHS. 34.00\nMelon spark ice v60 's 🍉⚡️\nDHS. 37.00\nOrder Now",
+      "links": [
+        "https://order.grabzi.ae"
+      ]
+    },
+    {
+      "handle": "story-q52jw1no",
+      "url": "https://grabzi.ae/pages/story/story-q52jw1no",
+      "title": "story-q52jw1no\n – GRABZI",
+      "text": "Our Story\nGRABZI started with a dream, but not the usual kind.\nIt began with an idea for a burger concept called WKND150, available only on weekends and serving just 150 burgers a day. Simple, limited, and special. However, turning that idea into reality required many resources such as staff, equipment, gas, a large kitchen, and a big budget.\nSo I decided to start smarter.\nOne day, I noticed a V60 coffee kit at home, and the idea naturally shifted from burgers to coffee. The concept stayed the same: limited quantities, strong identity, and a unique experience, but in a lighter, faster, and cooler form\nOne style. One vibe. 150 cups a day.\nWhen it’s sold out, it’s gone.\nSo grab it before it’s gone. GRABZI.",
+      "links": []
+    },
+    {
+      "handle": "working",
+      "url": "https://grabzi.ae/pages/working-hours/working",
+      "title": "Working hours",
+      "text": "Working hours\nMonday - Saturday\n5:30 AM - 10:00 PM\nSunday\n10:00 AM - 6:00 PM",
+      "links": []
+    }
+  ],
+  "home_sections": [
+    {
+      "kind": "content",
+      "heading": null,
+      "text": null,
+      "images": [
+        "https://grabzi.ae/cdn/shop/files/PRIMARY_LOGO-05.png?v=1753797398&width=3840"
+      ],
+      "links": []
+    },
+    {
+      "kind": "content",
+      "heading": null,
+      "text": null,
+      "images": [
+        "https://grabzi.ae/cdn/shop/files/GRABZI-75.png?v=1753789918&width=1024",
+        "https://grabzi.ae/cdn/shop/files/GRABZI-81.png?v=1753789489&width=1024",
+        "https://grabzi.ae/cdn/shop/files/GRABZI-74.png?v=1753789918&width=1024",
+        "https://grabzi.ae/cdn/shop/files/ICE-114.png?v=1753789833&width=1024",
+        "https://grabzi.ae/cdn/shop/files/GRABZI-76_1.png?v=1754377806&width=1024",
+        "https://grabzi.ae/cdn/shop/files/GRABZI-80.png?v=1753789918&width=1024"
+      ],
+      "links": []
+    },
+    {
+      "kind": "content",
+      "heading": "Today's limit",
+      "text": null,
+      "images": [],
+      "links": [
+        "https://order.grabzi.ae"
+      ]
+    },
+    {
+      "kind": "content",
+      "heading": null,
+      "text": null,
+      "images": [
+        "https://grabzi.ae/cdn/shop/files/GRABZI-80.png?v=1753789918&width=1024",
+        "https://grabzi.ae/cdn/shop/files/GRABZI-76_1.png?v=1754377806&width=1024",
+        "https://grabzi.ae/cdn/shop/files/ICE-114.png?v=1753789833&width=1024",
+        "https://grabzi.ae/cdn/shop/files/GRABZI-81.png?v=1753789489&width=1024",
+        "https://grabzi.ae/cdn/shop/files/ICE-113.png?v=1753797176&width=1024",
+        "https://grabzi.ae/cdn/shop/files/GRABZI-75.png?v=1753789918&width=1024",
+        "https://grabzi.ae/cdn/shop/files/ICE-110.png?v=1753797294&width=1024"
+      ],
+      "links": []
+    },
+    {
+      "kind": "content",
+      "heading": null,
+      "text": null,
+      "images": [
+        "https://grabzi.ae/cdn/shop/files/WEB_1-14.png?v=1753805629&width=3840",
+        "https://grabzi.ae/cdn/shop/files/WEB_1-10.png?v=1753805555&width=3840"
+      ],
+      "links": []
+    },
+    {
+      "kind": "content",
+      "heading": null,
+      "text": null,
+      "images": [
+        "https://grabzi.ae/cdn/shop/files/GRABZI-74.png?v=1753789918&width=3840"
+      ],
+      "links": []
+    }
+  ]
+}

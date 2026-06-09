@@ -1,0 +1,88 @@
+[
+  {
+    "id": 10288971284774,
+    "title": "Cherry Bomb Ice v60' s 🍒💣",
+    "handle": "cherry-bomb-ice-v60-s",
+    "url": "https://grabzi.ae/products/cherry-bomb-ice-v60-s",
+    "description": "",
+    "vendor": "GRABZI",
+    "product_type": "",
+    "tags": [],
+    "price_min": 36.0,
+    "price_max": 36.0,
+    "currency": "AED",
+    "available": true,
+    "options": [
+      {
+        "name": "Title",
+        "position": 1,
+        "values": [
+          "Default Title"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "id": 51627205329190,
+        "title": "Default Title",
+        "sku": null,
+        "price": 36.0,
+        "compare_at_price": null,
+        "available": true,
+        "options": [
+          "Default Title",
+          null,
+          null
+        ]
+      }
+    ],
+    "images": [
+      "https://cdn.shopify.com/s/files/1/0960/7364/6374/files/sticker_ba8277b5-e4cf-473c-9fe1-4a96f397e7af.png?v=1761642666"
+    ],
+    "created_at": "2025-10-28T11:39:17+04:00",
+    "updated_at": "2026-06-09T21:43:59+04:00"
+  },
+  {
+    "id": 10288345481510,
+    "title": "Classic Ice V60' s 🧊",
+    "handle": "ice-v60-s",
+    "url": "https://grabzi.ae/products/ice-v60-s",
+    "description": "If its bad brew , Give us A bad Review !🤣",
+    "vendor": "GRABZI",
+    "product_type": "",
+    "tags": [],
+    "price_min": 28.0,
+    "price_max": 28.0,
+    "currency": "AED",
+    "available": true,
+    "options": [
+      {
+        "name": "Title",
+        "position": 1,
+        "values": [
+          "Default Title"
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "id": 51617561542950,
+        "title": "Default Title",
+        "sku": null,
+        "price": 28.0,
+        "compare_at_price": null,
+        "available": true,
+        "options": [
+          "Default Title",
+          null,
+          null
+        ]
+      }
+    ],
+    "images": [
+      "https://cdn.shopify.com/s/files/1/0960/7364/6374/files/GRABZI1-107.png?v=1753789918"
+    ],
+    "created_at": "2025-10-27T13:02:58+04:00",
+    "updated_at": "2026-06-09T21:43:59+04:00"
+  }
+]
