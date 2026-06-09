@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 
 from ..core.db import get_db
 from ..core.security import require_super_admin
+from ..models.locations import Location
 from ..models.orders import Order, OrderItem
 from ..models.users import User
+from ..services import location_service as ls
 
 router = APIRouter(prefix="/api/admin/dashboard", tags=["dashboard"],
                    dependencies=[Depends(require_super_admin)])
@@ -18,6 +20,7 @@ router = APIRouter(prefix="/api/admin/dashboard", tags=["dashboard"],
 def dashboard(
     date_from: datetime | None = Query(None, alias="from"),
     date_to: datetime | None = Query(None, alias="to"),
+    location_id: int | None = Query(None, description="разрез/фильтр по точке (план §5.10)"),
     db: Session = Depends(get_db),
 ):
     paid = [Order.payment_status == "paid"]
@@ -25,6 +28,8 @@ def dashboard(
         paid.append(Order.created_at >= date_from)
     if date_to:
         paid.append(Order.created_at <= date_to)
+    if location_id is not None:
+        paid.append(Order.location_id == location_id)
 
     revenue = db.scalar(select(func.coalesce(func.sum(Order.total), 0)).where(*paid)) or 0
     orders_count = db.scalar(select(func.count(Order.id)).where(*paid)) or 0
@@ -61,10 +66,34 @@ def dashboard(
         .group_by(User.id).order_by(func.count(Order.id).desc())
     ).all()
 
+    # разрез по локациям (план §5.10): выручка/напитки + sold/limit/remaining сегодня
+    by_loc_rows = db.execute(
+        select(Order.location_id,
+               func.coalesce(func.sum(Order.total), 0).label("rev"),
+               func.count(Order.id).label("orders"),
+               func.coalesce(func.sum(OrderItem.quantity), 0).label("qty"))
+        .join(OrderItem, OrderItem.order_id == Order.id).where(*paid)
+        .group_by(Order.location_id)
+    ).all()
+    rev_by_loc = {r.location_id: r for r in by_loc_rows}
+    by_location = []
+    for loc in db.scalars(select(Location).order_by(Location.sort)).all():
+        r = rev_by_loc.get(loc.id)
+        sold = ls.sold_today(db, loc)
+        by_location.append({
+            "locationId": loc.id, "name": loc.name,
+            "revenue": round(r.rev, 2) if r else 0,
+            "ordersCount": r.orders if r else 0,
+            "drinksSold": int(r.qty) if r else 0,
+            "soldToday": sold, "limit": loc.daily_drink_limit,
+            "remaining": ls.remaining(loc, sold),
+        })
+
     return {
         "revenue": round(revenue, 2),                                   # 1
         "ordersCount": orders_count,                                    # 2
         "drinksSold": int(drinks_count),                                # 3
+        "byLocation": by_location,                                      # разрез по точкам
         "avgDrinksPerOrder": round(drinks_count / orders_count, 2) if orders_count else 0,  # 4
         "avgOrderValue": round(revenue / orders_count, 2) if orders_count else 0,           # 5
         "ordersByHour": by_hour,                                        # 7
