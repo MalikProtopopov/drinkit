@@ -65,6 +65,7 @@ export const LocationSchema = z.object({
   status: StockState,
   nextOpenAt: z.string().nullable(),
   acceptingOrders: z.boolean(),
+  color: z.string().nullable().optional(),
   imageUrl: z.string().nullable(),
 });
 export type Location = z.infer<typeof LocationSchema>;
