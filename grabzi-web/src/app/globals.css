@@ -1,35 +1,47 @@
 @import "tailwindcss";
 
-/* Дизайн-токены GRABZI — реальная палитра живого grabzi.ae (фронт-спека §2).
-   Карточки — статичные PNG (не видео). Только логические CSS-свойства (AR/RTL-задел). */
+/* Брендовые шрифты GRABZI (self-host woff2 с grabzi.ae) */
+@font-face {
+  font-family: "Grenadine MVB";
+  src: url("/fonts/Grenadine-Black.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Grenadine MVB";
+  src: url("/fonts/Grenadine-ExtraBoldItalic.woff2") format("woff2");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Дизайн-токены GRABZI — реальная палитра живого grabzi.ae (фронт-спека §2). */
 :root {
   --color-brand: #c44429;        /* терракота — бренд, CTA */
   --color-brand-hover: #a8381f;
-  --color-brand-press: #780406;  /* тёмно-красная кнопка темы */
+  --color-brand-press: #780406;
   --color-cream: #e8d5c7;
-  --color-cream-yellow: #fff8d4;
+  --color-cream-yellow: #fdf6d8; /* фон страниц (как на референсе) */
   --color-teal: #29c4b4;
   --color-teal-soft: #98c3c9;
-  --color-lime: #b5bd62;
+  --color-lime: #b5bd62;         /* TODAY'S LIMIT */
   --color-heading: #a42325;
-  --color-ink: #1a1410;
-  --color-muted: #6b5d52;
-  --color-border: #e4d9cb;
-  --color-paper: #ffffff;
+  --color-ink: #2a1d14;
+  --color-muted: #8a7866;
+  --color-border: #ead9c4;
+  --color-paper: #fffdf6;
   --color-danger: #dc2626;
   --color-success: #16a34a;
-  /* stock-токены темы — бейджи остатка / sold-out / статусы локаций */
   --color-instock: #3ed660;
   --color-lowstock: #ee9441;
   --color-outofstock: #c8c8c8;
-  --radius-card: 20px;
+  --radius-card: 22px;
   --radius-pill: 9999px;
 }
 
 @theme inline {
   --color-brand: var(--color-brand);
-  --color-brand-hover: var(--color-brand-hover);
-  --color-brand-press: var(--color-brand-press);
   --color-cream: var(--color-cream);
   --color-cream-yellow: var(--color-cream-yellow);
   --color-teal: var(--color-teal);
@@ -37,7 +49,6 @@
   --color-heading: var(--color-heading);
   --color-ink: var(--color-ink);
   --color-muted: var(--color-muted);
-  --color-border: var(--color-border);
   --color-instock: var(--color-instock);
   --color-lowstock: var(--color-lowstock);
   --color-outofstock: var(--color-outofstock);
@@ -53,22 +64,38 @@ body {
   background: var(--color-cream-yellow);
   -webkit-font-smoothing: antialiased;
 }
-h1, h2, h3 { font-family: var(--font-display); color: var(--color-heading); margin: 0; }
-button { font-family: inherit; cursor: pointer; }
 a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
 
-/* фокус-видимость (a11y-пробел Juicy) */
+/* брендовые заголовки — жирный курсив терракота (как на референсе) */
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-style: italic;
+  color: var(--color-brand);
+  letter-spacing: 0;
+  margin: 0;
+}
+h1, h2, h3 { font-family: var(--font-display); font-weight: 800; font-style: italic; color: var(--color-brand); margin: 0; }
+
 :focus-visible { outline: 2px solid var(--color-teal); outline-offset: 2px; }
 
-/* утилиты бренда */
+/* кнопки */
 .btn-primary {
   background: var(--color-brand); color: #fff; border: none;
-  border-radius: var(--radius-pill); padding-block: 14px; padding-inline: 24px;
-  font-weight: 800; font-size: 16px; min-block-size: 52px; transition: background .15s;
+  border-radius: var(--radius-pill); padding-block: 14px; padding-inline: 28px;
+  font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 17px;
+  min-block-size: 52px; transition: background .15s;
 }
 .btn-primary:hover:not(:disabled) { background: var(--color-brand-hover); }
 .btn-primary:active:not(:disabled) { background: var(--color-brand-press); }
 .btn-primary:disabled { background: var(--color-outofstock); cursor: not-allowed; }
+.btn-block {
+  width: 100%; background: var(--color-brand); color: #fff; border: none;
+  border-radius: 14px; padding-block: 16px; font-size: 17px; font-weight: 700;
+}
+.btn-block:disabled { background: var(--color-outofstock); cursor: not-allowed; }
+
 .card {
   background: var(--color-paper); border: 1px solid var(--color-border);
   border-radius: var(--radius-card); padding: 16px;
@@ -80,17 +107,47 @@ a { color: inherit; text-decoration: none; }
 .badge--open { background: var(--color-instock); }
 .badge--low { background: var(--color-lowstock); }
 .badge--out, .badge--closed, .badge--paused { background: var(--color-outofstock); color: #333; }
-.skeleton { background: #eee5da; border-radius: 12px; animation: pulse 1.2s infinite; }
+.skeleton { background: #efe3cf; border-radius: 12px; animation: pulse 1.2s infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
 
-/* адаптив (фронт-спека §3.1): desktop header vs mobile bottom-nav */
+/* TODAY'S LIMIT — оливковый акцент */
+.limit-card {
+  border: 1px solid var(--color-border); border-radius: var(--radius-card);
+  padding: 18px; text-align: center; background: transparent;
+}
+.limit-title {
+  font-family: var(--font-display); font-style: italic; font-weight: 800;
+  color: var(--color-lime); font-size: 26px; letter-spacing: .04em;
+}
+.limit-value {
+  font-family: var(--font-display); font-style: italic; font-weight: 800;
+  color: var(--color-lime); font-size: 30px;
+}
+
+/* поля формы (кремовые, как на референсе) */
+.field-label {
+  font-family: var(--font-display); font-style: italic; font-weight: 800;
+  color: var(--color-brand); font-size: 14px; letter-spacing: .02em;
+}
+.field-input {
+  width: 100%; padding: 14px; border-radius: 12px; font-size: 15px;
+  background: var(--color-cream-yellow); border: 1px solid var(--color-border);
+}
+
+/* нав-ссылки (терракота, жирный курсив) */
+.nav-link { color: var(--color-brand); font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 15px; }
+.nav-link[data-active="true"] { color: var(--color-brand-press); }
+
+/* адаптив */
 .desktop-only { display: none; }
 .mobile-only { display: flex; }
 @media (min-width: 768px) {
   .desktop-only { display: flex; }
   .mobile-only { display: none; }
 }
-.nav-link { color: var(--color-muted); font-weight: 600; font-size: 15px; }
-.nav-link[data-active="true"] { color: var(--color-brand); }
-.has-bottom-nav { padding-block-end: 76px; }
+.has-bottom-nav { padding-block-end: 80px; }
 @media (min-width: 768px) { .has-bottom-nav { padding-block-end: 0; } }
+
+/* декоративный разделитель (ряд иконок) */
+.divider { text-align: center; color: var(--color-teal-soft); font-size: 14px; letter-spacing: 6px; opacity: .8; user-select: none; }
+.footer { text-align: center; color: var(--color-muted); font-size: 12px; padding-block: 24px; }

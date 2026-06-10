@@ -4,7 +4,8 @@ import { usePathname } from "next/navigation";
 
 /** Адаптивная навигация (фронт-спека §3.1): desktop header + mobile bottom-nav. */
 const LINKS = [
-  { href: "/locations", label: "Menu" },
+  { href: "/menu", label: "Menu" },
+  { href: "/locations", label: "Location" },
   { href: "/orders", label: "Orders" },
   { href: "/info", label: "Info" },
 ];
@@ -46,13 +47,17 @@ export function Nav() {
           paddingBlock: 10, paddingBlockEnd: "calc(10px + env(safe-area-inset-bottom))",
         }}
       >
-        {LINKS.map((l) => (
-          <Link key={l.href} href={l.href} className="nav-link" data-active={active(l.href)}
-            style={{ display: "flex", flexDirection: "column", alignItems: "center", fontSize: 12 }}>
-            <span style={{ fontSize: 20 }}>{l.label === "Menu" ? "🧊" : l.label === "Orders" ? "🧾" : "ℹ️"}</span>
-            {l.label}
-          </Link>
-        ))}
+        {LINKS.map((l) => {
+          const icon = l.label === "Menu" ? "🧊" : l.label === "Location" ? "📍"
+            : l.label === "Orders" ? "🧾" : "ℹ️";
+          return (
+            <Link key={l.href} href={l.href} className="nav-link" data-active={active(l.href)}
+              style={{ display: "flex", flexDirection: "column", alignItems: "center", fontSize: 11 }}>
+              <span style={{ fontSize: 20 }}>{icon}</span>
+              {l.label}
+            </Link>
+          );
+        })}
       </nav>
     </>
   );

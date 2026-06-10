@@ -2,10 +2,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, ApiError, type Category, type Drink, type Location } from "@/lib/api";
+import { api, ApiError, type Drink, type Location } from "@/lib/api";
 import { useOrderDraft } from "@/lib/store";
 
-type Data = { location: Location; categories: Category[]; drinks: Drink[] };
+type Data = { location: Location; drinks: Drink[] };
 type State = { k: "loading" } | { k: "error"; msg: string } | { k: "ok"; data: Data };
 
 const ERR_COPY: Record<string, string> = {
@@ -26,7 +26,6 @@ export default function OrderPage() {
   const router = useRouter();
 
   const [state, setState] = useState<State>({ k: "loading" });
-  const [cat, setCat] = useState<number | null>(null);
   const [phone, setPhone] = useState("");
   const [car, setCar] = useState("");
   const [paying, setPaying] = useState(false);
@@ -35,11 +34,8 @@ export default function OrderPage() {
   async function load(id: number) {
     setState({ k: "loading" });
     try {
-      const [location, categories, drinks] = await Promise.all([
-        api.location(id), api.categories(), api.drinks(id),
-      ]);
-      setState({ k: "ok", data: { location, categories, drinks } });
-      setCat(categories[0]?.id ?? null);
+      const [location, drinks] = await Promise.all([api.location(id), api.drinks(id)]);
+      setState({ k: "ok", data: { location, drinks } });
     } catch (e) {
       setState({ k: "error", msg: ERR_COPY[(e as ApiError).code] ?? "Something went wrong." });
     }
@@ -48,15 +44,17 @@ export default function OrderPage() {
 
   const total = useMemo(() => {
     if (state.k !== "ok") return 0;
-    return state.data.drinks.reduce((sum, d) => sum + d.basePrice * (items[d.id] ?? 0), 0);
+    return state.data.drinks.reduce((s, d) => s + d.basePrice * (items[d.id] ?? 0), 0);
   }, [state, items]);
   const totalDrinks = Object.values(items).reduce((a, b) => a + b, 0);
 
   if (!locationId) {
     return (
-      <main style={{ maxWidth: 640, margin: "0 auto", padding: 20, textAlign: "center" }}>
-        <h1 style={{ fontSize: 26, marginBlockEnd: 12 }}>Pick a spot first</h1>
-        <Link href="/locations"><button className="btn-primary">Choose location</button></Link>
+      <main style={wrap}>
+        <h1 style={{ fontSize: 26, textAlign: "center", marginBlockEnd: 14 }}>Pick a spot first</h1>
+        <div style={{ textAlign: "center" }}>
+          <Link href="/locations"><button className="btn-primary">Choose location</button></Link>
+        </div>
       </main>
     );
   }
@@ -65,8 +63,7 @@ export default function OrderPage() {
     if (state.k !== "ok") return;
     const { location } = state.data;
     if (location.remaining !== null && totalDrinks > location.remaining) {
-      setOverlay(`Only ${location.remaining} left here. Reduce your order.`);
-      return;
+      setOverlay(`Only ${location.remaining} left here. Reduce your order.`); return;
     }
     if (!/^\+?\d{7,15}$/.test(phone)) { setOverlay("Enter a valid phone number."); return; }
     if (!car.trim()) { setOverlay("Add your car plate so we find you."); return; }
@@ -84,16 +81,32 @@ export default function OrderPage() {
       else window.location.href = co.checkoutUrl;
     } catch (e) {
       setOverlay(ERR_COPY[(e as ApiError).code] ?? "Payment couldn't start.");
-    } finally {
-      setPaying(false);
-    }
+    } finally { setPaying(false); }
   }
 
   return (
-    <main style={{ maxWidth: 640, margin: "0 auto", padding: 20, paddingBlockEnd: 160 }}>
+    <main style={wrap}>
+      {/* шапка: тающий лёд + ICE V'60 */}
+      <header style={{ textAlign: "center", paddingBlock: 8 }}>
+        <div style={{ fontSize: 40, color: "var(--color-teal-soft)" }} aria-hidden>🧊</div>
+        <h1 className="display" style={{ fontSize: 38, letterSpacing: ".02em" }}>ICE V&apos;60</h1>
+      </header>
+
+      {/* TODAY'S LIMIT */}
+      {state.k === "ok" && (
+        <div className="limit-card" style={{ marginBlock: 16 }}>
+          <div className="limit-title">TODAY&apos;S LIMIT</div>
+          <div className="limit-value">
+            {state.data.location.dailyDrinkLimit === null
+              ? `${state.data.location.soldToday} · No limit`
+              : `${state.data.location.soldToday} / ${state.data.location.dailyDrinkLimit}`}
+          </div>
+        </div>
+      )}
+
       {state.k === "loading" && (
-        <div style={{ display: "grid", gap: 12 }}>
-          {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ height: 72 }} />)}
+        <div style={{ display: "grid", gap: 10 }}>
+          {[0, 1, 2, 3, 4].map((i) => <div key={i} className="skeleton" style={{ height: 64 }} />)}
         </div>
       )}
 
@@ -106,74 +119,56 @@ export default function OrderPage() {
 
       {state.k === "ok" && (
         <>
-          <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBlockEnd: 14 }}>
-            <h1 style={{ fontSize: 24 }}>{state.data.location.name}</h1>
-            <span className="badge badge--open">
-              {state.data.location.remaining === null ? "No limit" : `${state.data.location.remaining} left`}
-            </span>
-          </header>
-
-          <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBlockEnd: 16 }}>
-            {state.data.categories.map((c) => (
-              <button key={c.id} onClick={() => setCat(c.id)}
-                style={{
-                  border: "none", borderRadius: 9999, paddingInline: 16, paddingBlock: 8,
-                  fontWeight: 700, whiteSpace: "nowrap",
-                  background: cat === c.id ? "var(--color-brand)" : "var(--color-cream)",
-                  color: cat === c.id ? "#fff" : "var(--color-ink)",
-                }}>
-                {c.name}
-              </button>
-            ))}
-          </div>
-
-          <div style={{ display: "grid", gap: 12 }}>
-            {state.data.drinks.filter((d) => d.categoryId === cat).map((d) => {
+          {/* белый список напитков со степперами */}
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            {state.data.drinks.map((d, idx) => {
               const qty = items[d.id] ?? 0;
               return (
-                <div key={d.id} className="card" style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
+                <div key={d.id} style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                  padding: "16px 18px",
+                  borderBlockStart: idx ? "1px solid var(--color-border)" : "none",
                   opacity: d.soldOut ? 0.5 : 1,
                 }}>
                   <div>
-                    <div style={{ fontWeight: 800 }}>{d.name}</div>
-                    <div style={{ color: "var(--color-muted)" }}>AED {d.basePrice}</div>
+                    <div className="display" style={{ fontSize: 18, textTransform: "uppercase" }}>{d.name}</div>
+                    <div style={{ color: "var(--color-brand)", fontStyle: "italic", fontWeight: 700, fontSize: 13 }}>
+                      {d.basePrice} AED
+                    </div>
                   </div>
                   {d.soldOut ? (
                     <span className="badge badge--out">Sold out</span>
                   ) : (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <button aria-label="minus" onClick={() => setQty(d.id, qty - 1)}
-                        style={stepBtn}>−</button>
-                      <span style={{ minWidth: 20, textAlign: "center", fontWeight: 800 }}>{qty}</span>
+                        style={{ ...step, background: qty > 0 ? "var(--color-cream-yellow)" : "var(--color-paper)" }}>−</button>
+                      <span style={{ minWidth: 28, textAlign: "center" }}
+                        className="display">{qty}</span>
                       <button aria-label="plus" onClick={() => setQty(d.id, qty + 1)}
-                        style={{ ...stepBtn, background: "var(--color-brand)", color: "#fff" }}>+</button>
+                        style={{ ...step, background: "var(--color-paper)" }}>+</button>
                     </div>
                   )}
                 </div>
               );
             })}
-          </div>
 
-          {/* контакты */}
-          <div style={{ display: "grid", gap: 10, marginBlockStart: 20 }}>
-            <input placeholder="Phone (+9715X XXX XXXX)" value={phone} onChange={(e) => setPhone(e.target.value)}
-              style={input} inputMode="tel" />
-            <input placeholder="Car plate (e.g. DUBAI A 12345)" value={car} onChange={(e) => setCar(e.target.value)}
-              style={input} />
-          </div>
-
-          {/* sticky bar оплаты */}
-          <div style={{
-            position: "fixed", insetInline: 0, insetBlockEnd: 0, background: "#fff",
-            borderBlockStart: "1px solid var(--color-border)", padding: 16,
-            display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
-          }}>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>Total AED {total}</div>
-            <button className="btn-primary" disabled={totalDrinks === 0 || paying}
-              onClick={pay} style={{ minWidth: 180 }}>
-              {paying ? "Creating order…" : totalDrinks === 0 ? "Pick a drink" : `Pay AED ${total} ▶`}
-            </button>
+            {/* поля контактов внутри карточки (как на референсе) */}
+            <div style={{ padding: 18, display: "grid", gap: 14, borderBlockStart: "1px solid var(--color-border)" }}>
+              <div>
+                <label className="field-label">CAR NUMBER *</label>
+                <input className="field-input" value={car} onChange={(e) => setCar(e.target.value)}
+                  placeholder="DUBAI A 12345" style={{ marginBlockStart: 6 }} />
+              </div>
+              <div>
+                <label className="field-label">PHONE NUMBER *</label>
+                <input className="field-input" value={phone} onChange={(e) => setPhone(e.target.value)}
+                  inputMode="tel" placeholder="+9715X XXX XXXX" style={{ marginBlockStart: 6 }} />
+              </div>
+              <button className="btn-block" disabled={totalDrinks === 0 || paying} onClick={pay}>
+                {paying ? "Creating order…" : totalDrinks === 0 ? "Pick a drink"
+                  : `Proceed to Payment · AED ${total}`}
+              </button>
+            </div>
           </div>
         </>
       )}
@@ -190,12 +185,10 @@ export default function OrderPage() {
   );
 }
 
-const stepBtn: React.CSSProperties = {
-  inlineSize: 36, blockSize: 36, borderRadius: 9999, border: "1px solid var(--color-border)",
-  background: "var(--color-cream)", fontSize: 20, fontWeight: 800, lineHeight: 1,
-};
-const input: React.CSSProperties = {
-  padding: 12, borderRadius: 12, border: "1px solid var(--color-border)", fontSize: 15,
+const wrap: React.CSSProperties = { maxWidth: 640, margin: "0 auto", padding: 20, paddingBlockEnd: 40 };
+const step: React.CSSProperties = {
+  inlineSize: 40, blockSize: 40, borderRadius: 12, border: "1px solid var(--color-border)",
+  color: "var(--color-brand)", fontSize: 22, fontWeight: 800, lineHeight: 1,
 };
 const modalBg: React.CSSProperties = {
   position: "fixed", inset: 0, background: "rgba(0,0,0,.4)", display: "flex",
