@@ -3,10 +3,16 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { API_URL, api } from "@/lib/api";
 
+const STEPS = [
+  { key: "new", label: "Received" },
+  { key: "in_progress", label: "Making" },
+  { key: "ready", label: "Ready" },
+  { key: "completed", label: "Handed over" },
+];
 const STATUS_COPY: Record<string, string> = {
   new: "Order received — barista will start soon",
   in_progress: "Making your drink",
-  ready: "Ready — come on over",
+  ready: "Ready — come on over 🚗",
   completed: "Handed over. Enjoy!",
   refund: "Refunded",
 };
@@ -50,22 +56,56 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
   }
 
   if (err) return <Center><p>Order not found.</p><Link href="/orders"><button className="btn-primary">My orders</button></Link></Center>;
-  if (!order) return <Center><div className="skeleton" style={{ height: 120, width: 280 }} /></Center>;
+  if (!order) return <Center><div className="skeleton" style={{ height: 160, width: 300 }} /></Center>;
 
   const paid = order.paymentStatus === "paid";
-  return (
-    <main style={{ maxWidth: 560, margin: "0 auto", padding: 24, textAlign: "center" }}>
-      <div style={{ fontSize: 48 }}>{order.status === "ready" ? "✅" : order.status === "completed" ? "🎉" : "☕"}</div>
-      <h1 style={{ fontSize: 24, marginBlock: 8 }}>Order #{order.number}</h1>
-      <p style={{ fontSize: 18, color: "var(--color-muted)" }}>
-        {!paid ? "Confirming your payment…" : STATUS_COPY[order.status] ?? order.status}
-      </p>
-      <p style={{ marginBlockStart: 8, fontWeight: 800 }}>AED {order.total}</p>
+  const refunded = order.status === "refund";
+  const activeIdx = STEPS.findIndex((s) => s.key === order.status);
 
-      {paid && !order.arrived && order.status !== "completed" && order.status !== "refund" && (
-        <button className="btn-primary" onClick={imHere} style={{ marginBlockStart: 20 }}>I&apos;m here 🚗</button>
+  return (
+    <main style={{ maxWidth: 520, margin: "0 auto", padding: 24, textAlign: "center" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/brand/ice.png" alt="" aria-hidden style={{ width: 56, height: 56, objectFit: "contain", margin: "0 auto" }} />
+      <h1 className="display" style={{ fontSize: 30, marginBlock: 8 }}>Order #{order.number}</h1>
+      <p style={{ fontSize: 17, color: "var(--color-muted)" }}>
+        {refunded ? "Refunded" : !paid ? "Confirming your payment…" : STATUS_COPY[order.status] ?? order.status}
+      </p>
+      <p style={{ marginBlockStart: 8, fontWeight: 900, fontSize: 20, color: "var(--color-brand)" }}>AED {order.total}</p>
+
+      {/* степпер прогресса */}
+      {paid && !refunded && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBlock: 28, gap: 4 }}>
+          {STEPS.map((s, i) => {
+            const done = i <= activeIdx;
+            const current = i === activeIdx;
+            return (
+              <div key={s.key} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+                {i > 0 && (
+                  <div style={{
+                    position: "absolute", insetBlockStart: 13, insetInlineEnd: "50%", width: "100%", height: 3,
+                    background: i <= activeIdx ? "var(--color-brand)" : "var(--color-border)", zIndex: 0,
+                  }} />
+                )}
+                <div style={{
+                  width: 28, height: 28, borderRadius: 9999, zIndex: 1,
+                  background: done ? "var(--color-brand)" : "var(--color-paper)",
+                  border: `2px solid ${done ? "var(--color-brand)" : "var(--color-border)"}`,
+                  color: "#fff", display: "grid", placeItems: "center", fontSize: 14, fontWeight: 800,
+                  boxShadow: current ? "0 0 0 4px rgba(196,68,41,.18)" : "none",
+                }}>{done ? "✓" : ""}</div>
+                <span style={{ fontSize: 11, marginBlockStart: 6, color: done ? "var(--color-brand)" : "var(--color-muted)", fontWeight: current ? 800 : 600 }}>
+                  {s.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
-      {order.arrived && <p style={{ marginBlockStart: 16, color: "var(--color-teal)" }}>We know you&apos;re here</p>}
+
+      {paid && !order.arrived && order.status !== "completed" && !refunded && (
+        <button className="btn-primary" onClick={imHere} style={{ marginBlockStart: 8 }}>I&apos;m here 🚗</button>
+      )}
+      {order.arrived && <p style={{ marginBlockStart: 16, color: "var(--color-teal)", fontWeight: 700 }}>We know you&apos;re here ✓</p>}
 
       <div style={{ marginBlockStart: 28 }}>
         <Link href="/orders" style={{ color: "var(--color-muted)" }}>My orders</Link>

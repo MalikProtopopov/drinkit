@@ -86,9 +86,10 @@ export default function OrderPage() {
 
   return (
     <main style={wrap}>
-      {/* шапка: тающий лёд + ICE V'60 */}
+      {/* шапка: тающий лёд (брендовая иконка) + ICE V'60 */}
       <header style={{ textAlign: "center", paddingBlock: 8 }}>
-        <div style={{ fontSize: 40, color: "var(--color-teal-soft)" }} aria-hidden>🧊</div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/ice.png" alt="" aria-hidden style={{ width: 56, height: 56, objectFit: "contain", margin: "0 auto" }} />
         <h1 className="display" style={{ fontSize: 38, letterSpacing: ".02em" }}>ICE V&apos;60</h1>
       </header>
 

@@ -83,8 +83,12 @@ export default function KitchenPage() {
         border: "1px solid var(--color-border)", borderRadius: 12, marginBlockEnd: 12,
         position: "sticky", insetBlockStart: 0, zIndex: 10,
       }}>
-        <div style={{ fontWeight: 800, fontSize: 18 }}>
-          {loc ? loc.name : "All points"} {loc && loc.status !== "open" && <span className="badge badge--paused">{loc.status}</span>}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo.png" alt="GRABZI" style={{ height: 32, width: "auto" }} />
+          <div style={{ fontWeight: 800, fontSize: 18 }}>
+            {loc ? loc.name : "All points"} {loc && loc.status !== "open" && <span className="badge badge--paused">{loc.status}</span>}
+          </div>
         </div>
         {loc && (
           <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 280 }}>

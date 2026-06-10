@@ -26,8 +26,9 @@ export function Nav() {
           background: "#fff", position: "sticky", insetBlockStart: 0, zIndex: 20,
         }}
       >
-        <Link href="/" style={{ fontFamily: "var(--font-display)", fontWeight: 900, fontSize: 22, color: "var(--color-brand)" }}>
-          GRABZI
+        <Link href="/" style={{ display: "flex", alignItems: "center" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo.png" alt="GRABZI" style={{ height: 40, width: "auto" }} />
         </Link>
         <nav style={{ display: "flex", gap: 24, alignItems: "center" }}>
           {LINKS.map((l) => (
