@@ -11,11 +11,18 @@ from .services.seed import seed
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # DECISION: create_all + сиды на старте вместо alembic — достаточно для MVP,
-    # миграции добавляются при первом изменении схемы в проде
+    # DECISION: create_all + сиды на старте вместо alembic — достаточно для dev;
+    # прод использует Alembic (план §5.12). SEED_BRAND выбирает сид-набор:
+    #   juicy (по умолчанию, тесты) | grabzi (GRABZI-инстанс) | none
+    import os
     Base.metadata.create_all(engine)
+    brand = os.environ.get("SEED_BRAND", "juicy")
     with SessionLocal() as db:
-        seed(db)
+        if brand == "grabzi":
+            from .services.seed_grabzi import seed_grabzi
+            seed_grabzi(db)
+        elif brand != "none":
+            seed(db)
     yield
 
 
