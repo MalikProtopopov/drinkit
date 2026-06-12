@@ -1,7 +1,7 @@
 """Админка-каталог (ADM-S-01..05): CRUD категорий напитков, категорий добавок,
 добавок, единиц измерения, напитков и связки напиток×добавка."""
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -104,6 +104,8 @@ def create_addon_category(body: AddonCategoryIn, db: Session = Depends(get_db)):
 
 @router.patch("/addon-categories/{cat_id}")
 def update_addon_category(cat_id: int, body: AddonCategoryIn, db: Session = Depends(get_db)):
+    if body.selectionType not in ("single", "multi", "counter"):
+        raise HTTPException(422, "VALIDATION_ERROR")
     c = db.get(AddonCategory, cat_id)
     if not c:
         raise HTTPException(404, "NOT_FOUND")
@@ -120,11 +122,11 @@ class AddonIn(BaseModel):
     imageUrl: str | None = None
     categoryId: int
     unitId: int  # привязка единицы на деталке добавки (решение владельца)
-    kcalPer100: float = 0
-    proteinPer100: float = 0
-    fatPer100: float = 0
-    carbsPer100: float = 0
-    basePrice: float = 0
+    kcalPer100: float = Field(0, ge=0)
+    proteinPer100: float = Field(0, ge=0)
+    fatPer100: float = Field(0, ge=0)
+    carbsPer100: float = Field(0, ge=0)
+    basePrice: float = Field(0, ge=0)
     isActive: bool = True
 
 
@@ -172,11 +174,11 @@ class DrinkIn(BaseModel):
     status: str = "draft"  # draft | published | hidden
     previewUrl: str | None = None
     videoUrl: str | None = None
-    basePrice: float = 0
-    kcal: float = 0
-    protein: float = 0
-    fat: float = 0
-    carbs: float = 0
+    basePrice: float = Field(0, ge=0)
+    kcal: float = Field(0, ge=0)
+    protein: float = Field(0, ge=0)
+    fat: float = Field(0, ge=0)
+    carbs: float = Field(0, ge=0)
     categoryId: int
 
 
@@ -226,6 +228,8 @@ def create_drink(body: DrinkIn, db: Session = Depends(get_db)):
 
 @router.patch("/drinks/{drink_id}")
 def update_drink(drink_id: int, body: DrinkIn, db: Session = Depends(get_db)):
+    if body.status not in ("draft", "published", "hidden"):
+        raise HTTPException(422, "VALIDATION_ERROR")
     d = db.get(Drink, drink_id)
     if not d:
         raise HTTPException(404, "NOT_FOUND")

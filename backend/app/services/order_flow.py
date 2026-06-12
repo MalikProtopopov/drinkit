@@ -97,6 +97,11 @@ def create_order(db: Session, user: User, payload, locale: str) -> Order:
         coupon = db.get(Coupon, payload.couponId)
         if not coupon or coupon.user_id != user.id or coupon.status != "active":
             raise HTTPException(409, "COUPON_INVALID")
+        # анти-дабл-букинг: купон нельзя применить к другому ещё не оплаченному заказу
+        held = db.scalar(select(Order).where(
+            Order.coupon_id == coupon.id, Order.payment_status != "paid"))
+        if held is not None:
+            raise HTTPException(409, "COUPON_ALREADY_RESERVED")
         if coupon_item_price is None:
             raise HTTPException(422, "COUPON_ITEM_REQUIRED")  # напиток выбирает клиент
         order.coupon_id = coupon.id

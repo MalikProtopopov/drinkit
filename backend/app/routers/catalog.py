@@ -15,7 +15,9 @@ def _addon_payload(link, locale, portions: int | None = None):
     n = portions if portions is not None else link.default_portions
     amount = n * link.portion_amount
     factor = amount / 100.0
-    price = a.base_price if link.price_override is None else link.price_override
+    # price_override is None => добавка бесплатна (включена в стоимость) → цена 0,
+    # иначе берётся override. Согласовано с флагом "free" в payload.
+    price = 0.0 if link.price_override is None else link.price_override
     return {
         "addonId": a.id,
         "name": t(a.name, locale),

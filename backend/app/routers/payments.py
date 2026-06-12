@@ -84,8 +84,14 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_db),
 
     if payload.get("type") == "checkout.session.completed":
         meta = payload.get("data", {}).get("object", {}).get("metadata", {})
-        order = db.get(Order, int(meta.get("order_id", 0)))
-        payment = db.get(Payment, int(meta.get("payment_id", 0)))
+        # устойчивость к мусорным metadata: нечисловой id → событие игнорируем, не 500
+        try:
+            order_id = int(meta.get("order_id", 0))
+            payment_id = int(meta.get("payment_id", 0))
+        except (TypeError, ValueError):
+            return {"received": True}
+        order = db.get(Order, order_id)
+        payment = db.get(Payment, payment_id)
         if order and payment and order.payment_status != "paid":
             payment.status = "succeeded"
             mark_paid(db, order, provider_id=payment.provider_id)

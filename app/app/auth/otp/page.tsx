@@ -15,8 +15,10 @@ export default function OtpPage() {
     return () => clearTimeout(t);
   }, [secondsLeft]);
 
-  // dev-режим: код пришёл в ответе request-code — автозаполняем как «SMS»
+  // dev-режим: код пришёл в ответе request-code — автозаполняем как «SMS».
+  // A5: только вне production, чтобы на проде поле никогда не самозаполнялось.
   useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
     if (code.length > 0) return;
     const dev = sessionStorage.getItem("juicy-dev-otp");
     if (!dev) return;

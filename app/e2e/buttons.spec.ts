@@ -79,7 +79,7 @@ test.describe("Buttons: nothing dead on key screens", () => {
   test("product detail: sheets open and addons toggle", async ({ page, context }) => {
     await seedAuthenticatedState(context);
     const { errors } = collectErrors(page);
-    await page.goto("/product/matcha", { waitUntil: "networkidle" });
+    await page.goto("/product/orange-fresh", { waitUntil: "networkidle" });
 
     // 1. "Подробнее" opens description sheet
     await page.getByText("подробнее").first().click();
@@ -91,7 +91,7 @@ test.describe("Buttons: nothing dead on key screens", () => {
     expect(await page.locator(".animate-sheetUp").count(), "description sheet did not close").toBe(0);
 
     // 2. Product name click opens "Назови напиток" sheet
-    await page.locator("text=Матча латте").first().click();
+    await page.locator("text=Апельсиновый фреш").first().click();
     await page.waitForTimeout(400);
     expect(
       await page.locator('text=Назови напиток').count(),
@@ -101,21 +101,21 @@ test.describe("Buttons: nothing dead on key screens", () => {
     await page.locator(".bg-black\\/40").click();
     await page.waitForTimeout(300);
 
-    // 3. Addon chip opens inline popover with option cards
-    const supplementsChip = page.locator(".addon-chip").filter({ hasText: /Полезные добавки/ });
+    // 3. Категория добавок (кнопка) открывает popover с опциями
+    const supplementsChip = page.getByRole("button", { name: /Травы и специи/ });
     await supplementsChip.click({ force: true });
     await page.waitForTimeout(300);
     expect(
-      await page.locator(".addon-option-card").count(),
+      await page.locator(".animate-popoverUp").count(),
       "addon popover did not open"
     ).toBeGreaterThan(0);
 
     // pick first addon item — should toggle selection
-    const firstAddon = page.locator(".addon-option-card").first();
+    const firstAddon = page.locator(".animate-popoverUp button").first();
     await firstAddon.click({ force: true });
     await page.waitForTimeout(200);
 
-    // close popover by tapping the chip again
+    // close popover by tapping the category again
     await supplementsChip.click({ force: true });
     await page.waitForTimeout(300);
 

@@ -6,6 +6,7 @@ import { TopBar } from "@/components/TopBar";
 import { BottomNav } from "@/components/BottomNav";
 import { Flag } from "@/components/Flag";
 import { useStore, getOutlet } from "@/lib/store";
+import { api, getToken } from "@/lib/api";
 import { emirates } from "@/lib/data";
 
 export default function ProfilePage() {
@@ -15,7 +16,13 @@ export default function ProfilePage() {
   const logout = useStore((s) => s.logout);
   const outletId = useStore((s) => s.selectedOutletId);
   const outlet = getOutlet(outletId);
-  const orders = useStore((s) => s.orders);
+
+  // A1: число заказов берём из бэкенда (GET /api/orders), а не из локального стора
+  const [orderCount, setOrderCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!getToken()) { setOrderCount(0); return; }
+    api.myOrders().then((o) => setOrderCount(o.length)).catch(() => setOrderCount(0));
+  }, []);
 
   const [editing, setEditing] = useState(false);
   const [plate, setPlate] = useState(user.defaultCarPlate ?? "");
@@ -123,7 +130,7 @@ export default function ProfilePage() {
 
         {/* Quick stats */}
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <Stat label="Заказов" value={orders.length} icon={<ReceiptIcon />} />
+          <Stat label="Заказов" value={orderCount === null ? "…" : orderCount} icon={<ReceiptIcon />} />
           <Stat
             label="Любимая точка"
             value={outlet?.name ?? "—"}
@@ -235,14 +242,6 @@ export default function ProfilePage() {
         </Section>
 
         <CouponsSection />
-
-        <Section title="Помощь">
-          <div className="rounded-2xl bg-[#F4F4F7] divide-y divide-[var(--color-border)]">
-            <LinkRow label="Условия использования" icon={<DocIcon />} />
-            <LinkRow label="Политика конфиденциальности" icon={<LockIcon />} />
-            <LinkRow label="Связаться с нами" icon={<ChatIcon />} />
-          </div>
-        </Section>
 
         <button
           onClick={() => {

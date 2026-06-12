@@ -56,9 +56,11 @@ export default function AdminLoginPage() {
                 style={{ width: "100%", justifyContent: "center", padding: 10 }}>
           {busy ? "Входим…" : "Войти"}
         </button>
-        <div style={{ fontSize: 11, color: "#8A8F9C", marginTop: 14 }}>
-          dev-доступы: admin@juicy.ae / admin123 · manager@juicy.ae / manager123
-        </div>
+        {process.env.NODE_ENV !== "production" && (
+          <div style={{ fontSize: 11, color: "#8A8F9C", marginTop: 14 }}>
+            dev-доступы: admin@juicy.ae / admin123 · manager@juicy.ae / manager123
+          </div>
+        )}
       </form>
     </div>
   );

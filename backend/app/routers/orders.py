@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -22,7 +22,7 @@ class SelIn(BaseModel):
 
 class ItemIn(BaseModel):
     drinkId: int
-    quantity: int = 1
+    quantity: int = Field(1, ge=1)
     customName: str | None = None
     addons: list[SelIn] = []
 
