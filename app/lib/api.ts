@@ -125,7 +125,9 @@ export const api = {
 };
 
 export function orderWs(orderId: number): WebSocket {
-  return new WebSocket(`${WS_URL}/ws/orders/${orderId}`);
+  const t = getToken();
+  const q = t ? `?token=${encodeURIComponent(t)}` : "";
+  return new WebSocket(`${WS_URL}/ws/orders/${orderId}${q}`);
 }
 
 // Локализованные подписи единого статуса (§0.1) для клиента

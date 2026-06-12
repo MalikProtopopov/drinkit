@@ -91,6 +91,10 @@ class StatusIn(BaseModel):
     note: str | None = None
 
 
+class RefundIn(BaseModel):
+    note: str | None = None  # refund использует только note (status не требуется)
+
+
 @router.post("/orders/{order_id}/status")
 def set_status(order_id: int, body: StatusIn, staff: StaffUser = Depends(get_current_staff),
                db: Session = Depends(get_db)):
@@ -105,7 +109,7 @@ def set_status(order_id: int, body: StatusIn, staff: StaffUser = Depends(get_cur
 
 
 @router.post("/orders/{order_id}/refund")
-def refund_order(order_id: int, body: StatusIn | None = None,
+def refund_order(order_id: int, body: RefundIn | None = None,
                  staff: StaffUser = Depends(get_current_staff), db: Session = Depends(get_db)):
     """ADM-M-06 (опциональный модуль): возврат. Полный возврат заказа;
     DECISION: Stripe Refund вызывается при наличии ключа, в mock-режиме помечается локально.

@@ -432,8 +432,6 @@ def test_addon_negative_kcal_rejected(client, admin):
     assert r.status_code == 422
 
 
-@pytest.mark.xfail(reason="БАГ: categoryId/unitId не проверяются на существование (нет FK-валидации "
-                          "на уровне API) — добавка ссылается на несуществующую категорию/единицу")
 def test_addon_nonexistent_category_rejected(client, admin):
     unit = _any_unit(client, admin)
     r = client.post(f"{BASE}/addons", headers=_h(admin),

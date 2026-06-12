@@ -142,8 +142,14 @@ def list_addons(db: Session = Depends(get_db)):
     return [_addon(a) for a in db.scalars(select(Addon)).all()]
 
 
+def _check_addon_refs(body: "AddonIn", db: Session):
+    if not db.get(AddonCategory, body.categoryId) or not db.get(Unit, body.unitId):
+        raise HTTPException(422, "VALIDATION_ERROR")  # категория/единица должны существовать
+
+
 @router.post("/addons")
 def create_addon(body: AddonIn, db: Session = Depends(get_db)):
+    _check_addon_refs(body, db)
     a = Addon(name=body.name, image_url=body.imageUrl, category_id=body.categoryId,
               unit_id=body.unitId, kcal_per_100=body.kcalPer100, protein_per_100=body.proteinPer100,
               fat_per_100=body.fatPer100, carbs_per_100=body.carbsPer100,
@@ -157,6 +163,7 @@ def update_addon(addon_id: int, body: AddonIn, db: Session = Depends(get_db)):
     a = db.get(Addon, addon_id)
     if not a:
         raise HTTPException(404, "NOT_FOUND")
+    _check_addon_refs(body, db)
     a.name, a.image_url, a.category_id, a.unit_id = body.name, body.imageUrl, body.categoryId, body.unitId
     a.kcal_per_100, a.protein_per_100, a.fat_per_100, a.carbs_per_100 = (
         body.kcalPer100, body.proteinPer100, body.fatPer100, body.carbsPer100)

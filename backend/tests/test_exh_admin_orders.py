@@ -422,9 +422,6 @@ def test_refund_happy_path(client, customer, manager):
     assert mine["status"] == "refund"
 
 
-@pytest.mark.xfail(reason="БАГ: refund использует shared-модель StatusIn, где status "
-                          "обязателен; передать только note нельзя -> 422 'status required', "
-                          "хотя refund значение status игнорирует", strict=True)
 def test_refund_with_only_note_should_work(client, customer, manager):
     """Ожидаемое поведение: note без status должен приниматься (status refund игнорирует)."""
     order = make_order(client, customer)

@@ -133,7 +133,9 @@ export const catalogApi = {
 };
 
 export function adminOrdersWs(): WebSocket {
-  return new WebSocket(`${WS_URL}/ws/admin/orders`);
+  const t = getStaffToken();
+  const q = t ? `?token=${encodeURIComponent(t)}` : "";
+  return new WebSocket(`${WS_URL}/ws/admin/orders${q}`);
 }
 
 export const ADMIN_STATUS_LABEL: Record<string, string> = {
