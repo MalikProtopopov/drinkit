@@ -12,18 +12,21 @@ function Inner() {
   const [open, setOpen] = useState(false);
   const [nameRu, setNameRu] = useState("");
   const [nameAr, setNameAr] = useState("");
+  const [slug, setSlug] = useState("");
   const [photo, setPhoto] = useState("");
 
   const load = useCallback(() => { catalogApi.drinkCategories().then(setRows).catch(() => {}); }, []);
   useEffect(() => { load(); }, [load]);
 
   const create = async () => {
-    await catalogApi.createDrinkCategory({
-      name: { ru: nameRu, ar: nameAr || undefined }, photoUrl: photo || null,
-      isActive: true, sort: rows.length + 1,
-    });
-    setOpen(false); setNameRu(""); setNameAr(""); setPhoto("");
-    load(); toast("Категория создана");
+    try {
+      await catalogApi.createDrinkCategory({
+        name: { ru: nameRu, ar: nameAr || undefined }, slug: slug || undefined, photoUrl: photo || null,
+        isActive: true, sort: rows.length + 1,
+      });
+      setOpen(false); setNameRu(""); setNameAr(""); setSlug(""); setPhoto("");
+      load(); toast("Категория создана");
+    } catch (e) { toast(e instanceof Error ? e.message : "Ошибка", "warn"); }
   };
 
   return (
@@ -31,7 +34,7 @@ function Inner() {
       <div className="admin-panel">
         <table className="admin-table">
           <thead>
-            <tr><th>Сорт.</th><th>Название (RU)</th><th>Название (AR)</th><th>Медиа</th>
+            <tr><th>Сорт.</th><th>Название (RU)</th><th>Название (AR)</th><th>Slug</th><th>Медиа</th>
                 <th>Активна / сохранить</th></tr>
           </thead>
           <tbody>
@@ -56,6 +59,11 @@ function Inner() {
             <label className="admin-label">Название (AR)</label>
             <input className="admin-input" dir="rtl" value={nameAr} onChange={(e) => setNameAr(e.target.value)} />
           </div>
+        </div>
+        <div className="admin-field">
+          <label className="admin-label">Slug (для фильтра в URL)</label>
+          <input className="admin-input mono" value={slug} placeholder="например: fresh (пусто = из названия)"
+                 onChange={(e) => setSlug(e.target.value)} />
         </div>
         <div className="admin-field">
           <label className="admin-label">Фото (URL)</label>
@@ -84,6 +92,10 @@ function CategoryRow({ cat, onSaved }: { cat: DrinkCat; onSaved: () => void }) {
                placeholder="нет перевода"
                style={!c.name.ar ? { borderColor: "#B45309", background: "#FFF7E5" } : {}}
                onChange={(e) => setC({ ...c, name: { ...c.name, ar: e.target.value } })} />
+      </td>
+      <td>
+        <input className="admin-input mono" value={c.slug ?? ""} placeholder="slug"
+               onChange={(e) => setC({ ...c, slug: e.target.value })} />
       </td>
       <td>
         <input className="admin-input mono" value={c.photoUrl ?? ""} placeholder="фото URL"

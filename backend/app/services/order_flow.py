@@ -71,12 +71,13 @@ def create_order(db: Session, user: User, payload, locale: str) -> Order:
         calc = drink_preview(
             d.slug,
             PreviewIn(selections=[PreviewSelection(addonId=s.addonId, portions=s.portions)
-                                  for s in line.addons]),
+                                  for s in line.addons],
+                      sizeId=line.sizeId),
             locale=locale, db=db,
         )
         item = OrderItem(order_id=order.id, drink_id=d.id, drink_name=t(d.name, locale),
-                         custom_name=line.customName, unit_price=calc["price"],
-                         quantity=line.quantity)
+                         custom_name=line.customName, size_label=calc.get("sizeLabel"),
+                         unit_price=calc["price"], quantity=line.quantity)
         db.add(item)
         db.flush()
         links = {l.addon_id: l for l in d.addon_links}

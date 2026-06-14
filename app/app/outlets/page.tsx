@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { outlets } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import { OutletArt } from "@/components/OutletArt";
+import { useT } from "@/lib/i18n";
 
 export default function OutletsPage() {
+  const { t } = useT();
   const router = useRouter();
   const setOutlet = useStore((s) => s.setOutlet);
   const currentOutlet = useStore((s) => s.selectedOutletId);
@@ -39,7 +41,7 @@ export default function OutletsPage() {
             <path d="M3 9h18M9 3v18" />
           </svg>
         </button>
-        <h1 className="text-h1">Выбери точку</h1>
+        <h1 className="text-h1">{t("Choose an outlet", "اختر فرعًا")}</h1>
       </header>
 
       <div className="px-4 pb-3">
@@ -51,7 +53,7 @@ export default function OutletsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск по точкам и городам"
+            placeholder={t("Search outlets and cities", "ابحث عن الفروع والمدن")}
             className="flex-1 bg-transparent outline-none text-[15px]"
           />
         </div>
@@ -75,17 +77,17 @@ export default function OutletsPage() {
                     {o.name}
                     {currentOutlet === o.id && (
                       <span className="text-tiny font-semibold text-[var(--color-primary-500)] bg-[var(--color-primary-100)] px-2 py-0.5 rounded-full">
-                        текущая
+                        {t("current", "الحالي")}
                       </span>
                     )}
                   </div>
                   <div className="text-caption muted">{o.address}</div>
                   <div className="flex items-center gap-3 mt-1.5">
                     <span className="text-caption font-medium bg-[#F2F2F4] px-2.5 py-1 rounded-full inline-flex items-center gap-1">
-                      <ClockIcon /> до {o.hours.split(" – ")[1]}
+                      <ClockIcon /> {t("until", "حتى")} {o.hours.split(" – ")[1]}
                     </span>
                     <span className="text-caption muted">
-                      {o.distanceKm.toLocaleString("ru")} км
+                      {o.distanceKm.toLocaleString("en")} {t("km", "كم")}
                     </span>
                   </div>
                 </div>
@@ -103,7 +105,7 @@ export default function OutletsPage() {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round">
             <path d="M3 11l18-8-8 18-2-8z" />
           </svg>
-          Рядом со мной
+          {t("Near me", "بالقرب مني")}
         </button>
       </div>
     </div>

@@ -2,6 +2,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useStore, getOutlet, useCartTotal } from "@/lib/store";
+import { IconBack, IconBag, IconUser } from "@/components/icons";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   title?: string;
@@ -22,6 +24,7 @@ export function TopBar({
   rightSlot,
   transparent,
 }: Props) {
+  const { t } = useT();
   const router = useRouter();
   const outletId = useStore((s) => s.selectedOutletId);
   const cartCount = useCartTotal().count;
@@ -42,13 +45,11 @@ export function TopBar({
             className="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm"
             aria-label="back"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
+            <IconBack size={18} />
           </button>
         )}
         {showOutlet && outlet && (
-          <Link href="/outlets" className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center"
               style={{ background: "var(--color-primary-500)" }}
@@ -62,9 +63,9 @@ export function TopBar({
             </div>
             <div className="leading-tight">
               <div className="text-[15px] font-semibold">{outlet.name}</div>
-              <div className="text-tiny muted">до {outlet.hours.split(" – ")[1]}</div>
+              <div className="text-tiny muted">{t("until", "حتى")} {outlet.hours.split(" – ")[1]}</div>
             </div>
-          </Link>
+          </div>
         )}
         {title && <h1 className="text-h2">{title}</h1>}
       </div>
@@ -77,12 +78,7 @@ export function TopBar({
             className="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm relative"
             aria-label="cart"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 6h15l-1.5 9h-12L6 6z" />
-              <path d="M6 6L5 3H2" />
-              <circle cx="9" cy="20" r="1.5" />
-              <circle cx="18" cy="20" r="1.5" />
-            </svg>
+            <IconBag size={19} />
             {cartCount > 0 && (
               <span className="absolute -top-1 -right-1 text-[10px] font-bold bg-[var(--color-primary-500)] text-white rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
                 {cartCount}
@@ -96,10 +92,7 @@ export function TopBar({
             className="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm"
             aria-label="profile"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <circle cx="12" cy="8" r="4" />
-              <path d="M3 21c0-4.5 4-7 9-7s9 2.5 9 7" strokeLinejoin="round" strokeLinecap="round" />
-            </svg>
+            <IconUser size={19} />
           </Link>
         )}
       </div>

@@ -1,10 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  /* Primary */
-  --color-primary-500: #4A56E2;
-  --color-primary-600: #3B47C9;
-  --color-primary-100: #E5E7FC;
+  /* Primary — JOOZ indigo */
+  --color-primary-500: #3A3DE0;
+  --color-primary-600: #2F32C4;
+  --color-primary-100: #E6E6FC;
+
+  /* JOOZ design tokens (редизайн: Главная / Напиток / Профиль) */
+  --jooz-bg:        #ECEEF1;   /* фон страниц */
+  --jooz-ink:       #1D2027;   /* заголовки */
+  --jooz-ink-2:     #241A12;   /* текст на светлых карточках */
+  --jooz-muted:     #6A7079;
+  --jooz-muted-2:   #8A8F99;
+  --jooz-tab-off:   #A2A7B0;
+  --jooz-surface:   #EEF0F4;   /* мягкие плашки / степперы */
+  --jooz-dark:      #1A120B;   /* фон конструктора */
+  --jooz-card-shadow: 0 16px 32px -22px rgba(40,50,80,.5);
 
   /* Surface palette */
   --color-beige-50:  #FAF6F0;
@@ -244,3 +255,136 @@ html, body {
   font-weight: 600;
   letter-spacing: -0.02em;
 }
+
+/* ============================================================
+   JOOZ UI-kit — редизайн экранов Главная / Напиток / Профиль
+   ============================================================ */
+
+/* фон страниц редизайна */
+.jooz-page { background: var(--jooz-bg); }
+
+/* карточка JOOZ — белая, скруглённая, мягкая «парящая» тень */
+.jooz-card {
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: var(--jooz-card-shadow);
+}
+
+/* крупные текстовые табы категорий */
+.jooz-tab {
+  font-weight: 700;
+  font-size: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  color: var(--jooz-tab-off);
+  background: transparent;
+  cursor: pointer;
+  transition: color .15s ease;
+  line-height: 1;
+}
+.jooz-tab.active { color: var(--jooz-ink); }
+.jooz-tab.on-media { color: rgba(255,255,255,.6); text-shadow: 0 1px 6px rgba(0,0,0,.35); }
+.jooz-tab.on-media.active { color: #fff; }
+
+/* синяя CTA-пилюля JOOZ (прибитая снизу) */
+.jooz-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  height: 62px;
+  border-radius: 9999px;
+  background: var(--color-primary-500);
+  color: #fff;
+  font-weight: 700;
+  font-size: 19px;
+  box-shadow: 0 16px 34px -10px rgba(58,61,224,.6);
+  transition: transform .08s ease, background-color .15s ease, opacity .15s ease;
+  cursor: pointer;
+  user-select: none;
+}
+.jooz-cta:active { transform: scale(.985); }
+.jooz-cta[disabled] { opacity: .4; pointer-events: none; }
+
+/* круглая стрелка-маркер в карточке */
+.jooz-arrow {
+  width: 26px; height: 26px; border-radius: 9999px;
+  background: var(--jooz-surface); color: var(--jooz-ink);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; flex-shrink: 0;
+}
+
+/* «всплытие» иконки добавки при выборе */
+@keyframes pop {
+  0%   { transform: scale(.55); }
+  55%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.animate-pop { animation: pop .4s cubic-bezier(.3,1.4,.5,1) both; }
+
+/* поле ввода JOOZ */
+.jooz-input {
+  background: #f7f8fa;
+  border: 2px solid #eceef1;
+  color: var(--jooz-ink);
+}
+.jooz-input::placeholder { color: #b6bcc6; }
+.jooz-input:focus { border-color: var(--color-primary-500); }
+
+/* Rich-описание напитка: единый рендер в админ-редакторе/превью и в публичной шторке.
+   Разрешённые стили — h2/h3/жирный/курсив/списки (см. sanitize_html на бэке). */
+.rich-desc { color: var(--jooz-ink); line-height: 1.5; font-size: 16px; }
+.rich-desc h2 { font-size: 23px; font-weight: 800; line-height: 1.12; margin: 18px 0 8px; }
+.rich-desc h3 { font-size: 18px; font-weight: 700; line-height: 1.18; margin: 14px 0 6px; }
+.rich-desc h2:first-child, .rich-desc h3:first-child, .rich-desc p:first-child { margin-top: 0; }
+.rich-desc p { margin: 0 0 10px; }
+.rich-desc b, .rich-desc strong { font-weight: 700; }
+.rich-desc em, .rich-desc i { font-style: italic; }
+.rich-desc ul, .rich-desc ol { margin: 0 0 10px; padding-inline-start: 22px; }
+.rich-desc li { margin: 2px 0; }
+.rich-desc:empty::before { content: attr(data-placeholder); color: #b6bcc6; }
+
+/* ===== Загрузки и переходы ===== */
+
+/* плавное появление страницы при переходе (см. app/template.tsx) */
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter { animation: pageEnter .28s cubic-bezier(.2,.8,.2,1) backwards; }
+
+/* shimmer-скелетон */
+@keyframes shimmer { 100% { transform: translateX(100%); } }
+.skeleton {
+  position: relative; overflow: hidden; background: #E7E9EF; border-radius: 16px;
+}
+.skeleton::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent);
+  animation: shimmer 1.3s infinite;
+}
+/* тёмный вариант для экранов поверх медиа (конструктор) */
+.skeleton-dark { background: rgba(255,255,255,.08); }
+.skeleton-dark::after {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.14), transparent);
+}
+
+/* брендовый спиннер-кольцо */
+@keyframes spin { to { transform: rotate(360deg); } }
+.loader-ring {
+  width: 38px; height: 38px; border-radius: 50%;
+  border: 3px solid var(--color-primary-100);
+  border-top-color: var(--color-primary-500);
+  animation: spin .8s linear infinite;
+}
+
+/* мягкое «дыхание» для сплэша */
+@keyframes breathe { 0%,100% { opacity: .55; transform: scale(.97); } 50% { opacity: 1; transform: scale(1); } }
+.animate-breathe { animation: breathe 1.4s ease-in-out infinite; }
+
+/* Более аккуратная типографика: приглушаем самые тяжёлые начертания на клиентских
+   экранах (тяжёлый «жир» выглядел дёшево). Админка использует inline font-weight и
+   не затрагивается. font-black 900→700, font-extrabold 800→600. */
+.font-black { font-weight: 700; }
+.font-extrabold { font-weight: 600; }

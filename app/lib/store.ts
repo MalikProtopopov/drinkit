@@ -27,6 +27,9 @@ export type CartItem = {
   previewUrl?: string;
   serverAddons?: { addonId: number; portions: number }[];
   addonsLabel?: string;
+  // V2: выбранный размер напитка (ADM-S-05)
+  sizeId?: number;
+  sizeLabel?: string;
 };
 
 export type Order = {
@@ -60,14 +63,10 @@ export type UserProfile = {
   name?: string;
   defaultCarPlate?: string;
   defaultEmirate?: string;
-  preferredLocale: "ru" | "en" | "ar";
+  preferredLocale: "en" | "ar";
 };
 
 type AppState = {
-  // onboarding
-  onboardingSeen: boolean;
-  setOnboardingSeen: () => void;
-
   // outlet
   selectedOutletId?: string;
   setOutlet: (id: string) => void;
@@ -99,18 +98,15 @@ const VAT_RATE = 0.05;
 export const useStore = create<AppState>()(
   persist(
     (set, get) => ({
-      onboardingSeen: false,
-      setOnboardingSeen: () => set({ onboardingSeen: true }),
-
       selectedOutletId: undefined,
       setOutlet: (id) => set({ selectedOutletId: id }),
 
-      user: { preferredLocale: "ru" },
+      user: { preferredLocale: "en" },
       setUser: (u) =>
         set((s) => ({ user: { ...s.user, ...u } })),
       logout: () => {
         if (typeof window !== "undefined") localStorage.removeItem("juicy-token");
-        set({ user: { preferredLocale: "ru" }, orders: [] });
+        set({ user: { preferredLocale: "en" }, orders: [] });
       },
       isAuthorized: () => !!get().user.phone,
 
@@ -175,14 +171,13 @@ export const useStore = create<AppState>()(
           cart: (s.cart ?? []).filter((i) => typeof i.drinkId === "number"),
           orders: [],
           user: {
-            ...(s.user ?? { preferredLocale: "ru" as const }),
-            preferredLocale: s.user?.preferredLocale === "ar" ? ("ar" as const) : ("ru" as const),
+            ...(s.user ?? { preferredLocale: "en" as const }),
+            preferredLocale: s.user?.preferredLocale === "ar" ? ("ar" as const) : ("en" as const),
           },
         };
       },
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({
-        onboardingSeen: s.onboardingSeen,
         selectedOutletId: s.selectedOutletId,
         user: s.user,
         cart: s.cart,

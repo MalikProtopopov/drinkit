@@ -25,6 +25,7 @@ def _order_row(o: Order) -> dict:
         "items": [
             {
                 "id": i.id, "name": i.custom_name or i.drink_name, "drinkName": i.drink_name,
+                "sizeLabel": i.size_label,
                 "quantity": i.quantity, "unitPrice": i.unit_price, "paidByCoupon": i.paid_by_coupon,
                 # граммовка добавок в каждом напитке (ADM-M-05 AC1)
                 "addons": [

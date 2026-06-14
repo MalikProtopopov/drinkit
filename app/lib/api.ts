@@ -43,7 +43,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 // ---------- типы ----------
-export type ApiCategory = { id: number; name: string; photoUrl?: string; videoUrl?: string };
+export type ApiCategory = { id: number; slug: string; name: string; photoUrl?: string; videoUrl?: string };
 export type ApiDrinkLite = {
   id: number; slug: string; name: string; previewUrl?: string; videoUrl?: string;
   basePrice: number; kcal: number; categoryId: number;
@@ -54,8 +54,13 @@ export type ApiAddon = {
   pricePerPortion: number; minPortions: number; defaultPortions: number; maxPortions: number;
   portionAmount: number; kcal: number; protein: number; fat: number; carbs: number;
 };
+export type ApiSize = { id: number; volume: number; unit: string; label: string;
+  price: number; isDefault: boolean };
 export type ApiDrink = ApiDrinkLite & {
-  description: string; protein: number; fat: number; carbs: number; addons: ApiAddon[];
+  description: string; protein: number; fat: number; carbs: number;
+  // rich-HTML описание в текущей локали (null => кнопку «Подробнее» скрыть)
+  richDescription: string | null;
+  sizes: ApiSize[]; addons: ApiAddon[];
 };
 export type Selection = { addonId: number; portions: number };
 export type ApiOrder = {
@@ -65,8 +70,8 @@ export type ApiOrder = {
   rating: string | null; ratingPromptDue?: boolean;
   customerName?: string; phone?: string; carPlate?: string; emirate?: string;
   items: {
-    id: number; drinkId: number; name: string; drinkName: string; unitPrice: number;
-    quantity: number; paidByCoupon: boolean;
+    id: number; drinkId: number; name: string; drinkName: string; sizeLabel?: string | null;
+    unitPrice: number; quantity: number; paidByCoupon: boolean;
     addons: { name: string; portions: number; amount: number; unit: string; price: number }[];
   }[];
   events?: { type: string; status?: string; at: string }[];
@@ -81,14 +86,15 @@ export type ApiUser = {
 
 // ---------- каталог ----------
 export const api = {
-  categories: (locale = "ru") => req<ApiCategory[]>(`/api/categories?locale=${locale}`),
-  drinks: (categoryId?: number, locale = "ru") =>
-    req<ApiDrinkLite[]>(`/api/drinks?locale=${locale}${categoryId ? `&category=${categoryId}` : ""}`),
-  drink: (slug: string, locale = "ru") => req<ApiDrink>(`/api/drinks/${slug}?locale=${locale}`),
-  preview: (slug: string, selections: Selection[], locale = "ru") =>
-    req<{ price: number; kcal: number; protein: number; fat: number; carbs: number }>(
+  categories: (locale = "en") => req<ApiCategory[]>(`/api/categories?locale=${locale}`),
+  drinks: (categorySlug?: string, locale = "en") =>
+    req<ApiDrinkLite[]>(`/api/drinks?locale=${locale}${categorySlug ? `&category=${encodeURIComponent(categorySlug)}` : ""}`),
+  drink: (slug: string, locale = "en") => req<ApiDrink>(`/api/drinks/${slug}?locale=${locale}`),
+  preview: (slug: string, selections: Selection[], locale = "en", sizeId?: number) =>
+    req<{ price: number; sizeId: number | null; sizeLabel: string | null;
+          kcal: number; protein: number; fat: number; carbs: number }>(
       `/api/drinks/${slug}/preview?locale=${locale}`,
-      { method: "POST", body: JSON.stringify({ selections }) }),
+      { method: "POST", body: JSON.stringify({ selections, sizeId }) }),
 
   // ---------- auth ----------
   requestCode: (phone: string) =>
@@ -103,10 +109,10 @@ export const api = {
 
   // ---------- заказы ----------
   placeOrder: (body: {
-    items: { drinkId: number; quantity: number; customName?: string; addons: Selection[] }[];
+    items: { drinkId: number; quantity: number; customName?: string; sizeId?: number; addons: Selection[] }[];
     customerName?: string; carPlate?: string; emirate?: string;
     couponId?: number; couponItemIndex?: number;
-  }, locale = "ru") => req<ApiOrder>(`/api/orders?locale=${locale}`,
+  }, locale = "en") => req<ApiOrder>(`/api/orders?locale=${locale}`,
     { method: "POST", body: JSON.stringify(body) }),
   myOrders: () => req<ApiOrder[]>("/api/orders"),
   order: (id: number) => req<ApiOrder>(`/api/orders/${id}`),
@@ -131,11 +137,12 @@ export function orderWs(orderId: number): WebSocket {
 }
 
 // Локализованные подписи единого статуса (§0.1) для клиента
+// Цвета статусов (подписи — locale-aware statusLabel() в lib/i18n.ts)
 export const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  new: { label: "принят, ждёт бариста", color: "#4A56E2" },
-  in_progress: { label: "готовим", color: "#F59E0B" },
-  ready: { label: "готов — можно ехать", color: "#16A34A" },
-  arrived: { label: "вы на месте, несём", color: "#16A34A" },
-  completed: { label: "получен", color: "#9CA3AF" },
-  refund: { label: "возврат", color: "#DC2626" },
+  new: { label: "Accepted, waiting for barista", color: "#4A56E2" },
+  in_progress: { label: "Preparing", color: "#F59E0B" },
+  ready: { label: "Ready — come over", color: "#16A34A" },
+  arrived: { label: "You're here, bringing it out", color: "#16A34A" },
+  completed: { label: "Picked up", color: "#9CA3AF" },
+  refund: { label: "Refund", color: "#DC2626" },
 };

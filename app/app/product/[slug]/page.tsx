@@ -6,18 +6,23 @@ import { useStore } from "@/lib/store";
 import { BottomSheet } from "@/components/BottomSheet";
 import { DrinkArt } from "@/components/DrinkArt";
 import { StepperButton } from "@/components/StepperButton";
+import { IconClose } from "@/components/icons";
+import { Loader } from "@/components/Loader";
 import { categoryBg } from "@/components/ApiProductCard";
+import { useT } from "@/lib/i18n";
 
 type Sel = Record<number, number>; // addonId -> portions
 
 export default function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const router = useRouter();
+  const { t } = useT();
   const addToCart = useStore((s) => s.addToCart);
-  const locale = useStore((s) => s.user.preferredLocale) === "ar" ? "ar" : "ru";
+  const locale = useStore((s) => s.user.preferredLocale) === "ar" ? "ar" : "en";
 
   const [drink, setDrink] = useState<ApiDrink | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [sizeId, setSizeId] = useState<number | null>(null);
   const [sel, setSel] = useState<Sel>({});
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [customName, setCustomName] = useState("");
@@ -26,7 +31,12 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    api.drink(slug, locale).then(setDrink).catch(() => setNotFound(true));
+    api.drink(slug, locale).then((d) => {
+      setDrink(d);
+      // дефолтный размер — предвыбран (или первый)
+      const def = d.sizes?.find((s) => s.isDefault) ?? d.sizes?.[0];
+      setSizeId(def ? def.id : null);
+    }).catch(() => setNotFound(true));
   }, [slug, locale]);
 
   // группировка добавок по категориям (PUB-G-02 AC3/AC4)
@@ -39,10 +49,25 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
     return [...map.entries()].map(([name, items]) => ({ name, items }));
   }, [drink]);
 
+  const currentSize = useMemo(
+    () => drink?.sizes?.find((s) => s.id === sizeId) ?? null,
+    [drink, sizeId],
+  );
+
+  // тап по пилюле размера — переключение на следующий размер по кругу (референс JOOZ)
+  const cycleSize = () => {
+    const list = drink?.sizes ?? [];
+    if (list.length < 2) return;
+    const i = list.findIndex((s) => s.id === sizeId);
+    setSizeId(list[(i + 1) % list.length].id);
+  };
+
   // live-пересчёт цены и КБЖУ (PUB-G-03; зеркало серверной формулы, сервер валидирует в preview)
+  // старт цены — выбранный размер (если есть), иначе базовая цена напитка
   const totals = useMemo(() => {
     if (!drink) return { price: 0, kcal: 0, protein: 0, fat: 0, carbs: 0 };
-    let price = drink.basePrice, kcal = drink.kcal,
+    let price = currentSize ? currentSize.price : drink.basePrice,
+        kcal = drink.kcal,
         protein = drink.protein, fat = drink.fat, carbs = drink.carbs;
     for (const a of drink.addons) {
       const n = sel[a.addonId] ?? 0;
@@ -53,7 +78,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
     }
     return { price: +price.toFixed(2), kcal: Math.round(kcal),
              protein: +protein.toFixed(1), fat: +fat.toFixed(1), carbs: +carbs.toFixed(1) };
-  }, [drink, sel]);
+  }, [drink, sel, currentSize]);
 
   useEffect(() => {
     if (!toast) return;
@@ -63,14 +88,18 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
 
   if (notFound) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8 text-center">
-        <div className="text-h2">Напиток недоступен</div>
-        <button onClick={() => router.push("/home")} className="btn-pill btn-primary px-8">В меню</button>
+      <div className="jooz-page flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="font-black text-[23px]" style={{ color: "var(--jooz-ink)" }}>{t("Drink unavailable", "المشروب غير متوفر")}</div>
+        <button onClick={() => router.push("/home")} className="jooz-cta px-10" style={{ width: "auto" }}>{t("To menu", "إلى القائمة")}</button>
       </div>
     );
   }
   if (!drink) {
-    return <div className="flex-1 flex items-center justify-center muted">Загрузка…</div>;
+    return (
+      <div className="jooz-page flex-1 flex flex-col">
+        <Loader label={t("Preparing the card…", "نُجهّز البطاقة…")} />
+      </div>
+    );
   }
 
   const bg = categoryBg(drink.categoryId);
@@ -100,169 +129,157 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
 
   const groupCount = (items: ApiAddon[]) =>
     items.reduce((acc, a) => acc + (sel[a.addonId] ?? 0), 0);
+  const groupSum = (items: ApiAddon[]) =>
+    items.reduce((acc, a) => acc + (sel[a.addonId] ?? 0) * a.pricePerPortion, 0);
 
   const handleAdd = async () => {
     const selections = Object.entries(sel).map(([id, portions]) => ({ addonId: +id, portions }));
     let price = totals.price;
     try {
-      price = (await api.preview(drink.slug, selections, locale)).price; // серверная правда
+      price = (await api.preview(drink.slug, selections, locale, sizeId ?? undefined)).price; // серверная правда
     } catch {}
     const label = drink.addons
       .filter((a) => sel[a.addonId])
       .map((a) => `${a.name}${(sel[a.addonId] ?? 0) > 1 ? ` ×${sel[a.addonId]}` : ""}`)
       .join(" • ");
     addToCart({
-      productId: String(drink.id), variantCode: "STD", quantity: 1,
+      productId: String(drink.id), variantCode: currentSize ? String(currentSize.id) : "STD", quantity: 1,
       customName: customName || undefined,
       addons: [], productName: drink.name, productBg: bg, unitPriceAed: price,
       drinkId: drink.id, drinkSlug: drink.slug, previewUrl: drink.previewUrl,
       serverAddons: selections, addonsLabel: label,
+      sizeId: currentSize?.id, sizeLabel: currentSize?.label,
     });
-    setToast("Добавлено в корзину");
-    setTimeout(() => router.back(), 500);
+    setToast(t("Added to cart", "أُضيف إلى السلة"));
+    // после добавления ведём в корзину — там можно продолжить оформление
+    setTimeout(() => router.push("/cart"), 500);
   };
 
   return (
     <div className="absolute inset-0 overflow-hidden" style={{ background: bg }}>
-      {/* видео напитка в активном режиме (PUB-G-02 AC1) */}
+      {/* медиа напитка (PUB-G-02 AC1) */}
       {drink.videoUrl ? (
         <video src={drink.videoUrl} muted loop playsInline autoPlay
                className="absolute inset-0 w-full h-full object-cover"
                onError={(e) => ((e.target as HTMLVideoElement).style.display = "none")} />
-      ) : null}
-      {!drink.videoUrl && (
+      ) : drink.previewUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={drink.previewUrl} alt="" className="absolute inset-0 w-full h-full object-cover"
+             onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
+      ) : (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <DrinkArt glass="tall" liquid="#F0A340" size={260} />
         </div>
       )}
-      <div className="absolute inset-0 pointer-events-none"
-           style={{ background: "linear-gradient(180deg, rgba(0,0,0,0.18) 0%, transparent 14%, transparent 60%, rgba(0,0,0,0.25) 100%)" }} />
 
-      {/* верх: имя + назад (PUB-G-02 AC2) */}
-      <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between px-4 pt-safe py-3">
-        <button onClick={() => setShowName(true)}
-                className="text-h3 font-semibold px-3 max-w-[70%] truncate text-white drop-shadow">
-          {customName || drink.name}
-        </button>
-        <button onClick={() => router.back()}
-                className="w-10 h-10 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-white">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
+      {/* тёплые градиенты сверху/снизу (читаемость текста, как в JOOZ) */}
+      <div className="absolute top-0 inset-x-0 h-[300px] pointer-events-none"
+           style={{ background: "linear-gradient(180deg, rgba(18,11,5,.72) 0%, rgba(18,11,5,0) 100%)" }} />
+      <div className="absolute bottom-0 inset-x-0 h-[440px] pointer-events-none"
+           style={{ background: "linear-gradient(180deg, rgba(118,64,18,0) 0%, rgba(118,64,18,.5) 42%, rgba(94,50,12,.93) 100%)" }} />
 
-      {/* КБЖУ live */}
-      <div className="absolute top-[68px] inset-x-0 z-10 px-6 pt-safe">
-        <div className="flex justify-between max-w-[340px] mx-auto">
-          <Kbju value={totals.kcal} label="энергия" unit="ккал" />
-          <Kbju value={totals.protein} label="белки" unit="г" />
-          <Kbju value={totals.fat} label="жиры" unit="г" />
-          <Kbju value={totals.carbs} label="углеводы" unit="г" />
-        </div>
-        <div className="flex justify-center mt-3">
-          <button onClick={() => setShowDescription(true)}
-                  className="inline-flex items-center gap-1 h-8 px-4 rounded-full text-caption font-medium text-white"
-                  style={{ background: "rgba(0,0,0,0.30)", backdropFilter: "blur(8px)" }}>
-            подробнее
-          </button>
-        </div>
-      </div>
-
+      {/* размытие при открытой категории */}
       {openCat && (
-        <div className="absolute inset-0 z-20 animate-fadeIn" style={{ background: "rgba(0,0,0,0.18)" }}
+        <div className="absolute inset-0 z-10 animate-fadeIn"
+             style={{ background: "rgba(28,17,7,.16)", backdropFilter: "blur(6px)" }}
              onClick={() => setOpenCat(null)} />
       )}
 
-      {/* низ: попап добавок → чипы категорий → CTA */}
-      <div className="absolute bottom-0 inset-x-0 z-30 pb-safe">
+      {/* верх: имя + закрыть (PUB-G-02 AC2) — при открытой категории уезжает вверх и скрывается */}
+      <div className="absolute top-0 inset-x-0 z-20 flex items-center justify-between gap-2 px-4 pt-safe py-3"
+           style={{ transform: openCat ? "translateY(-110%)" : "translateY(0)",
+                    opacity: openCat ? 0 : 1,
+                    pointerEvents: openCat ? "none" : "auto",
+                    transition: "transform .34s cubic-bezier(.3,1,.4,1), opacity .28s ease" }}>
+        <div className="w-[54px] flex-none flex items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="JOOZ" className="h-4 w-auto"
+               style={{ filter: "brightness(0) invert(1) drop-shadow(0 1px 4px rgba(0,0,0,.4))" }} />
+        </div>
+        <button onClick={() => setShowName(true)}
+                className="flex-1 text-center font-extrabold text-[19px] leading-[1.12] text-white px-1 truncate drop-shadow">
+          {customName || drink.name}
+        </button>
+        <button onClick={() => router.back()} aria-label={t("Close", "إغلاق")}
+                className="w-[54px] h-[54px] flex-none rounded-full flex items-center justify-center text-white"
+                style={{ background: "rgba(38,26,14,.46)", backdropFilter: "blur(10px)" }}>
+          <IconClose size={20} />
+        </button>
+      </div>
+
+      {/* КБЖУ live (PUB-G-03) — при открытой категории поднимается выше, освобождая место под чипы */}
+      <div className="absolute top-[104px] inset-x-0 z-10 px-5"
+           style={{ transform: openCat ? "translateY(-78px)" : "translateY(0)",
+                    transition: "transform .34s cubic-bezier(.3,1,.4,1)" }}>
+        <div className="flex justify-between max-w-[350px] mx-auto">
+          <Kbju value={totals.kcal} label={t("energy", "الطاقة")} unit={t("kcal", "سعرة")} />
+          <Kbju value={totals.protein} label={t("protein", "بروتين")} unit={t("g", "غ")} />
+          <Kbju value={totals.fat} label={t("fat", "دهون")} unit={t("g", "غ")} />
+          <Kbju value={totals.carbs} label={t("carbs", "كربوهيدرات")} unit={t("g", "غ")} />
+        </div>
+        {/* «Подробнее» показываем только если для текущей локали есть rich-описание */}
+        {drink.richDescription && (
+          <div className="flex justify-center mt-3">
+            <button onClick={() => setShowDescription(true)}
+                    className="inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-[15px] font-bold text-white"
+                    style={{ background: "rgba(38,26,14,.46)", backdropFilter: "blur(10px)" }}>
+              {t("more", "المزيد")} <span className="text-[12px] opacity-90">⌄</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* низ: всплывающие добавки → чипы категорий → CTA */}
+      <div className="absolute bottom-0 inset-x-0 z-20 pb-safe">
+        {/* всплывшие опции выбранной категории (JOOZ raised cards) */}
         {openCat && (
           <div className="pb-3 pt-1 overflow-x-auto no-scrollbar animate-popoverUp">
-            <div className="flex gap-3 px-4 pr-5 items-stretch w-max">
+            <div className="flex gap-3.5 px-4 pr-5 items-end w-max">
               {groups.find((g) => g.name === openCat)?.items.map((a) => {
                 const qty = sel[a.addonId] ?? 0;
                 const selected = qty > 0;
                 const isCounter = a.selectionType === "counter";
-                return (
-                  <div key={a.addonId}
-                       className="flex-shrink-0 rounded-2xl overflow-hidden transition flex flex-col"
-                       style={{ width: 132, height: 200,
-                                background: selected ? "#FFF" : "rgba(255,255,255,0.22)",
-                                backdropFilter: selected ? undefined : "blur(14px)" }}
-                       onClick={() => !isCounter && toggle(a, "toggle")}>
-                    <div className="flex-1 flex flex-col items-center justify-center px-3 pt-3">
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl"
-                           style={{ background: selected ? "#F2F2F4" : "rgba(255,255,255,0.3)" }}>
-                        {a.name.slice(0, 1)}
-                      </div>
-                      <div className="text-[13px] font-medium text-center leading-[1.15] mt-2 px-1 line-clamp-2"
-                           style={{ color: selected ? "#0E0E10" : "#fff" }}>
-                        {a.name}
-                      </div>
-                      <div className="text-[11px] text-center mt-0.5"
-                           style={{ color: selected ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.75)" }}>
-                        {a.free ? "бесплатно" : `+${a.pricePerPortion} AED`} · {a.portionAmount}{a.unit === "ml" ? " мл" : " г"}
-                      </div>
+                return selected ? (
+                  <div key={a.addonId} className="flex-none rounded-[20px] bg-white flex flex-col items-center px-3 pt-3 pb-3"
+                       style={{ width: 128, boxShadow: "0 22px 44px -16px rgba(0,0,0,.5)" }}>
+                    <AddonGlyph addon={a} size={68} className="animate-pop" />
+                    <div className="font-semibold text-[13.5px] text-center leading-[1.15] mt-1 flex items-center"
+                         style={{ color: "var(--jooz-ink-2)", minHeight: 32 }}>{a.name}</div>
+                    <div className="font-medium text-[12px] whitespace-nowrap mt-0.5 mb-2.5" style={{ color: "#9c9081" }}>
+                      {a.free ? t("included", "مشمول") : `+${a.pricePerPortion} AED`}
                     </div>
-                    <div className="px-3 pb-3 pt-2" style={{ height: 56 }}>
-                      {isCounter && qty > 0 ? (
-                        <div className="flex items-center justify-between">
-                          <StepperButton icon="minus" size={36}
-                                         onClick={(e) => { e.stopPropagation(); toggle(a, "dec"); }} />
-                          <span className="text-h3 font-semibold">{qty}</span>
-                          <StepperButton icon="plus" size={36}
-                                         onClick={(e) => { e.stopPropagation(); toggle(a, "inc"); }} />
-                        </div>
-                      ) : selected ? (
-                        <div className="flex items-center justify-center h-9 rounded-full bg-[var(--color-primary-500)] text-white text-caption font-semibold">
-                          выбрано
-                        </div>
-                      ) : (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); toggle(a, isCounter ? "inc" : "toggle"); }}
-                          className="w-full h-9 rounded-full flex items-center justify-center"
-                          style={{ background: "rgba(0,0,0,0.10)", color: "#fff" }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
-                            <path d="M12 5v14M5 12h14" />
-                          </svg>
-                        </button>
-                      )}
-                    </div>
+                    {isCounter ? (
+                      <div className="flex items-center gap-2">
+                        <StepperButton icon="minus" size={36} onClick={() => toggle(a, "dec")} />
+                        <span className="min-w-[26px] text-center font-bold text-[16px]" style={{ color: "var(--jooz-ink-2)" }}>{qty}</span>
+                        <StepperButton icon="plus" size={36} onClick={() => toggle(a, "inc")} />
+                      </div>
+                    ) : (
+                      <button onClick={() => toggle(a, "toggle")} aria-label={t("Remove", "إزالة")}
+                              className="w-[38px] h-[38px] rounded-full flex items-center justify-center"
+                              style={{ color: "var(--color-primary-500)" }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M5 13l4 4L19 7" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {groups.length > 0 && (
-          <div className="overflow-x-auto no-scrollbar pb-2 pt-2">
-            <div className="flex gap-2 px-3 pr-4 items-stretch w-max">
-              {groups.map((g) => {
-                const count = groupCount(g.items);
-                const isOpen = openCat === g.name;
-                return (
-                  <button key={g.name} onClick={() => setOpenCat(isOpen ? null : g.name)}
-                          className="flex-shrink-0 rounded-2xl flex flex-col items-center justify-between active:scale-[0.97] transition px-2 py-2.5"
-                          style={{ width: 86, height: 84,
-                                   background: count > 0 || isOpen ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.30)",
-                                   backdropFilter: "blur(14px)" }}>
-                    <div className="relative">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-base"
-                           style={{ background: "rgba(0,0,0,0.06)" }}>
-                        {g.name.slice(0, 1)}
-                      </div>
-                      {count > 0 && (
-                        <span className="absolute -top-1.5 -right-2 text-[11px] font-bold text-white rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center"
-                              style={{ background: "var(--color-primary-500)" }}>
-                          {count}
-                        </span>
-                      )}
+                ) : (
+                  <button key={a.addonId} onClick={() => toggle(a, isCounter ? "inc" : "toggle")}
+                          className="flex-none rounded-[20px] flex flex-col items-center px-3 pt-3 pb-3"
+                          style={{ width: 128, background: "rgba(70,48,26,.5)", backdropFilter: "blur(14px)", border: "1px solid rgba(255,255,255,.14)" }}>
+                    <AddonGlyph addon={a} size={58} />
+                    <div className="font-semibold text-[13.5px] text-center leading-[1.15] mt-1.5 text-white flex items-center"
+                         style={{ minHeight: 32 }}>{a.name}</div>
+                    <div className="font-medium text-[12px] whitespace-nowrap mt-0.5 mb-2.5" style={{ color: "rgba(255,255,255,.7)" }}>
+                      {a.free ? t("included", "مشمول") : `+${a.pricePerPortion} AED`}
                     </div>
-                    <div className="text-[11px] font-medium text-center leading-[1.15] line-clamp-2"
-                         style={{ color: count > 0 || isOpen ? "#0E0E10" : "#fff" }}>
-                      {g.name}
-                    </div>
+                    <span className="w-[38px] h-[38px] rounded-full flex items-center justify-center text-white"
+                          style={{ background: "rgba(255,255,255,.16)" }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                    </span>
                   </button>
                 );
               })}
@@ -270,51 +287,140 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
           </div>
         )}
 
-        <div className="px-4 pt-1">
-          <button onClick={handleAdd} className="btn-pill btn-primary w-full">
-            В корзину · {totals.price} AED
+        {/* чипы категорий добавок (JOOZ) */}
+        {groups.length > 0 && (
+          <div className="overflow-x-auto no-scrollbar pb-3 pt-2">
+            <div className="flex gap-3 px-4 pr-5 items-stretch w-max">
+              {groups.map((g) => {
+                const count = groupCount(g.items);
+                const sum = groupSum(g.items);
+                const isOpen = openCat === g.name;
+                const first = g.items[0];
+                return (
+                  <button key={g.name} onClick={() => setOpenCat(isOpen ? null : g.name)}
+                          className="flex-none rounded-[18px] flex flex-col items-center justify-center gap-1 px-2 active:scale-[0.97] transition"
+                          style={{ width: 80, height: 100, background: "rgba(70,48,26,.5)", backdropFilter: "blur(12px)",
+                                   boxShadow: isOpen ? "inset 0 0 0 2px #fff" : "none" }}>
+                    <div className="relative flex items-center justify-center transition-transform duration-200"
+                         style={{ height: 40, transform: isOpen ? "scale(1.12)" : "scale(1)" }}>
+                      {first && <AddonGlyph addon={first} size={36} />}
+                      {count > 0 && (
+                        <span className="absolute -top-1 -right-2.5 min-w-[17px] h-[17px] px-1 rounded-full text-white text-[10.5px] font-bold flex items-center justify-center"
+                              style={{ background: "var(--color-primary-500)" }}>{count}</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] font-medium text-white text-center leading-[1.08] line-clamp-2">{g.name}</div>
+                    {sum > 0 ? (
+                      <div className="text-[10.5px] font-semibold whitespace-nowrap" style={{ color: "rgba(255,255,255,.85)" }}>+{sum} AED</div>
+                    ) : count > 0 ? (
+                      <div className="text-[10.5px] font-semibold whitespace-nowrap" style={{ color: "rgba(255,255,255,.85)" }}>{count} {t("pcs", "قطعة")}</div>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* размер + CTA в одну строку (как в референсе JOOZ): пилюля размера тапом
+            циклит размеры и показывает только объём, цена — в кнопке «В корзину» */}
+        <div className="px-4 pt-1 flex items-center gap-3">
+          {/* объём: тап циклит размеры (если их несколько), иначе просто показываем объём */}
+          {currentSize && (
+            drink.sizes.length > 1 ? (
+              <button onClick={cycleSize} aria-label={t("Size", "الحجم")}
+                      className="flex-none h-[62px] px-5 rounded-full font-extrabold text-[17px] text-white flex items-center justify-center active:scale-[0.97] transition"
+                      style={{ background: "rgba(38,26,14,.46)", backdropFilter: "blur(10px)" }}>
+                {currentSize.label}
+              </button>
+            ) : (
+              <div className="flex-none h-[62px] px-5 rounded-full font-extrabold text-[17px] text-white flex items-center justify-center"
+                   style={{ background: "rgba(38,26,14,.46)", backdropFilter: "blur(10px)" }}>
+                {currentSize.label}
+              </div>
+            )
+          )}
+          <button onClick={handleAdd} className="jooz-cta flex-1 min-w-0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            {t("Add to cart", "أضف إلى السلة")} · {totals.price} AED
           </button>
         </div>
       </div>
 
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 bg-white shadow-lg rounded-2xl px-4 py-3 z-50 text-body font-medium flex items-center gap-2 animate-fadeUp">
-          <span className="w-6 h-6 rounded-full bg-[var(--color-success)] text-white flex items-center justify-center text-sm">✓</span>
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 bg-white shadow-lg rounded-2xl px-4 py-3 z-50 text-[15px] font-bold flex items-center gap-2 animate-fadeUp"
+             style={{ color: "var(--jooz-ink)" }}>
+          <span className="w-6 h-6 rounded-full text-white flex items-center justify-center text-sm"
+                style={{ background: "var(--color-success)" }}>✓</span>
           {toast}
         </div>
       )}
 
+      {/* «назови напиток» */}
       <BottomSheet open={showName} onClose={() => setShowName(false)}>
-        <div className="px-6 pb-safe pt-4">
-          <div className="text-h3 font-semibold text-center mb-4">Назови напиток</div>
+        <div className="px-6 pb-safe pt-2">
+          <div className="font-black text-[23px] mb-4" style={{ color: "var(--jooz-ink)" }}>{t("Name your drink", "سمِّ مشروبك")}</div>
           <input value={customName} onChange={(e) => setCustomName(e.target.value.slice(0, 30))}
                  placeholder={drink.name} autoFocus
-                 className="w-full h-14 px-5 rounded-2xl bg-[#F4F4F7] outline-none text-h3" />
-          <button onClick={() => setShowName(false)} className="btn-pill btn-primary w-full mt-4">
-            Готово
-          </button>
-          <div className="h-6" />
+                 className="w-full h-14 px-5 rounded-2xl outline-none text-[17px] font-bold"
+                 style={{ background: "#f7f8fa", border: "2px solid #eceef1", color: "var(--jooz-ink)" }} />
+          <button onClick={() => setShowName(false)} className="jooz-cta mt-4">{t("Done", "تم")}</button>
+          <div className="h-4" />
         </div>
       </BottomSheet>
 
+      {/* детали напитка */}
       <BottomSheet open={showDescription} onClose={() => setShowDescription(false)}>
-        <div className="px-6 pb-safe pt-2">
-          <div className="text-h2 mb-4">{drink.name}</div>
-          <div className="text-body muted leading-relaxed mb-6">{drink.description}</div>
+        <div className="px-7 pb-safe pt-2">
+          <div className="font-black text-[27px] leading-[1.08] max-w-[280px]" style={{ color: "var(--jooz-ink)" }}>{drink.name}</div>
+          {/* rich-описание из админки (санитизировано на бэке) */}
+          {drink.richDescription && (
+            <div className="rich-desc mt-3.5" dir={locale === "ar" ? "rtl" : "ltr"}
+                 dangerouslySetInnerHTML={{ __html: drink.richDescription }} />
+          )}
+          <div className="font-black text-[21px] mt-7" style={{ color: "var(--jooz-ink)" }}>{t("nutrition facts", "القيمة الغذائية")}</div>
+          <div className="grid grid-cols-4 gap-2 mt-3">
+            {[[t("energy", "الطاقة"), `${totals.kcal} ${t("kcal", "سعرة")}`], [t("protein", "بروتين"), `${totals.protein} ${t("g", "غ")}`], [t("fat", "دهون"), `${totals.fat} ${t("g", "غ")}`], [t("carbs", "كربوهيدرات"), `${totals.carbs} ${t("g", "غ")}`]].map(([l, v]) => (
+              <div key={l} className="rounded-2xl py-3 text-center" style={{ background: "#f3f4f7" }}>
+                <div className="font-extrabold text-[15px]" style={{ color: "var(--jooz-ink)" }}>{v}</div>
+                <div className="text-[12px] mt-0.5" style={{ color: "var(--jooz-muted)" }}>{l}</div>
+              </div>
+            ))}
+          </div>
+          <div className="h-6" />
         </div>
       </BottomSheet>
     </div>
   );
 }
 
+/** Иконка добавки: реальная картинка из API либо буквенный кружок-фолбэк. */
+function AddonGlyph({ addon, size, className = "" }: { addon: ApiAddon; size: number; className?: string }) {
+  if (addon.imageUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={addon.imageUrl} alt="" className={`object-contain ${className}`}
+           style={{ width: size, height: size, filter: "drop-shadow(0 6px 10px rgba(40,25,8,.3))" }} />
+    );
+  }
+  return (
+    <div className={`rounded-full flex items-center justify-center font-black ${className}`}
+         style={{ width: size, height: size, fontSize: size * 0.4, background: "rgba(255,255,255,.85)", color: "var(--jooz-ink-2)" }}>
+      {addon.name.slice(0, 1)}
+    </div>
+  );
+}
+
 function Kbju({ value, label, unit }: { value: string | number; label: string; unit?: string }) {
   return (
-    <div className="text-center text-white drop-shadow-sm">
-      <div className="text-[18px] font-semibold leading-tight">
+    <div className="text-center text-white flex-1">
+      <div className="font-extrabold text-[19px] leading-tight">
         {value}
-        {unit && <span className="text-[12px] font-medium opacity-80"> {unit}</span>}
+        {unit && <span className="text-[12.5px] font-bold opacity-80"> {unit}</span>}
       </div>
-      <div className="text-[11px] leading-tight mt-0.5 opacity-70">{label}</div>
+      <div className="text-[12.5px] leading-tight mt-0.5 font-semibold opacity-70">{label}</div>
     </div>
   );
 }

@@ -55,6 +55,7 @@ function Detail({ id }: { id: number }) {
                 <tr key={it.id}>
                   <td>
                     <strong>{it.name}</strong>
+                    {it.sizeLabel && <span className="admin-meta" style={{ marginLeft: 6 }}>{it.sizeLabel}</span>}
                     {it.paidByCoupon && <span className="admin-pill accent" style={{ marginLeft: 6 }}>купон</span>}
                   </td>
                   <td>

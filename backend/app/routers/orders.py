@@ -24,6 +24,7 @@ class ItemIn(BaseModel):
     drinkId: int
     quantity: int = Field(1, ge=1)
     customName: str | None = None
+    sizeId: int | None = None  # выбранный размер напитка (ADM-S-05)
     addons: list[SelIn] = []
 
 
@@ -46,7 +47,8 @@ def order_payload(o: Order, full: bool = True) -> dict:
         "items": [
             {
                 "id": i.id, "drinkId": i.drink_id, "name": i.custom_name or i.drink_name,
-                "drinkName": i.drink_name, "unitPrice": i.unit_price, "quantity": i.quantity,
+                "drinkName": i.drink_name, "sizeLabel": i.size_label,
+                "unitPrice": i.unit_price, "quantity": i.quantity,
                 "paidByCoupon": i.paid_by_coupon,
                 "addons": [
                     {"name": a.addon_name, "portions": a.portions,

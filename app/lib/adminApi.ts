@@ -34,8 +34,8 @@ export type AdminOrder = {
   customerName?: string; phone: string; carPlate: string; emirate?: string;
   subtotal: number; couponDiscount: number; total: number;
   managerId?: number; rating?: string | null; createdAt: string;
-  items: { id: number; name: string; drinkName: string; quantity: number; unitPrice: number;
-           paidByCoupon: boolean;
+  items: { id: number; name: string; drinkName: string; sizeLabel?: string | null;
+           quantity: number; unitPrice: number; paidByCoupon: boolean;
            addons: { name: string; portions: number; amount: number; unit: string }[] }[];
   events?: { type: string; status?: string; byStaffId?: number; byUserId?: number;
              note?: string; at: string }[];
@@ -84,7 +84,7 @@ export const adminApi = {
 
 // ---------- каталог (ADM-S-01..05) ----------
 export type I18n = { ru?: string; ar?: string };
-export type DrinkCat = { id: number; name: I18n; photoUrl?: string | null; videoUrl?: string | null;
+export type DrinkCat = { id: number; slug: string; name: I18n; photoUrl?: string | null; videoUrl?: string | null;
                          isActive: boolean; sort: number };
 export type Unit = { id: number; code: string; name: I18n };
 export type AddonCat = { id: number; name: I18n; iconUrl?: string | null; isActive: boolean;
@@ -95,9 +95,19 @@ export type AdminAddon = { id: number; name: I18n; imageUrl?: string | null; cat
 export type Binding = { id?: number; addonId: number; priceOverride: number | null;
   minPortions: number; defaultPortions: number; maxPortions: number; portionAmount: number;
   selectionTypeOverride: string | null };
+export type DrinkSize = { id?: number; volume: number; unit: string; price: number;
+  isDefault: boolean; isActive: boolean; sort: number };
+export type DrinkDescription = { locale: string; body: string };
+// локали для rich-описаний (совпадают с DESC_LOCALES на бэке)
+export const DESC_LOCALES: { code: string; label: string }[] = [
+  { code: "ru", label: "Русский" },
+  { code: "en", label: "English" },
+  { code: "ar", label: "العربية" },
+];
 export type AdminDrink = { id: number; slug: string; name: I18n; description: I18n; status: string;
   previewUrl?: string | null; videoUrl?: string | null; basePrice: number;
-  kcal: number; protein: number; fat: number; carbs: number; categoryId: number; bindings: Binding[] };
+  kcal: number; protein: number; fat: number; carbs: number; categoryId: number;
+  bindings: Binding[]; sizes: DrinkSize[]; descriptions: DrinkDescription[] };
 
 export const catalogApi = {
   drinkCategories: () => req<DrinkCat[]>("/api/admin/catalog/drink-categories"),
@@ -130,6 +140,16 @@ export const catalogApi = {
   setBindings: (drinkId: number, bindings: Binding[]) =>
     req<AdminDrink>(`/api/admin/catalog/drinks/${drinkId}/bindings`,
       { method: "PUT", body: JSON.stringify(bindings) }),
+  setSizes: (drinkId: number, sizes: DrinkSize[]) =>
+    req<AdminDrink>(`/api/admin/catalog/drinks/${drinkId}/sizes`,
+      { method: "PUT", body: JSON.stringify(sizes) }),
+  // upsert описания в локали (создание/редактирование); пустое тело удаляет запись
+  saveDescription: (drinkId: number, locale: string, body: string) =>
+    req<AdminDrink>(`/api/admin/catalog/drinks/${drinkId}/descriptions/${locale}`,
+      { method: "PUT", body: JSON.stringify({ body }) }),
+  deleteDescription: (drinkId: number, locale: string) =>
+    req<AdminDrink>(`/api/admin/catalog/drinks/${drinkId}/descriptions/${locale}`,
+      { method: "DELETE" }),
 };
 
 export function adminOrdersWs(): WebSocket {

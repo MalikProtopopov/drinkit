@@ -21,13 +21,13 @@ def seed(db: Session):
     db.add_all(units.values())
 
     cats = {
-        "fresh": DrinkCategory(name={"ru": "Фреши", "ar": "عصائر طازجة"}, sort=1,
+        "fresh": DrinkCategory(slug="fresh", name={"ru": "Фреши", "ar": "عصائر طازجة"}, sort=1,
                                photo_url="/videos/juice-orange-pour.jpg"),
-        "smoothie": DrinkCategory(name={"ru": "Смузи", "ar": "سموذي"}, sort=2,
+        "smoothie": DrinkCategory(slug="smoothie", name={"ru": "Смузи", "ar": "سموذي"}, sort=2,
                                   photo_url="/videos/milk-jug.jpg"),
-        "detox": DrinkCategory(name={"ru": "Детокс", "ar": "ديتوكس"}, sort=3,
+        "detox": DrinkCategory(slug="detox", name={"ru": "Детокс", "ar": "ديتوكس"}, sort=3,
                                photo_url="/videos/tea-pour.jpg"),
-        "shots": DrinkCategory(name={"ru": "Шоты", "ar": "شوتات"}, sort=4,
+        "shots": DrinkCategory(slug="shots", name={"ru": "Шоты", "ar": "شوتات"}, sort=4,
                                photo_url="/videos/coffee-espresso.jpg"),
     }
     db.add_all(cats.values())
@@ -67,10 +67,40 @@ def seed(db: Session):
         "coconut": addon("Кокосовая вода", "ماء جوز الهند", "base", "ml", 19, 0.7, 0.2, 3.7, 6),
     }
 
+    # Детали для шторки «Подробнее» — типовые по категории (PUB-G-02), реальные, без lorem
+    DETAILS = {
+        "fresh": {
+            "ingredients": {"ru": "Свежевыжатый сок, лёд по желанию. Без сахара, воды и консервантов.",
+                            "ar": "عصير طازج، ثلج حسب الرغبة. بدون سكر أو ماء أو مواد حافظة."},
+            "allergens": {"ru": "Не содержит распространённых аллергенов.", "ar": "لا يحتوي على مسببات حساسية شائعة."},
+            "may": {"ru": "Возможны следы цитрусовых и орехов — готовится на общей линии.", "ar": "قد يحتوي على آثار حمضيات ومكسرات."},
+        },
+        "smoothie": {
+            "ingredients": {"ru": "Свежие фрукты, молоко или растительная основа, лёд.",
+                            "ar": "فواكه طازجة، حليب أو أساس نباتي، ثلج."},
+            "allergens": {"ru": "Молоко (лактоза).", "ar": "حليب (لاكتوز)."},
+            "may": {"ru": "Орехи, соя, глютен.", "ar": "مكسرات، صويا، غلوتين."},
+        },
+        "detox": {
+            "ingredients": {"ru": "Овощи и зелень холодного отжима, лимон, имбирь.",
+                            "ar": "خضار وأعشاب معصورة على البارد، ليمون، زنجبيل."},
+            "allergens": {"ru": "Сельдерей.", "ar": "كرفس."},
+            "may": {"ru": "Возможны следы орехов и цитрусовых.", "ar": "قد يحتوي على آثار مكسرات وحمضيات."},
+        },
+        "shots": {
+            "ingredients": {"ru": "Концентрат холодного отжима — имбирь, куркума, цитрус.",
+                            "ar": "مركّز معصور على البارد — زنجبيل، كركم، حمضيات."},
+            "allergens": {"ru": "Не содержит.", "ar": "لا يحتوي."},
+            "may": {"ru": "Возможны следы цитрусовых.", "ar": "قد يحتوي على آثار حمضيات."},
+        },
+    }
+
     def drink(slug, name_ru, name_ar, cat, price, kcal, p, f, c, links, status="published",
               desc_ru="Свежевыжатый, без сахара.", video=None):
+        det = DETAILS.get(cat, DETAILS["fresh"])
         d = Drink(slug=slug, name={"ru": name_ru, "ar": name_ar},
                   description={"ru": desc_ru, "ar": "طازج وبدون سكر."},
+                  ingredients=det["ingredients"], allergens=det["allergens"], may_contain=det["may"],
                   status=status, base_price=price, kcal=kcal, protein=p, fat=f, carbs=c,
                   category_id=cats[cat].id, video_url=video or f"/videos/{slug}.mp4",
                   preview_url=f"/videos/{slug}.jpg")

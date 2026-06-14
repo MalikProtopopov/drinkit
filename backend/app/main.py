@@ -5,16 +5,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .core.db import Base, SessionLocal, engine
+from .services.migrate import (backfill_category_slugs, backfill_sizes, ensure_schema,
+                               localize_catalog_en)
 from .services.seed import seed
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # DECISION: create_all + сиды на старте вместо alembic — достаточно для MVP,
-    # миграции добавляются при первом изменении схемы в проде
+    # DECISION: create_all + лёгкие миграции + сиды на старте вместо alembic —
+    # достаточно для MVP; ensure_schema добивает недостающие колонки в уже
+    # существующих таблицах (SQLite), backfill_sizes наполняет размеры по 400 ml.
     Base.metadata.create_all(engine)
+    ensure_schema(engine)
     with SessionLocal() as db:
         seed(db)
+        backfill_category_slugs(db)
+        backfill_sizes(db)
+        localize_catalog_en(db)
     yield
 
 

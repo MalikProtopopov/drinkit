@@ -6,8 +6,11 @@ import { getToken } from "@/lib/api";
 import { TopBar } from "@/components/TopBar";
 import { DrinkArt } from "@/components/DrinkArt";
 import { StepperButton } from "@/components/StepperButton";
+import { IconBag, IconPlus } from "@/components/icons";
+import { useT } from "@/lib/i18n";
 
 export default function CartPage() {
+  const { t } = useT();
   const router = useRouter();
   const cart = useStore((s) => s.cart);
   const updateQty = useStore((s) => s.updateQty);
@@ -21,15 +24,27 @@ export default function CartPage() {
 
   if (cart.length === 0) {
     return (
-      <div className="flex-1 flex flex-col">
-        <TopBar title="Корзина" back />
-        <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
-          <div className="mb-6">
-            <DrinkArt glass="smoothie" liquid="#D6E8D9" foam="#E8F0E9" garnish="mint" straw size={180} />
+      <div className="jooz-page flex-1 flex flex-col">
+        <TopBar title={t("Cart", "السلة")} back />
+        <div className="flex-1 flex flex-col items-center justify-center px-8 text-center -mt-10">
+          {/* мягкий круг с иконкой корзины + бейдж «0» */}
+          <div className="relative mb-7">
+            <div className="w-40 h-40 rounded-full flex items-center justify-center"
+                 style={{ background: "radial-gradient(circle at 50% 32%, var(--color-primary-100), #E7E9EF)" }}>
+              <IconBag size={66} style={{ color: "var(--color-primary-500)" }} />
+            </div>
+            <span className="absolute top-1 right-1 w-10 h-10 rounded-full bg-white shadow-md flex items-center justify-center text-[17px] font-extrabold"
+                  style={{ color: "var(--color-primary-500)" }}>0</span>
           </div>
-          <div className="text-h2 mb-2">Корзина пуста</div>
-          <div className="muted text-body mb-8">Загляни в меню, чтобы добавить любимый напиток</div>
-          <Link href="/home" className="btn-pill btn-primary px-8">К меню</Link>
+
+          <div className="font-black text-[24px]" style={{ color: "var(--jooz-ink)" }}>{t("Your cart is empty", "سلتك فارغة")}</div>
+          <div className="text-[15px] mt-2 max-w-[260px] leading-snug" style={{ color: "var(--jooz-muted)" }}>
+            {t("Add a fresh juice, smoothie or shot from the menu — it takes just a few seconds", "أضِف عصيرًا طازجًا أو سموذي أو شوت من القائمة — لن يستغرق سوى ثوانٍ معدودة")}
+          </div>
+
+          <Link href="/home" className="jooz-cta mt-7" style={{ width: "auto", paddingInline: 34 }}>
+            {t("Browse drinks", "تصفّح المشروبات")}
+          </Link>
         </div>
       </div>
     );
@@ -37,7 +52,7 @@ export default function CartPage() {
 
   return (
     <div className="flex-1 flex flex-col">
-      <TopBar title="Корзина" back />
+      <TopBar title={t("Cart", "السلة")} back />
 
       <div className="flex-1 overflow-y-auto px-4 pb-40">
         <div className="flex flex-col gap-3">
@@ -56,6 +71,9 @@ export default function CartPage() {
               <div className="flex-1 min-w-0">
                 <div className="text-h3 leading-tight truncate">{item.customName || item.productName}</div>
                 {item.customName && <div className="text-tiny muted truncate">{item.productName}</div>}
+                {item.sizeLabel && (
+                  <div className="text-tiny font-semibold mt-0.5" style={{ color: "var(--color-primary-500)" }}>{item.sizeLabel}</div>
+                )}
                 {item.addonsLabel && (
                   <div className="text-tiny muted mt-1 line-clamp-2">{item.addonsLabel}</div>
                 )}
@@ -75,15 +93,22 @@ export default function CartPage() {
           ))}
         </div>
 
+        {/* добавить ещё напитки из каталога */}
+        <button onClick={() => router.push("/home")}
+                className="mt-3 w-full h-12 rounded-2xl flex items-center justify-center gap-2 font-semibold text-[15px] active:scale-[0.99] transition"
+                style={{ background: "#fff", border: "2px dashed var(--color-border)", color: "var(--color-primary-500)" }}>
+          <IconPlus size={18} /> {t("Add more drinks", "أضِف مشروبات أخرى")}
+        </button>
+
         <div className="mt-4 rounded-2xl bg-[#F4F4F7] p-4 space-y-2">
-          <Row label={`Итого · ${totals.count} поз.`} value={`${totals.subtotal.toFixed(0)} AED`} big />
-          <div className="text-tiny muted">Купон на бесплатный напиток можно применить на оформлении</div>
+          <Row label={`${t("Total", "الإجمالي")} · ${totals.count} ${t("items", "عنصر")}`} value={`${totals.subtotal.toFixed(0)} AED`} big />
+          <div className="text-tiny muted">{t("A free-drink coupon can be applied at checkout", "يمكن تطبيق قسيمة المشروب المجاني عند الدفع")}</div>
         </div>
       </div>
 
       <div className="sticky bottom-0 left-0 right-0 px-4 pt-3 pb-safe bg-gradient-to-t from-white via-white to-transparent">
         <button onClick={goCheckout} className="btn-pill btn-primary w-full">
-          Оформить · {totals.subtotal.toFixed(0)} AED
+          {t("Checkout", "الدفع")} · {totals.subtotal.toFixed(0)} AED
         </button>
       </div>
     </div>

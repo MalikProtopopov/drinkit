@@ -6,7 +6,7 @@ import { useStore } from "@/lib/store";
 export function LocaleEffect() {
   const locale = useStore((s) => s.user.preferredLocale);
   useEffect(() => {
-    const lang = locale === "ar" ? "ar" : "ru";
+    const lang = locale === "ar" ? "ar" : "en";
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   }, [locale]);

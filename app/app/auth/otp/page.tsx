@@ -2,9 +2,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 
 export default function OtpPage() {
   const router = useRouter();
+  const { t } = useT();
   const phone = useStore((s) => s.user.phone);
   const [code, setCode] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(55);
@@ -35,21 +37,19 @@ export default function OtpPage() {
         // PUB-G-04: верификация на бэке → JWT
         const { api, setToken } = await import("@/lib/api");
         const locale = useStore.getState().user.preferredLocale;
-        const r = await api.verify(phone, code, undefined, locale);
+        const r = await api.verify(phone, code, undefined, locale === "ar" ? "ar" : "en");
         setToken(r.token);
         useStore.getState().setUser({
           name: r.user.name ?? undefined,
           defaultCarPlate: r.user.carPlate ?? undefined,
           defaultEmirate: r.user.emirate ?? undefined,
           // PUB-A-09 AC4: при входе применяется язык из профиля
-          preferredLocale: (r.user.locale === "ar" ? "ar" : "ru"),
+          preferredLocale: (r.user.locale === "ar" ? "ar" : "en"),
         });
+        // имя/машину собираем на /checkout, отдельного экрана имени больше нет
         const next = sessionStorage.getItem("juicy-auth-next");
-        if (r.created || !r.user.name) router.push("/auth/name");
-        else {
-          sessionStorage.removeItem("juicy-auth-next");
-          router.push(next || "/home");
-        }
+        sessionStorage.removeItem("juicy-auth-next");
+        router.push(next || "/home");
       } catch {
         setError(true);
         setCode("");
@@ -67,7 +67,7 @@ export default function OtpPage() {
     <div className="flex-1 flex flex-col bg-white">
       <header className="flex items-center justify-between px-4 pt-safe pb-2 h-16">
         <div className="w-10" />
-        <div className="text-h3 font-semibold">Код из SMS</div>
+        <div className="text-h3 font-semibold">{t("SMS code", "رمز الرسالة النصية")}</div>
         <button
           onClick={() => router.back()}
           className="w-10 h-10 rounded-full bg-[#F2F2F4] flex items-center justify-center"
@@ -80,11 +80,11 @@ export default function OtpPage() {
 
       <div className="flex-1 flex flex-col px-6 pt-6 items-center">
         <div className="text-body text-center mb-1">
-          Введи код, отправленный на
+          {t("Enter the code sent to", "أدخل الرمز المُرسَل إلى")}
         </div>
         <div className="text-h3 font-semibold mb-1">{phone}</div>
         <button onClick={() => router.back()} className="text-[var(--color-primary-500)] text-caption font-semibold mb-6">
-          Изменить номер
+          {t("Change number", "تغيير الرقم")}
         </button>
 
         <div className="relative w-full mb-6">
@@ -119,25 +119,25 @@ export default function OtpPage() {
           </div>
           {/* SMS source hint */}
           <div className="text-center text-tiny muted mt-4">
-            Источник · Telegram или SMS
+            {t("Source · Telegram or SMS", "المصدر · تيليجرام أو رسالة نصية")}
           </div>
           {error && (
             <div className="text-center text-tiny mt-2" style={{ color: "var(--color-error)" }}>
-              Неверный код — попробуй ещё раз
+              {t("Wrong code — try again", "رمز غير صحيح — حاول مرة أخرى")}
             </div>
           )}
         </div>
 
         {secondsLeft > 0 ? (
           <div className="muted text-body">
-            Отправить снова через 0:{secondsLeft.toString().padStart(2, "0")}
+            {t("Resend in 0:", "إعادة الإرسال خلال 0:")}{secondsLeft.toString().padStart(2, "0")}
           </div>
         ) : (
           <button
             onClick={() => setSecondsLeft(55)}
             className="text-[var(--color-primary-500)] text-body font-semibold"
           >
-            Отправить ещё раз
+            {t("Resend", "إعادة الإرسال")}
           </button>
         )}
       </div>

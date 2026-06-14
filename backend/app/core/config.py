@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     otp_dev_code: str = "1836"
     otp_ttl_seconds: int = 300
 
-    default_locale: str = "ru"
-    locales: list[str] = ["ru", "ar"]
+    default_locale: str = "en"
+    locales: list[str] = ["en", "ar"]
 
     rating_timeout_minutes: int = 15  # захардкоженный порог из требований (PUB-A-04)
 

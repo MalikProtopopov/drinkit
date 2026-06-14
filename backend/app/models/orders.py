@@ -60,6 +60,7 @@ class OrderItem(Base):
     drink_id: Mapped[int] = mapped_column(Integer)
     drink_name: Mapped[str] = mapped_column(String(160))  # снэпшот в локали заказа
     custom_name: Mapped[str | None] = mapped_column(String(60))
+    size_label: Mapped[str | None] = mapped_column(String(20), nullable=True)  # снэпшот размера, напр. «400 ml»
     unit_price: Mapped[float] = mapped_column(Float)  # цена напитка со всеми добавками
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     paid_by_coupon: Mapped[bool] = mapped_column(Boolean, default=False)  # PUB-A-05

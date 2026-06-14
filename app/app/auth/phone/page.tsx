@@ -1,28 +1,33 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { NumPad } from "@/components/NumPad";
 import { Flag } from "@/components/Flag";
 import { useStore } from "@/lib/store";
+import { api, getToken } from "@/lib/api";
+import { uaeLocalDigits } from "@/lib/masks";
+import { useT } from "@/lib/i18n";
 
-function formatPhone(digits: string) {
-  // +971 XX XXX XX XX
+/** Группировка локальной части номера ОАЭ: «50 123 4567». */
+function groupLocal(digits: string) {
   const d = digits.slice(0, 9);
-  const parts = [
-    d.slice(0, 2),
-    d.slice(2, 5),
-    d.slice(5, 7),
-    d.slice(7, 9),
-  ].filter(Boolean);
-  return parts.join(" ");
+  return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 9)].filter(Boolean).join(" ");
 }
 
 export default function PhonePage() {
   const router = useRouter();
+  const { t } = useT();
   const setUser = useStore((s) => s.setUser);
-  const [digits, setDigits] = useState("");
+  // префилл из профиля: если телефон уже вводили — подставляем его локальную часть
+  const savedPhone = useStore((s) => s.user.phone);
+  const [digits, setDigits] = useState(() => uaeLocalDigits(savedPhone ?? ""));
   const [agreed, setAgreed] = useState(true);
   const [sending, setSending] = useState(false);
+
+  // если уже авторизованы — подставляем телефон с бэкенда (источник истины)
+  useEffect(() => {
+    if (!getToken()) return;
+    api.me().then((u) => { if (u.phone) setDigits(uaeLocalDigits(u.phone)); }).catch(() => {});
+  }, []);
 
   const valid = digits.length === 9;
 
@@ -40,20 +45,18 @@ export default function PhonePage() {
       if (r.otpRequired === false) {
         // OTP выключен (решение владельца): телефон — контакт для выдачи, входим сразу
         const locale = useStore.getState().user.preferredLocale;
-        const v = await api.verify(phone, "", undefined, locale === "ar" ? "ar" : "ru");
+        const v = await api.verify(phone, "", undefined, locale === "ar" ? "ar" : "en");
         setToken(v.token);
         useStore.getState().setUser({
           name: v.user.name ?? undefined,
           defaultCarPlate: v.user.carPlate ?? undefined,
           defaultEmirate: v.user.emirate ?? undefined,
-          preferredLocale: v.user.locale === "ar" ? "ar" : "ru",
+          preferredLocale: v.user.locale === "ar" ? "ar" : "en",
         });
+        // имя/машину больше не спрашиваем отдельным экраном — это поля /checkout
         const nextUrl = sessionStorage.getItem("juicy-auth-next");
-        if (v.created || !v.user.name) router.push("/auth/name");
-        else {
-          sessionStorage.removeItem("juicy-auth-next");
-          router.push(nextUrl || "/home");
-        }
+        sessionStorage.removeItem("juicy-auth-next");
+        router.push(nextUrl || "/home");
         return;
       }
       // OTP включён (когда подключим SMS-провайдера) — обычный флоу с кодом
@@ -78,13 +81,16 @@ export default function PhonePage() {
             <path d="M18 6L6 18M6 6l12 12" />
           </svg>
         </button>
-        <div className="text-h3 font-semibold">Номер телефона</div>
+        <div className="text-h3 font-semibold">{t("Phone number", "رقم الهاتف")}</div>
         <div className="w-10" />
       </header>
 
       <div className="flex-1 flex flex-col px-6 pt-6">
         <div className="text-center muted text-body mb-8">
-          Введи номер телефона — по нему бариста выдаст оплаченный заказ
+          {t(
+            "Enter your phone number — the barista will use it to hand over your paid order",
+            "أدخل رقم هاتفك — سيستخدمه الباريستا لتسليم طلبك المدفوع"
+          )}
         </div>
 
         <div className="bg-[#F4F4F7] rounded-2xl px-5 h-16 flex items-center gap-3 mb-4">
@@ -93,14 +99,15 @@ export default function PhonePage() {
             <span className="text-h2 font-semibold leading-none">+971</span>
           </div>
           <div className="w-px h-6 bg-[var(--color-border)]" />
-          <div className="text-h2 font-semibold flex-1 leading-none flex items-center">
-            {digits ? (
-              <span>{formatPhone(digits)}</span>
-            ) : (
-              <span className="muted">50 123 45 67</span>
-            )}
-            <span className="ml-1 inline-block w-[2px] h-6 bg-[var(--color-primary-500)] animate-pulse" />
-          </div>
+          <input
+            value={groupLocal(digits)}
+            onChange={(e) => setDigits(uaeLocalDigits(e.target.value))}
+            inputMode="tel"
+            type="tel"
+            autoFocus
+            placeholder="50 123 4567"
+            className="flex-1 min-w-0 bg-transparent outline-none text-h2 font-semibold leading-none placeholder:text-[var(--color-text-muted)] placeholder:font-medium"
+          />
         </div>
 
         <label className="flex items-start gap-3 text-caption muted px-2 mb-6">
@@ -111,9 +118,10 @@ export default function PhonePage() {
             className="mt-1 w-4 h-4 accent-[var(--color-primary-500)]"
           />
           <span>
-            Соглашаюсь с{" "}
-            <a className="text-[var(--color-primary-500)]">офертой</a> и{" "}
-            <a className="text-[var(--color-primary-500)]">политикой</a> обработки данных
+            {t("I agree to the", "أوافق على")}{" "}
+            <a className="text-[var(--color-primary-500)]">{t("offer", "العرض")}</a>{" "}
+            {t("and the", "و")}{" "}
+            <a className="text-[var(--color-primary-500)]">{t("data processing policy", "سياسة معالجة البيانات")}</a>
           </span>
         </label>
 
@@ -122,15 +130,8 @@ export default function PhonePage() {
           disabled={!valid || !agreed}
           className="btn-pill btn-primary w-full mb-6"
         >
-          Получить код
+          {t("Confirm", "تأكيد")}
         </button>
-      </div>
-
-      <div className="px-4 pt-2">
-        <NumPad
-          onPress={(d) => setDigits((s) => (s + d).slice(0, 9))}
-          onBackspace={() => setDigits((s) => s.slice(0, -1))}
-        />
       </div>
     </div>
   );
