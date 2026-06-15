@@ -1,18 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Pager } from "@/components/admin/AdminUI";
 import { adminApi, adminOrdersWs, ADMIN_STATUS_LABEL, type AdminOrder } from "@/lib/adminApi";
 import { useAdmin } from "@/components/admin/AdminShell";
 import { usePaged } from "@/lib/usePaged";
+import { useLiveReload } from "@/lib/useLiveReload";
 
 function OrdersInner() {
   const { staff } = useAdmin();
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "done">("active");
   const [managerFilter, setManagerFilter] = useState<"all" | "mine" | "unassigned">("all");
-  const wsRef = useRef<WebSocket | null>(null);
 
   const fetcher = useCallback((p: { limit: number; offset: number }) => adminApi.ordersPaged({
     ...p,
@@ -24,18 +24,14 @@ function OrdersInner() {
   const { items: rows, total, limit, offset, loading, setOffset, setLimit, reload } =
     usePaged<AdminOrder>(fetcher, [activeFilter, managerFilter, staff?.id], 20);
 
-  useEffect(() => {
-    // realtime-лента заказов (ADM-M-03 AC2)
-    try {
-      const ws = adminOrdersWs();
-      wsRef.current = ws;
-      ws.onmessage = (e) => {
-        const m = JSON.parse(e.data);
-        if (m.type !== "ping") reload();
-      };
-    } catch {}
-    return () => wsRef.current?.close();
-  }, [reload]);
+  // realtime-лента (ADM-M-03 AC2): новые заказы и смены статуса появляются сразу,
+  // без обновления страницы; авто-reconnect + догон пропущенного при разрыве связи
+  useLiveReload({
+    connect: adminOrdersWs,
+    onMessage: () => reload(),
+    onSync: () => reload(),
+    pollMs: 30000,
+  });
 
   return (
     <>

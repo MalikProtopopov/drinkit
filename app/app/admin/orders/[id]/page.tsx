@@ -1,10 +1,11 @@
 "use client";
 
-import { use, useCallback, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { ConfirmDialog, useToast } from "@/components/admin/AdminUI";
 import { adminApi, adminOrdersWs, ADMIN_STATUS_LABEL, type AdminOrder } from "@/lib/adminApi";
+import { useLiveReload } from "@/lib/useLiveReload";
 
 const CHAIN = ["new", "in_progress", "ready", "completed"];
 const STEP_SHORT: Record<string, string> = {
@@ -68,7 +69,6 @@ function Detail({ id }: { id: number }) {
   const [confirmRefund, setConfirmRefund] = useState(false);
   const [refundReason, setRefundReason] = useState("");
   const [now, setNow] = useState(() => Date.now());
-  const wsRef = useRef<WebSocket | null>(null);
 
   const load = useCallback(() => {
     adminApi.order(id).then(setOrder).catch(() => {});
@@ -79,17 +79,13 @@ function Detail({ id }: { id: number }) {
     const t = setInterval(() => setNow(Date.now()), 30_000); // живой таймер ожидания
     return () => clearInterval(t);
   }, []);
-  useEffect(() => {
-    try {
-      const ws = adminOrdersWs();
-      wsRef.current = ws;
-      ws.onmessage = (e) => {
-        const m = JSON.parse(e.data);
-        if (m.type !== "ping" && m.orderId === id) load();
-      };
-    } catch {}
-    return () => wsRef.current?.close();
-  }, [id, load]);
+  // realtime этого заказа: смены статуса/прибытие приходят сразу; авто-reconnect
+  useLiveReload({
+    connect: adminOrdersWs,
+    onMessage: (m) => { if ((m as { orderId?: number }).orderId === id) load(); },
+    onSync: () => load(),
+    pollMs: 30000,
+  });
 
   if (!order) return <div className="admin-meta">Загрузка…</div>;
 
