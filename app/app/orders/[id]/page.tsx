@@ -208,15 +208,17 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
           {order.items.map((item) => (
             <div key={item.id} className="py-2 border-t border-[var(--color-border)] first:border-t-0 first:pt-0">
               <div className="flex justify-between gap-2">
+                {/* bdi + логические отступы (ms-*) — чтобы кол-во ×N и объём не слипались в RTL */}
                 <div className="text-body font-semibold leading-tight">
-                  {item.name} ×{item.quantity}
+                  <bdi>{item.name}</bdi>
+                  <bdi className="ms-1.5">×{item.quantity}</bdi>
                   {item.sizeLabel && (
-                    <span className="ml-2 text-tiny font-semibold muted">{item.sizeLabel}</span>
+                    <bdi className="ms-2 text-tiny font-semibold muted">{item.sizeLabel}</bdi>
                   )}
                   {item.paidByCoupon && (
-                    <span className="ml-2 text-tiny font-semibold text-[var(--color-primary-500)]">
+                    <bdi className="ms-2 text-tiny font-semibold text-[var(--color-primary-500)]">
                       {t("by coupon", "بالقسيمة")}
-                    </span>
+                    </bdi>
                   )}
                 </div>
                 <div className="text-body font-semibold">
