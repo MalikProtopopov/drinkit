@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminApi } from "@/lib/adminApi";
 import { Stat } from "@/components/admin/Stat";
+import { HourlyOrdersChart } from "@/components/admin/charts/HourlyOrdersChart";
 
 const PERIODS = [
   { key: "all", label: "Всё время", from: undefined },
@@ -40,7 +41,6 @@ function DashboardInner() {
 
   const peakHour = Object.entries(data.ordersByHour as Record<string, number>)
     .sort((a, b) => b[1] - a[1])[0];
-  const maxHour = Math.max(1, ...Object.values(data.ordersByHour as Record<string, number>));
 
   return (
     <>
@@ -86,14 +86,16 @@ function DashboardInner() {
 
       <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <div className="admin-panel">
-          <div className="admin-panel-head"><div className="admin-panel-title">Время заказов (пики)</div></div>
-          <div className="admin-panel-body" style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 140 }}>
-            {Object.entries(data.ordersByHour as Record<string, number>).map(([h, n]) => (
-              <div key={h} title={`${h}:00 — ${n}`} style={{ flex: 1, textAlign: "center" }}>
-                <div style={{ height: `${(n / maxHour) * 100}px`, background: n ? "#4A56E2" : "#EFEDE3", borderRadius: 3 }} />
-                {Number(h) % 6 === 0 && <div style={{ fontSize: 9, color: "#8A8F9C", marginTop: 2 }}>{h}</div>}
-              </div>
-            ))}
+          <div className="admin-panel-head">
+            <div className="admin-panel-title">Время заказов по часам</div>
+            <span className="admin-meta">
+              {peakHour && Number(peakHour[1]) > 0
+                ? `пик ${String(peakHour[0]).padStart(2, "0")}:00 · ${peakHour[1]} зак.`
+                : "нет данных"}
+            </span>
+          </div>
+          <div className="admin-panel-body">
+            <HourlyOrdersChart byHour={data.ordersByHour as Record<string, number>} />
           </div>
         </div>
 
