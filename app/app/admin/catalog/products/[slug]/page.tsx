@@ -1,13 +1,14 @@
 "use client";
 
-import { Fragment, use, useCallback, useEffect, useRef, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { Toggle, useToast } from "@/components/admin/AdminUI";
-import { catalogApi, DESC_LOCALES, type AddonCat, type AdminAddon, type AdminDrink, type Binding, type DrinkCat, type DrinkSize, type Unit } from "@/lib/adminApi";
-import { RichTextEditor } from "@/components/admin/RichTextEditor";
-import { MediaUpload } from "@/components/admin/MediaUpload";
-import { NumInput } from "@/components/admin/NumInput";
+import { useToast } from "@/components/admin/AdminUI";
+import { catalogApi, type AddonCat, type AdminAddon, type AdminDrink, type Binding, type DrinkCat, type DrinkSize, type Unit } from "@/lib/adminApi";
+import { ProductMainTab } from "@/components/admin/product-editor/ProductMainTab";
+import { ProductSizesTab } from "@/components/admin/product-editor/ProductSizesTab";
+import { ProductDescriptionTab } from "@/components/admin/product-editor/ProductDescriptionTab";
+import { ProductBindingsTab } from "@/components/admin/product-editor/ProductBindingsTab";
 
 /** ADM-S-05: редактор напитка — поля, статус, и промежуточная таблица напиток×добавка:
  *  цена в этом напитке (пусто = бесплатно), мин/дефолт/макс порций, объём порции,
@@ -143,53 +144,6 @@ function Editor({ slug }: { slug: string }) {
   };
   const addonCatName = (c: AddonCat) => c.name.en ?? c.name.ru ?? "—";
 
-  // строка таблицы напиток×добавка — общая для всех групп
-  const bindingRow = (a: AdminAddon) => {
-    const b = bindings.find((x) => x.addonId === a.id);
-    return (
-      <tr key={a.id} style={b ? undefined : { opacity: 0.5 }}>
-        <td>
-          <Toggle defaultOn={bound.has(a.id)}
-                  onChange={(v) => setBindings((arr) => v
-                    ? [...arr, { addonId: a.id, priceOverride: null, minPortions: 0,
-                                 defaultPortions: 1, maxPortions: 3, portionAmount: 30,
-                                 selectionTypeOverride: null }]
-                    : arr.filter((x) => x.addonId !== a.id))} />
-        </td>
-        <td>
-          <strong>{addonName(a.id)}</strong>
-          <div className="admin-meta">base price {addonBasePrice(a.id)} AED</div>
-        </td>
-        {b ? (
-          <>
-            <td>
-              <input className="admin-input mono" style={{ width: 90 }} placeholder="free"
-                     value={b.priceOverride ?? ""}
-                     onChange={(e) => setBindings((arr) => arr.map((x) => x.addonId === a.id
-                       ? { ...x, priceOverride: e.target.value === "" ? null : +e.target.value } : x))} />
-            </td>
-            {(["minPortions", "defaultPortions", "maxPortions"] as const).map((k) => (
-              <td key={k}>
-                <NumInput value={b[k]} min={0} style={{ width: 64 }}
-                          onChange={(n) => setBindings((arr) => arr.map((x) => x.addonId === a.id
-                            ? { ...x, [k]: n } : x))} />
-              </td>
-            ))}
-            <td>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                <NumInput value={b.portionAmount} min={0} style={{ width: 64 }}
-                          onChange={(n) => setBindings((arr) => arr.map((x) => x.addonId === a.id
-                            ? { ...x, portionAmount: n } : x))} />
-                <span className="admin-meta">{addonUnit(a.id) || "—"}</span>
-              </span>
-            </td>
-          </>
-        ) : (
-          <td colSpan={5} className="admin-meta">not available in this drink</td>
-        )}
-      </tr>
-    );
-  };
   // подсветка непереведённого поля
   const warn = { borderColor: "#B45309", background: "#FFF7E5" } as const;
 
@@ -235,277 +189,27 @@ function Editor({ slug }: { slug: string }) {
       </div>
 
       {tab === "main" && (
-        <div className="admin-split" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
-          <div className="admin-panel">
-            <div className="admin-panel-head">
-              <div className="admin-panel-title">Texts and media</div>
-              <span className="admin-meta">on the site: English and Arabic</span>
-            </div>
-            <div className="admin-panel-body">
-              <div className="admin-grid-2">
-                <div className="admin-field">
-                  <label className="admin-label">Name (EN) — primary on the site</label>
-                  <input className="admin-input" value={drink.name.en ?? ""} placeholder="no translation"
-                         style={!drink.name.en ? warn : undefined}
-                         onChange={(e) => set({ name: { ...drink.name, en: e.target.value } })} />
-                </div>
-                <div className="admin-field">
-                  <label className="admin-label">Name (AR)</label>
-                  <input className="admin-input" dir="rtl" value={drink.name.ar ?? ""} placeholder="نص عربي"
-                         style={!drink.name.ar ? warn : undefined}
-                         onChange={(e) => set({ name: { ...drink.name, ar: e.target.value } })} />
-                </div>
-              </div>
-              <div className="admin-grid-2">
-                <div className="admin-field">
-                  <label className="admin-label">Short description (EN)</label>
-                  <textarea className="admin-textarea" value={drink.description.en ?? ""}
-                            onChange={(e) => set({ description: { ...drink.description, en: e.target.value } })} />
-                </div>
-                <div className="admin-field">
-                  <label className="admin-label">Short description (AR)</label>
-                  <textarea className="admin-textarea" dir="rtl" value={drink.description.ar ?? ""}
-                            onChange={(e) => set({ description: { ...drink.description, ar: e.target.value } })} />
-                </div>
-              </div>
-              <div className="admin-grid-2">
-                <div className="admin-field">
-                  <label className="admin-label">Category</label>
-                  <select className="admin-select" value={drink.categoryId}
-                          onChange={(e) => set({ categoryId: +e.target.value })}>
-                    {cats.map((c) => <option key={c.id} value={c.id}>{c.name.en ?? c.name.ru}</option>)}
-                  </select>
-                </div>
-                <div className="admin-field">
-                  <label className="admin-label">Base price (= default size), AED</label>
-                  <NumInput value={drink.basePrice} min={0} onChange={(n) => set({ basePrice: n })} />
-                  <span className="admin-meta">synced with the “default” size price on the “Sizes” tab</span>
-                </div>
-              </div>
-              <div className="admin-grid-2">
-                <div className="admin-field">
-                  <label className="admin-label">Preview (image)</label>
-                  <MediaUpload accept="image" value={drink.previewUrl}
-                               onChange={(url) => set({ previewUrl: url })} />
-                </div>
-                <div className="admin-field">
-                  <label className="admin-label">Video for the site</label>
-                  <MediaUpload accept="video" value={drink.videoUrl}
-                               onChange={(url) => set({ videoUrl: url })} />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="admin-panel">
-            <div className="admin-panel-head">
-              <div className="admin-panel-title">Nutrition of the base drink</div>
-            </div>
-            <div className="admin-panel-body">
-              <div className="admin-grid-2">
-                {([["kcal", "Kcal", "kcal"], ["protein", "Protein", "g"],
-                   ["fat", "Fat", "g"], ["carbs", "Carbs", "g"]] as const).map(([k, l, u]) => (
-                  <div className="admin-field" key={k}>
-                    <label className="admin-label">{l}, {u}</label>
-                    <NumInput value={drink[k]} min={0}
-                              onChange={(n) => set({ [k]: n } as Partial<AdminDrink>)} />
-                  </div>
-                ))}
-              </div>
-              <p className="admin-meta" style={{ marginTop: 8 }}>
-                Per 1 serving (default size). Recalculated on the site when add-ons are selected.
-              </p>
-            </div>
-          </div>
-        </div>
+        <ProductMainTab drink={drink} cats={cats} set={set} warn={warn} />
       )}
 
       {tab === "sizes" && (
-        <div className="admin-panel">
-          <div className="admin-panel-head">
-            <div className="admin-panel-title">Drink sizes</div>
-            <span className="admin-meta">volume and own price; the “default” price goes to the storefront card</span>
-          </div>
-          <div className="admin-tablewrap"><table className="admin-table">
-            <thead>
-              <tr>
-                <th>Default</th><th>Volume</th><th>Unit</th><th>Price, AED</th><th>Active</th><th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {sizes.map((s, i) => (
-                <tr key={i}>
-                  <td>
-                    <input type="radio" name="default-size" checked={s.isDefault}
-                           disabled={!s.isActive} onChange={() => pickDefaultSize(i)} />
-                  </td>
-                  <td>
-                    <NumInput value={s.volume} min={0} style={{ width: 90 }}
-                              onChange={(n) => setSizes((arr) => arr.map((x, j) => j === i
-                                ? { ...x, volume: n } : x))} />
-                  </td>
-                  <td>
-                    <select className="admin-select" style={{ width: 80 }} value={s.unit}
-                            onChange={(e) => setSizes((arr) => arr.map((x, j) => j === i
-                              ? { ...x, unit: e.target.value } : x))}>
-                      <option value="ml">ml</option>
-                      <option value="l">l</option>
-                      <option value="g">g</option>
-                    </select>
-                  </td>
-                  <td>
-                    <NumInput value={s.price} min={0} style={{ width: 100 }}
-                              onChange={(n) => setSizes((arr) => arr.map((x, j) => j === i
-                                ? { ...x, price: n } : x))} />
-                  </td>
-                  <td>
-                    <Toggle defaultOn={s.isActive}
-                            onChange={(v) => setSizes((arr) => {
-                              const next = arr.map((x, j) => j === i ? { ...x, isActive: v } : x);
-                              if (!v && next[i].isDefault) {
-                                const firstActive = next.findIndex((x) => x.isActive);
-                                return next.map((x, j) => ({ ...x, isDefault: j === firstActive }));
-                              }
-                              return next;
-                            })} />
-                  </td>
-                  <td>
-                    <button className="admin-btn sm" onClick={() => removeSize(i)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table></div>
-          <div className="admin-panel-body">
-            <button className="admin-btn" onClick={addSize}>+ Add size</button>
-            <p className="admin-meta" style={{ marginTop: 8 }}>
-              The size price is the drink cost WITHOUT add-ons; add-ons are charged on top.
-              There must be at least one active size and exactly one “default”.
-            </p>
-          </div>
-        </div>
+        <ProductSizesTab sizes={sizes} setSizes={setSizes} pickDefaultSize={pickDefaultSize}
+                         addSize={addSize} removeSize={removeSize} />
       )}
 
       {tab === "desc" && (
-        <div className="admin-split" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16 }}>
-          <div className="admin-panel">
-            <div className="admin-panel-head">
-              <div className="admin-panel-title">Extended description</div>
-              <span className="admin-meta">the “More” sheet; separate for each locale</span>
-            </div>
-            <div className="admin-panel-body">
-              {/* выбор языка описания — галочка у языков, где описание уже есть */}
-              <div className="admin-field">
-                <label className="admin-label">Description language</label>
-                <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F5EFE7", borderRadius: 999 }}>
-                  {DESC_LOCALES.map((l) => (
-                    <button key={l.code} className="admin-btn sm" onClick={() => switchDescLocale(l.code)}
-                            style={descLocale === l.code ? { background: "#4A56E2", color: "#FFF" } : { background: "transparent" }}>
-                      {l.label}{descLocalesFilled.has(l.code) ? " ✓" : ""}
-                    </button>
-                  ))}
-                </div>
-                {/* понятный статус именно выбранного языка + что это значит для сайта */}
-                <span className="admin-meta">
-                  {descLocalesFilled.has(descLocale)
-                    ? "✓ A description has been added for this language — the “More” button is shown on the site."
-                    : "There is no description for this language yet — the “More” button stays hidden on the site until you add and save one."}
-                </span>
-              </div>
-
-              <RichTextEditor key={`${descLocale}-${descRev}`} initialHtml={descDraft}
-                              dir={descLocale === "ar" ? "rtl" : "ltr"}
-                              onChange={setDescDraft} />
-
-              <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <button className="admin-btn primary" onClick={saveDesc}>Save description</button>
-                {descLocalesFilled.has(descLocale) && (
-                  <button className="admin-btn" onClick={deleteDesc}>Delete</button>
-                )}
-              </div>
-              <p className="admin-meta" style={{ marginTop: 8 }}>
-                If there is no description for a locale, the “More” button is hidden on the site in that locale.
-              </p>
-            </div>
-          </div>
-
-          {/* предпросмотр «как в шторке» */}
-          <div className="admin-panel">
-            <div className="admin-panel-head">
-              <div className="admin-panel-title">Sheet preview</div>
-              <span className="admin-meta">{DESC_LOCALES.find((l) => l.code === descLocale)?.label}</span>
-            </div>
-            <div className="admin-panel-body">
-              <div style={{ background: "#fff", border: "1px solid #ECE6DC", borderRadius: 20, padding: 18 }}>
-                <div style={{ fontWeight: 900, fontSize: 22, marginBottom: 8 }}>{drink.name.en || drink.name.ru || drink.slug}</div>
-                {descDraft && descDraft.replace(/<[^>]*>/g, "").trim() ? (
-                  <div className="rich-desc" dir={descLocale === "ar" ? "rtl" : "ltr"}
-                       dangerouslySetInnerHTML={{ __html: descDraft }} />
-                ) : (
-                  <div className="admin-meta">Empty — the “More” button is hidden on the site for this locale.</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+        <ProductDescriptionTab drink={drink} descLocale={descLocale} descDraft={descDraft}
+                               descRev={descRev} descLocalesFilled={descLocalesFilled}
+                               switchDescLocale={switchDescLocale} setDescDraft={setDescDraft}
+                               saveDesc={saveDesc} deleteDesc={deleteDesc} />
       )}
 
-      {tab === "bindings" && (() => {
-        // активные добавки, сгруппированные по своей категории; поиск по названию
-        const q = addonQuery.trim().toLowerCase();
-        const active = addons.filter((a) => a.isActive);
-        const matches = (a: AdminAddon) => !q
-          || addonName(a.id).toLowerCase().includes(q) || (a.name.ar ?? "").includes(addonQuery.trim());
-        const groups = addonCats.map((c) => ({ cat: c as AddonCat | null,
-          items: active.filter((a) => a.categoryId === c.id && matches(a)) }));
-        const orphan = active.filter((a) => !addonCats.some((c) => c.id === a.categoryId) && matches(a));
-        if (orphan.length) groups.push({ cat: null, items: orphan });
-        const visible = groups.filter((g) => g.items.length > 0);
-        return (
-          <div className="admin-panel">
-            <div className="admin-panel-head">
-              <div className="admin-panel-title">Available add-ons</div>
-              <span className="admin-meta">{bound.size} of {active.length} enabled · empty price = free</span>
-            </div>
-            <div className="admin-panel-body" style={{ paddingBottom: 8 }}>
-              <input className="admin-input" placeholder="Search add-on…" value={addonQuery}
-                     onChange={(e) => setAddonQuery(e.target.value)} style={{ maxWidth: 280 }} />
-            </div>
-            <div className="admin-tablewrap"><table className="admin-table">
-              <thead>
-                <tr>
-                  <th>Available</th><th>Add-on</th><th>Price in this drink, AED</th>
-                  <th>Min</th><th>Default</th><th>Max</th><th>Portion size</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visible.map((g) => (
-                  <Fragment key={g.cat ? g.cat.id : "orphan"}>
-                    <tr style={{ background: "#F2ECE2" }}>
-                      <td colSpan={7} style={{ fontWeight: 800 }}>
-                        {g.cat ? addonCatName(g.cat) : "No category"}
-                        <span className="admin-meta" style={{ marginLeft: 8, fontWeight: 500 }}>
-                          {g.items.filter((a) => bound.has(a.id)).length}/{g.items.length} enabled
-                        </span>
-                      </td>
-                    </tr>
-                    {g.items.map(bindingRow)}
-                  </Fragment>
-                ))}
-                {visible.length === 0 && (
-                  <tr><td colSpan={7} className="admin-meta" style={{ padding: 16 }}>Nothing found</td></tr>
-                )}
-              </tbody>
-            </table></div>
-            <div className="admin-panel-body">
-              <p className="admin-meta">
-                Limits: 0 ≤ min ≤ default ≤ max (validated on the backend). Portion size is grams/ml
-                per portion; nutrition on the site is recalculated to this amount.
-              </p>
-            </div>
-          </div>
-        );
-      })()}
+      {tab === "bindings" && (
+        <ProductBindingsTab addons={addons} addonCats={addonCats} addonQuery={addonQuery}
+                            setAddonQuery={setAddonQuery} bindings={bindings} setBindings={setBindings}
+                            bound={bound} addonName={addonName} addonBasePrice={addonBasePrice}
+                            addonUnit={addonUnit} addonCatName={addonCatName} />
+      )}
     </>
   );
 }

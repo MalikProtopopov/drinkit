@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { api, type ApiAddon, type ApiDrink } from "@/lib/api";
+import { api, type ApiAddon } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { BottomSheet } from "@/components/BottomSheet";
 import { DrinkArt } from "@/components/DrinkArt";
@@ -10,6 +10,9 @@ import { IconClose } from "@/components/icons";
 import { Loader } from "@/components/Loader";
 import { categoryBg } from "@/components/ApiProductCard";
 import { useT } from "@/lib/i18n";
+import { useProductData, useAddonGroups, usePriceAndNutrition } from "@/lib/product/hooks";
+import { AddonGlyph } from "@/components/product/AddonGlyph";
+import { KbJuDisplay } from "@/components/product/KbJuDisplay";
 
 type Sel = Record<number, number>; // addonId -> portions
 
@@ -20,9 +23,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
   const addToCart = useStore((s) => s.addToCart);
   const locale = useStore((s) => s.user.preferredLocale) === "ar" ? "ar" : "en";
 
-  const [drink, setDrink] = useState<ApiDrink | null>(null);
-  const [notFound, setNotFound] = useState(false);
-  const [sizeId, setSizeId] = useState<number | null>(null);
+  const { drink, notFound, sizeId, setSizeId } = useProductData(slug, locale);
   const [sel, setSel] = useState<Sel>({});
   const [openCat, setOpenCat] = useState<string | null>(null);
   const [customName, setCustomName] = useState("");
@@ -30,24 +31,8 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
   const [showDescription, setShowDescription] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  useEffect(() => {
-    api.drink(slug, locale).then((d) => {
-      setDrink(d);
-      // дефолтный размер — предвыбран (или первый)
-      const def = d.sizes?.find((s) => s.isDefault) ?? d.sizes?.[0];
-      setSizeId(def ? def.id : null);
-    }).catch(() => setNotFound(true));
-  }, [slug, locale]);
-
   // группировка добавок по категориям (PUB-G-02 AC3/AC4)
-  const groups = useMemo(() => {
-    const map = new Map<string, ApiAddon[]>();
-    for (const a of drink?.addons ?? []) {
-      if (!map.has(a.categoryName)) map.set(a.categoryName, []);
-      map.get(a.categoryName)!.push(a);
-    }
-    return [...map.entries()].map(([name, items]) => ({ name, items }));
-  }, [drink]);
+  const groups = useAddonGroups(drink);
 
   const currentSize = useMemo(
     () => drink?.sizes?.find((s) => s.id === sizeId) ?? null,
@@ -63,22 +48,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
   };
 
   // live-пересчёт цены и КБЖУ (PUB-G-03; зеркало серверной формулы, сервер валидирует в preview)
-  // старт цены — выбранный размер (если есть), иначе базовая цена напитка
-  const totals = useMemo(() => {
-    if (!drink) return { price: 0, kcal: 0, protein: 0, fat: 0, carbs: 0 };
-    let price = currentSize ? currentSize.price : drink.basePrice,
-        kcal = drink.kcal,
-        protein = drink.protein, fat = drink.fat, carbs = drink.carbs;
-    for (const a of drink.addons) {
-      const n = sel[a.addonId] ?? 0;
-      if (!n) continue;
-      const k = (n * a.portionAmount) / (a.defaultPortions * a.portionAmount); // отн. дефолта
-      price += a.pricePerPortion * n;
-      kcal += a.kcal * k; protein += a.protein * k; fat += a.fat * k; carbs += a.carbs * k;
-    }
-    return { price: +price.toFixed(2), kcal: Math.round(kcal),
-             protein: +protein.toFixed(1), fat: +fat.toFixed(1), carbs: +carbs.toFixed(1) };
-  }, [drink, sel, currentSize]);
+  const totals = usePriceAndNutrition(drink, sel, currentSize);
 
   useEffect(() => {
     if (!toast) return;
@@ -212,10 +182,10 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
            style={{ transform: openCat ? "translateY(-78px)" : "translateY(0)",
                     transition: "transform .34s cubic-bezier(.3,1,.4,1)" }}>
         <div className="flex justify-between max-w-[350px] mx-auto">
-          <Kbju value={totals.kcal} label={t("energy", "الطاقة")} unit={t("kcal", "سعرة")} />
-          <Kbju value={totals.protein} label={t("protein", "بروتين")} unit={t("g", "غ")} />
-          <Kbju value={totals.fat} label={t("fat", "دهون")} unit={t("g", "غ")} />
-          <Kbju value={totals.carbs} label={t("carbs", "كربوهيدرات")} unit={t("g", "غ")} />
+          <KbJuDisplay value={totals.kcal} label={t("energy", "الطاقة")} unit={t("kcal", "سعرة")} />
+          <KbJuDisplay value={totals.protein} label={t("protein", "بروتين")} unit={t("g", "غ")} />
+          <KbJuDisplay value={totals.fat} label={t("fat", "دهون")} unit={t("g", "غ")} />
+          <KbJuDisplay value={totals.carbs} label={t("carbs", "كربوهيدرات")} unit={t("g", "غ")} />
         </div>
         {/* «Подробнее» показываем только если для текущей локали есть rich-описание */}
         {drink.richDescription && (
@@ -392,35 +362,6 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
           <div className="h-6" />
         </div>
       </BottomSheet>
-    </div>
-  );
-}
-
-/** Иконка добавки: реальная картинка из API либо буквенный кружок-фолбэк. */
-function AddonGlyph({ addon, size, className = "" }: { addon: ApiAddon; size: number; className?: string }) {
-  if (addon.imageUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={addon.imageUrl} alt="" className={`object-contain ${className}`}
-           style={{ width: size, height: size, filter: "drop-shadow(0 6px 10px rgba(40,25,8,.3))" }} />
-    );
-  }
-  return (
-    <div className={`rounded-full flex items-center justify-center font-black ${className}`}
-         style={{ width: size, height: size, fontSize: size * 0.4, background: "rgba(255,255,255,.85)", color: "var(--jooz-ink-2)" }}>
-      {addon.name.slice(0, 1)}
-    </div>
-  );
-}
-
-function Kbju({ value, label, unit }: { value: string | number; label: string; unit?: string }) {
-  return (
-    <div className="text-center text-white flex-1">
-      <div className="font-extrabold text-[19px] leading-tight">
-        {value}
-        {unit && <span className="text-[12.5px] font-bold opacity-80"> {unit}</span>}
-      </div>
-      <div className="text-[12.5px] leading-tight mt-0.5 font-semibold opacity-70">{label}</div>
     </div>
   );
 }
