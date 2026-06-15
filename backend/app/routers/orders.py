@@ -11,7 +11,7 @@ from ..core.security import get_current_user
 from ..models.orders import Coupon, Order
 from ..models.users import User
 from ..services.i18n import t
-from ..services.order_flow import add_event, create_order
+from ..services.order_flow import add_event, create_order, notify
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 
@@ -126,16 +126,13 @@ def order_detail(order_id: int, user: User = Depends(get_current_user), db: Sess
 def mark_arrived(order_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """«Я на месте» — независимый флаг: доступен в любой момент после оплаты
     (клиент мог заказать, уже стоя у точки; бариста мог забыть «готово»)."""
-    from datetime import datetime as _dt
-    from ..services.order_flow import add_event, notify
-
     o = _own_order(order_id, user, db)
     if o.payment_status != "paid":
         raise HTTPException(409, "ORDER_NOT_PAID")
     if o.status in ("completed", "refund"):
         raise HTTPException(409, "ORDER_FINISHED")
     if o.arrived_at is None:  # идемпотентно
-        o.arrived_at = _dt.utcnow()
+        o.arrived_at = datetime.utcnow()
         add_event(db, o, "arrived", by_user_id=user.id)
         db.commit()
         notify(o)

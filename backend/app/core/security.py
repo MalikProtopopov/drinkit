@@ -7,6 +7,8 @@ from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..models.outlet import StaffOutlet
+from ..models.users import StaffUser, User
 from .config import settings
 from .db import get_db
 
@@ -44,8 +46,6 @@ def get_current_user(
     cred: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: Session = Depends(get_db),
 ):
-    from ..models.users import User
-
     if cred is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "AUTH_REQUIRED")
     data = decode_token(cred.credentials)
@@ -61,8 +61,6 @@ def get_current_staff(
     cred: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: Session = Depends(get_db),
 ):
-    from ..models.users import StaffUser
-
     if cred is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "AUTH_REQUIRED")
     data = decode_token(cred.credentials)
@@ -93,6 +91,5 @@ def get_staff_outlet_ids(staff, db: Session) -> set[int] | None:
     Читаем из БД, НЕ из токена — переназначение не должно обходиться стейл-JWT."""
     if staff.role == "super_admin":
         return None
-    from ..models.outlet import StaffOutlet
     return set(db.scalars(select(StaffOutlet.outlet_id)
                           .where(StaffOutlet.staff_id == staff.id)).all())

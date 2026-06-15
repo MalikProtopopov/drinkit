@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from ..core.db import SessionLocal
 from ..core.pubsub import pubsub
-from ..core.security import decode_token
+from ..core.security import decode_token, get_staff_outlet_ids
 from ..models.orders import Order
 from ..models.users import StaffUser
 
@@ -31,7 +31,6 @@ def _admin_channels(token: str | None) -> list[str] | None:
     data = _claims(token)
     if not data or data.get("kind") != "staff":
         return None
-    from ..core.security import get_staff_outlet_ids
     with SessionLocal() as db:
         staff = db.get(StaffUser, int(data["sub"]))
         if staff is None:

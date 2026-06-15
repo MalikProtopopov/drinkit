@@ -20,7 +20,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..models.orders import Order, OrderItem
-from ..models.outlet import Outlet, OutletEvent, OutletStopItem
+from ..models.outlet import Outlet, OutletEvent, OutletStopItem, StaffOutlet
 
 _HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 _DEFAULT_TZ = "Asia/Dubai"
@@ -110,10 +110,35 @@ def drinks_processed_today(db: Session, outlet: Outlet, now_utc: datetime | None
     return int(total or 0)
 
 
-def limit_reached(db: Session, outlet: Outlet, now_utc: datetime | None = None) -> bool:
+def drinks_processed_today_bulk(db: Session, outlets, now_utc: datetime | None = None) -> dict[int, int]:
+    """Дневной счётчик (paid-only) сразу для многих точек — без N+1 в списках.
+    Точки группируем по их локальному окну дня (как правило одна tz) и берём по
+    одному агрегирующему запросу на окно вместо запроса на каждую точку."""
+    by_window: dict[tuple[datetime, datetime], list[int]] = {}
+    counts: dict[int, int] = {}
+    for o in outlets:
+        if o.id is None:
+            continue
+        counts[o.id] = 0
+        by_window.setdefault(local_day_window_utc(o, now_utc), []).append(o.id)
+    for (start, end), ids in by_window.items():
+        for oid, total in db.execute(
+            select(Order.outlet_id, func.coalesce(func.sum(OrderItem.quantity), 0))
+            .join(OrderItem, OrderItem.order_id == Order.id)
+            .where(Order.outlet_id.in_(ids), Order.payment_status == "paid",
+                   Order.created_at >= start, Order.created_at < end)
+            .group_by(Order.outlet_id)
+        ).all():
+            counts[oid] = int(total or 0)
+    return counts
+
+
+def limit_reached(db: Session, outlet: Outlet, now_utc: datetime | None = None,
+                  drinks_today: int | None = None) -> bool:
     if outlet.daily_drink_limit is None:
         return False
-    return drinks_processed_today(db, outlet, now_utc) >= outlet.daily_drink_limit
+    n = drinks_today if drinks_today is not None else drinks_processed_today(db, outlet, now_utc)
+    return n >= outlet.daily_drink_limit
 
 
 # ---------------- статус ----------------
@@ -176,9 +201,11 @@ def _current_close_utc(outlet: Outlet, now_utc: datetime | None = None) -> datet
     return None
 
 
-def status_detail(db: Session, outlet: Outlet, now_utc: datetime | None = None) -> dict:
+def status_detail(db: Session, outlet: Outlet, now_utc: datetime | None = None,
+                  drinks_today: int | None = None) -> dict:
     """Полное состояние точки: статус + ПРИЧИНА + сопутствующее время (для понятного баннера).
-    statusReason: inactive | closed | paused_manual | paused_limit | open."""
+    statusReason: inactive | closed | paused_manual | paused_limit | open.
+    drinks_today — предвычисленный дневной счётчик (списки точек передают его, чтобы не было N+1)."""
     status = outlet_status(outlet, now_utc)  # inactive/closed/paused(manual)/open (без лимита)
     out = {"status": status, "statusReason": status,
            "opensAt": None, "closesAt": None, "resetsAt": None}
@@ -187,7 +214,7 @@ def status_detail(db: Session, outlet: Outlet, now_utc: datetime | None = None) 
     elif status == "paused":
         out["statusReason"] = "paused_manual"
     elif status == "open":
-        if limit_reached(db, outlet, now_utc):
+        if limit_reached(db, outlet, now_utc, drinks_today):
             out["status"] = "paused"
             out["statusReason"] = "paused_limit"
             _, end = local_day_window_utc(outlet, now_utc)  # сброс счётчика в локальную полночь
@@ -244,8 +271,6 @@ def set_staff_outlets(db: Session, staff, outlet_ids, by_staff_id: int | None = 
     """Полная замена привязок сотрудника к точкам (REQ-2/7) с инвариантами:
     super_admin → 0 (без скоупа); manager → ≥1; screen → ровно 1. Пустой список для
     manager/screen при ЕДИНСТВЕННОЙ активной точке → авто-привязка к ней (как resolve_outlet)."""
-    from ..models.outlet import StaffOutlet
-
     ids = list(dict.fromkeys(int(x) for x in (outlet_ids or [])))
     if staff.role == "super_admin":
         ids = []

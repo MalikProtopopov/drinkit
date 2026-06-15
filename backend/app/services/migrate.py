@@ -10,6 +10,10 @@ from sqlalchemy import func, inspect, select, text, update
 from sqlalchemy.orm import Session
 
 from ..models.catalog import (Addon, AddonCategory, Drink, DrinkCategory, DrinkSize, Unit)
+from ..models.orders import Order, Payment
+from ..models.outlet import Outlet, StaffOutlet
+from ..models.users import StaffUser
+from .payment_mock import apply_mock_stripe
 
 # таблица -> {колонка: DDL-определение для ALTER TABLE ADD COLUMN}
 _ADD_COLUMNS = {
@@ -208,9 +212,6 @@ def localize_catalog_en(db: Session):
 def backfill_payments(db: Session):
     """Наполняет Stripe-поля платежей mock-синтетиком для строк, созданных до
     расширения схемы. Признак «уже наполнено» — заполненный card_brand."""
-    from ..models.orders import Order, Payment
-    from .payment_mock import apply_mock_stripe
-
     rows = db.scalars(select(Payment).where(Payment.card_brand.is_(None))).all()
     if not rows:
         return
@@ -228,10 +229,6 @@ def backfill_outlets(db: Session):
 
     hours={} = всегда открыта (расписание не задано), чтобы прежнее поведение «заказ можно
     оформить в любое время» сохранилось до того, как админ задаст реальные часы."""
-    from ..models.orders import Order
-    from ..models.outlet import Outlet, StaffOutlet
-    from ..models.users import StaffUser
-
     # 1) дефолтная точка (если нет ни одной)
     outlet = db.scalar(select(Outlet).where(Outlet.is_active.is_(True)).order_by(Outlet.id))
     if outlet is None:
@@ -269,7 +266,6 @@ def backfill_outlets(db: Session):
 
 
 def active_outlet_count(db: Session) -> int:
-    from ..models.outlet import Outlet
     return int(db.scalar(select(func.count()).select_from(Outlet).where(Outlet.is_active.is_(True))) or 0)
 
 

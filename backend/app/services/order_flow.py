@@ -11,6 +11,7 @@ from ..models.orders import (ORDER_STATUSES, Coupon, Order, OrderEvent, OrderIte
                              OrderItemAddon)
 from ..models.outlet import Outlet
 from ..models.users import User
+from .drink_calc import PreviewIn, PreviewSelection, preview_calc
 from .i18n import t
 from .outlet_service import load_stop_sets, refresh_limit_pause, resolve_outlet, runtime_status
 
@@ -71,12 +72,11 @@ def create_order(db: Session, user: User, payload, locale: str) -> Order:
     db.add(order)
     db.flush()
 
-    from ..routers.catalog import drink_preview, PreviewIn, PreviewSelection  # переиспользуем расчёт
-
     subtotal = 0.0
     coupon_item_price = None
     for idx, line in enumerate(payload.items):
-        d = db.scalar(select(Drink).options(selectinload(Drink.addon_links))
+        d = db.scalar(select(Drink)
+                      .options(selectinload(Drink.addon_links), selectinload(Drink.sizes))
                       .where(Drink.id == line.drinkId))
         if not d or d.status != "published":
             raise HTTPException(409, "DRINK_NOT_AVAILABLE")
@@ -85,12 +85,13 @@ def create_order(db: Session, user: User, payload, locale: str) -> Order:
             raise HTTPException(409, "DRINK_NOT_AVAILABLE")
         if any(s.addonId in stop["addon"] for s in line.addons):
             raise HTTPException(409, "ADDON_NOT_AVAILABLE")
-        calc = drink_preview(
-            d.slug,
+        # переиспользуем чистый расчёт каталога (drink_calc) — без захода в роутер
+        calc = preview_calc(
+            d,
             PreviewIn(selections=[PreviewSelection(addonId=s.addonId, portions=s.portions)
                                   for s in line.addons],
                       sizeId=line.sizeId),
-            locale=locale, db=db,
+            locale, stop,
         )
         item = OrderItem(order_id=order.id, drink_id=d.id, drink_name=t(d.name, locale),
                          custom_name=line.customName, size_label=calc.get("sizeLabel"),

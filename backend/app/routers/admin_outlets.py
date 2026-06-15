@@ -18,7 +18,8 @@ from ..models.outlet import (Outlet, OutletDrinkPriority, OutletEvent, OutletSto
 from ..models.users import StaffUser
 from ..services.migrate import slugify
 from ..services.outlet_service import (active_outlet_count, add_outlet_event,
-                                       drinks_processed_today, load_stop_sets, set_staff_outlets,
+                                       drinks_processed_today, drinks_processed_today_bulk,
+                                       load_stop_sets, set_staff_outlets,
                                        status_detail, validate_hours)
 
 router = APIRouter(prefix="/api/admin/outlets", tags=["admin-outlets"])
@@ -45,9 +46,10 @@ def _managers(db: Session, outlet_id: int) -> list[dict]:
     return out
 
 
-def _row(db: Session, o: Outlet, with_managers: bool = False) -> dict:
-    today = drinks_processed_today(db, o)
-    detail = status_detail(db, o)  # статус + причина + время открытия/закрытия/сброса
+def _row(db: Session, o: Outlet, with_managers: bool = False,
+         drinks_today: int | None = None) -> dict:
+    today = drinks_today if drinks_today is not None else drinks_processed_today(db, o)
+    detail = status_detail(db, o, drinks_today=today)  # статус + причина + время открытия/закрытия/сброса
     data = {
         "id": o.id, "slug": o.slug, "name": o.name or {},
         "isActive": o.is_active, "acceptingOrders": o.accepting_orders, "autoPaused": o.auto_paused,
@@ -124,7 +126,9 @@ def list_outlets(response: Response, active: bool | None = Query(None),
     q = select(Outlet).order_by(Outlet.sort, Outlet.id)
     if active is not None:
         q = q.where(Outlet.is_active.is_(active))
-    rows = [_row(db, o) for o in db.scalars(q).all()]
+    outlets = db.scalars(q).all()
+    counts = drinks_processed_today_bulk(db, outlets)  # один запрос на все точки (без N+1)
+    rows = [_row(db, o, drinks_today=counts.get(o.id, 0)) for o in outlets]
     return paginate(rows, response, limit, offset)
 
 

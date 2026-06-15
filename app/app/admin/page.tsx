@@ -72,10 +72,10 @@ function DashboardInner() {
         {period === "custom" && (
           <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
             <span className="admin-meta">from</span>
-            <input type="date" className="admin-input" value={customFrom} max={customTo || undefined}
+            <input type="date" lang="en-GB" className="admin-input" value={customFrom} max={customTo || undefined}
                    onChange={(e) => setCustomFrom(e.target.value)} style={{ width: 160 }} />
             <span className="admin-meta">to</span>
-            <input type="date" className="admin-input" value={customTo} min={customFrom || undefined}
+            <input type="date" lang="en-GB" className="admin-input" value={customTo} min={customFrom || undefined}
                    onChange={(e) => setCustomTo(e.target.value)} style={{ width: 160 }} />
           </div>
         )}

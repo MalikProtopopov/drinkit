@@ -325,8 +325,11 @@ def set_bindings(drink_id: int, body: list[BindingIn], db: Session = Depends(get
     d = db.scalar(select(Drink).options(selectinload(Drink.addon_links)).where(Drink.id == drink_id))
     if not d:
         raise HTTPException(404, "NOT_FOUND")
+    # один запрос на все addonId вместо db.get в цикле (N+1)
+    existing = set(db.scalars(
+        select(Addon.id).where(Addon.id.in_({b.addonId for b in body}))).all())
     for b in body:
-        if not db.get(Addon, b.addonId):
+        if b.addonId not in existing:
             raise HTTPException(409, f"ADDON_NOT_FOUND:{b.addonId}")
         if not (0 <= b.minPortions <= b.defaultPortions <= b.maxPortions):
             raise HTTPException(422, "PORTIONS_RANGE_INVALID")

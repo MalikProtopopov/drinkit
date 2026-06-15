@@ -10,6 +10,7 @@ from ..core.db import get_db
 from ..core.pagination import PageLimit, PageOffset, paginate
 from ..core.security import (get_current_staff, hash_password, make_token,
                              require_super_admin, verify_password)
+from ..models.orders import Order, OrderEvent
 from ..models.outlet import StaffOutlet
 from ..models.users import StaffUser
 from ..services.outlet_service import set_staff_outlets
@@ -26,13 +27,29 @@ class LoginIn(BaseModel):
     password: str
 
 
-def _payload(s: StaffUser, db: Session | None = None) -> dict:
+def _payload(s: StaffUser, db: Session | None = None,
+             outlet_ids: list[int] | None = None) -> dict:
     data = {"id": s.id, "email": s.email, "name": s.name, "role": s.role,
             "phone": s.phone, "note": s.note, "disabled": s.disabled, "outletIds": []}
-    if db is not None:
+    if outlet_ids is not None:  # предвычислено (списки — без N+1)
+        data["outletIds"] = outlet_ids
+    elif db is not None:
         data["outletIds"] = list(db.scalars(
             select(StaffOutlet.outlet_id).where(StaffOutlet.staff_id == s.id)).all())
     return data
+
+
+def _outlets_by_staff(db: Session, staff_ids: list[int]) -> dict[int, list[int]]:
+    """Привязки точек сразу для многих сотрудников — один запрос вместо N (для списков)."""
+    out: dict[int, list[int]] = {}
+    if not staff_ids:
+        return out
+    for sid, oid in db.execute(
+        select(StaffOutlet.staff_id, StaffOutlet.outlet_id)
+        .where(StaffOutlet.staff_id.in_(staff_ids))
+    ).all():
+        out.setdefault(sid, []).append(oid)
+    return out
 
 
 @router.post("/login")
@@ -63,7 +80,9 @@ class ManagerIn(BaseModel):
 @router.get("/managers")
 def list_managers(response: Response, limit: int | None = PageLimit, offset: int = PageOffset,
                   _: StaffUser = Depends(require_super_admin), db: Session = Depends(get_db)):
-    rows = [_payload(s, db) for s in db.scalars(select(StaffUser)).all()]
+    staff_list = db.scalars(select(StaffUser)).all()
+    omap = _outlets_by_staff(db, [s.id for s in staff_list])
+    rows = [_payload(s, outlet_ids=omap.get(s.id, [])) for s in staff_list]
     return paginate(rows, response, limit, offset)
 
 
@@ -155,8 +174,6 @@ def _staff_activity(db: Session, staff_id: int, days: int) -> dict:
     """Метрики сотрудника: сколько заказов обработал и в какие дни был активен.
     «День активности» = есть хотя бы одно действие с заказом (взял в работу / сменил статус)
     в этот локальный день (Asia/Dubai). Логин мы не трекаем — это честный прокси по событиям."""
-    from ..models.orders import Order, OrderEvent
-
     tz = ZoneInfo("Asia/Dubai")
     now_local = datetime.now(timezone.utc).astimezone(tz)
     since = (now_local - timedelta(days=days)).astimezone(timezone.utc).replace(tzinfo=None)

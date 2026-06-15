@@ -5,17 +5,17 @@
 /** Бэкенд отдаёт naive-UTC без таймзоны — дописываем Z, если её нет. */
 const parseTs = (s: string) => new Date(/[Z+]/.test(s) ? s : s + "Z");
 
-/** Дата+время, ru-RU. По умолчанию без года; `{ year: true }` — с годом. */
+/** Дата+время, en-GB. По умолчанию без года; `{ year: true }` — с годом. */
 export const fmtDateTime = (s?: string | null, opts?: { year?: boolean }) =>
-  s ? parseTs(s).toLocaleString("ru-RU", {
+  s ? parseTs(s).toLocaleString("en-GB", {
     day: "2-digit", month: "short",
     ...(opts?.year ? { year: "numeric" } : {}),
     hour: "2-digit", minute: "2-digit",
   }) : "—";
 
-/** Только дата (день/месяц/год), ru-RU. */
+/** Только дата (день/месяц/год), en-GB. */
 export const fmtDate = (s?: string | null) =>
-  s ? parseTs(s).toLocaleDateString("ru-RU",
+  s ? parseTs(s).toLocaleDateString("en-GB",
     { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 /**
@@ -27,14 +27,14 @@ export const fmtDate = (s?: string | null) =>
 export const aed = (n?: number | null, opts?: { decimals?: number; suffix?: boolean }) => {
   if (n == null) return "—";
   const d = opts?.decimals ?? 0;
-  const s = Number(n).toLocaleString("ru-RU", { minimumFractionDigits: d, maximumFractionDigits: d });
+  const s = Number(n).toLocaleString("en-GB", { minimumFractionDigits: d, maximumFractionDigits: d });
   return opts?.suffix === false ? s : `${s} AED`;
 };
 
-/** «сегодня/вчера/N дн. назад». `{ short: true }` — без «назад». */
+/** «today/yesterday/N days ago». `{ short: true }` — без « ago». */
 export const recencyText = (d?: number | null, opts?: { short?: boolean }) =>
-  d == null ? "—" : d === 0 ? "сегодня" : d === 1 ? "вчера"
-    : `${d} дн.${opts?.short ? "" : " назад"}`;
+  d == null ? "—" : d === 0 ? "today" : d === 1 ? "yesterday"
+    : `${d} days${opts?.short ? "" : " ago"}`;
 
 /** Доля 0..1 → «NN%». */
 export const pct = (n?: number | null) =>
