@@ -93,7 +93,9 @@ export default function PhonePage() {
           )}
         </div>
 
-        <div className="bg-[#F4F4F7] rounded-2xl px-5 h-16 flex items-center gap-3 mb-4">
+        {/* dir=ltr: номер телефона (флаг · +971 · номер) всегда слева-направо — и в EN, и в AR;
+            иначе в RTL код и номер «разъезжаются» в разные стороны */}
+        <div dir="ltr" className="bg-[#F4F4F7] rounded-2xl px-5 h-16 flex items-center gap-3 mb-4">
           <div className="flex items-center gap-2 flex-shrink-0">
             <Flag code="ae" size={24} />
             <span className="text-h2 font-semibold leading-none">+971</span>
@@ -104,6 +106,7 @@ export default function PhonePage() {
             onChange={(e) => setDigits(uaeLocalDigits(e.target.value))}
             inputMode="tel"
             type="tel"
+            dir="ltr"
             autoFocus
             placeholder="50 123 4567"
             className="flex-1 min-w-0 bg-transparent outline-none text-h2 font-semibold leading-none placeholder:text-[var(--color-text-muted)] placeholder:font-medium"
