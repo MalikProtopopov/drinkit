@@ -91,12 +91,10 @@ export function AdminShell({
      <ToastProvider>
       <div className="admin-shell">
         <aside className="admin-sidebar">
-          <div className="admin-brand">
-            <span className="admin-brand-mark">J</span>
-            <div>
-              <span className="admin-brand-text">Juicy</span>
-              <span className="admin-brand-sub">Admin · UAE</span>
-            </div>
+          <div className="admin-brand" style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="JOOZ" style={{ height: 24, width: "auto" }} />
+            <span className="admin-brand-sub">Admin · UAE</span>
           </div>
           <nav className="admin-nav">
             {NAV_GROUPS.map((group) => {
@@ -122,7 +120,7 @@ export function AdminShell({
             })}
           </nav>
           <div className="admin-sidebar-foot">
-            <span>v1.0 · Juicy V2</span>
+            <span>v1.0 · JOOZ</span>
             <span style={{ color: "#16A34A" }}>● online</span>
           </div>
         </aside>
