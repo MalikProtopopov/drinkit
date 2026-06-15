@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Pager } from "@/components/admin/AdminUI";
+import { ExportButton } from "@/components/admin/ExportButton";
 import { adminApi } from "@/lib/adminApi";
 import { usePaged } from "@/lib/usePaged";
 
@@ -49,6 +50,7 @@ export default function CustomersPage() {
           <div className="admin-panel-title">All customers</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className="admin-meta">Total {total}</span>
+            <ExportButton path="/api/admin/exports/customers.xlsx" filename="customers.xlsx" />
             <button className="admin-btn primary sm" onClick={() => router.push("/admin/customers/new")}>
               + New customer
             </button>

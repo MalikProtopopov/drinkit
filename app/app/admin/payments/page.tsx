@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Pager } from "@/components/admin/AdminUI";
 import { PaymentDrawer, PAYMENT_STATUS, methodLine } from "@/components/admin/PaymentDrawer";
-import { adminApi } from "@/lib/adminApi";
+import { ExportButton } from "@/components/admin/ExportButton";
+import { adminApi, qs } from "@/lib/adminApi";
 import { aed, fmtDateTime } from "@/lib/format";
 import { Kpi } from "@/components/admin/Stat";
 import { usePaged } from "@/lib/usePaged";
@@ -131,14 +132,21 @@ function PaymentsInner() {
     <div style={{ display: "grid", gap: 16 }}>
       <ConfigBanner cfg={cfg} />
 
-      {/* период */}
-      <div style={{ display: "inline-flex", gap: 4, padding: 4, background: "#FFF", borderRadius: 999, width: "fit-content" }}>
-        {PERIODS.map((p) => (
-          <button key={p.key} className="admin-btn sm" onClick={() => setPeriod(p.key)}
-                  style={period === p.key ? { background: "#4A56E2", color: "#FFF" } : { background: "transparent" }}>
-            {p.label}
-          </button>
-        ))}
+      {/* период + выгрузка */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "inline-flex", gap: 4, padding: 4, background: "#FFF", borderRadius: 999, width: "fit-content" }}>
+          {PERIODS.map((p) => (
+            <button key={p.key} className="admin-btn sm" onClick={() => setPeriod(p.key)}
+                    style={period === p.key ? { background: "#4A56E2", color: "#FFF" } : { background: "transparent" }}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div style={{ marginLeft: "auto" }}>
+          <ExportButton
+            path={`/api/admin/exports/payments.xlsx${qs({ status: status || undefined, method: method || undefined, from: range.from, to: range.to })}`}
+            filename="payments.xlsx" label="Export payments" />
+        </div>
       </div>
 
       {/* KPI */}

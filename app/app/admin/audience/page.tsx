@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { OutletFilter } from "@/components/admin/OutletFilter";
-import { adminApi } from "@/lib/adminApi";
+import { ExportButton } from "@/components/admin/ExportButton";
+import { adminApi, qs } from "@/lib/adminApi";
 import { aed as money, pct, recencyText as recency } from "@/lib/format";
 import { Stat } from "@/components/admin/Stat";
 import { SegmentDonut } from "@/components/admin/charts/SegmentDonut";
@@ -144,6 +145,11 @@ function AudienceInner() {
       <span className="admin-meta" style={{ alignSelf: "center" }}>
         {outlet === "all" ? "Across all outlets" : "Audience for the selected outlet"}
       </span>
+      <div style={{ marginLeft: "auto" }}>
+        <ExportButton
+          path={`/api/admin/exports/audience.xlsx${qs({ outlet_id: outlet === "all" ? undefined : outlet })}`}
+          filename="audience.xlsx" label="Export audience" />
+      </div>
     </div>
   );
   if (err) return <div style={{ display: "grid", gap: 16 }}>{filter}

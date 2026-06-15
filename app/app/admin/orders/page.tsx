@@ -4,8 +4,9 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Pager } from "@/components/admin/AdminUI";
-import { adminApi, adminOrdersWs, ADMIN_STATUS_LABEL, type AdminOrder } from "@/lib/adminApi";
+import { adminApi, adminOrdersWs, qs, ADMIN_STATUS_LABEL, type AdminOrder } from "@/lib/adminApi";
 import { useAdmin } from "@/components/admin/AdminShell";
+import { ExportButton } from "@/components/admin/ExportButton";
 import { OutletFilter } from "@/components/admin/OutletFilter";
 import { usePaged } from "@/lib/usePaged";
 import { useLiveReload } from "@/lib/useLiveReload";
@@ -58,9 +59,14 @@ function OrdersInner() {
           ))}
         </div>
         {isSuper && <OutletFilter value={outletFilter} onChange={setOutletFilter} />}
-        <span className="admin-meta" style={{ marginLeft: "auto", alignSelf: "center" }}>
-          Total <strong>{total}</strong>
-        </span>
+        <div style={{ marginLeft: "auto", display: "inline-flex", gap: 12, alignItems: "center" }}>
+          {isSuper && (
+            <ExportButton
+              path={`/api/admin/exports/orders.xlsx${qs({ outlet_id: outletFilter === "all" ? undefined : outletFilter })}`}
+              filename="orders.xlsx" label="Export orders" />
+          )}
+          <span className="admin-meta">Total <strong>{total}</strong></span>
+        </div>
       </div>
 
       <div className="admin-panel">

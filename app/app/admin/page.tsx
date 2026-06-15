@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { adminApi, adminOrdersWs } from "@/lib/adminApi";
+import { adminApi, adminOrdersWs, qs } from "@/lib/adminApi";
 import { useLiveReload } from "@/lib/useLiveReload";
+import { ExportButton } from "@/components/admin/ExportButton";
 import { OutletFilter } from "@/components/admin/OutletFilter";
 import { Stat } from "@/components/admin/Stat";
 import { HourlyOrdersChart } from "@/components/admin/charts/HourlyOrdersChart";
@@ -47,6 +48,20 @@ function DashboardInner() {
   // realtime: метрики/аналитика обновляются по событиям заказов — без поллинга и кнопки «Обновить»
   useLiveReload({ connect: adminOrdersWs, onMessage: () => load(), onSync: () => load() });
 
+  // выгрузка дашборда тем же периодом/точкой, что и на экране (сводка + метрики по дням)
+  const exportPath = useMemo(() => {
+    let from: string | undefined;
+    let to: string | undefined;
+    if (period === "custom") {
+      from = customFrom ? new Date(`${customFrom}T00:00:00`).toISOString() : undefined;
+      to = customTo ? new Date(`${customTo}T23:59:59`).toISOString() : undefined;
+    } else {
+      const p = PERIODS.find((x) => x.key === period)!;
+      from = typeof p.from === "function" ? p.from().toISOString() : undefined;
+    }
+    return `/api/admin/exports/dashboard.xlsx${qs({ from, to, outlet_id: outlet === "all" ? undefined : outlet })}`;
+  }, [period, customFrom, customTo, outlet]);
+
   if (!data) return <div className="admin-meta">Loading…</div>;
 
   const peakHour = Object.entries(data.ordersByHour as Record<string, number>)
@@ -82,6 +97,10 @@ function DashboardInner() {
 
         {/* фильтр по точке (сводно по всем или по одной — для сравнения) */}
         <OutletFilter value={outlet} onChange={setOutlet} />
+
+        <div style={{ marginLeft: "auto" }}>
+          <ExportButton path={exportPath} filename="dashboard.xlsx" label="Export dashboard" />
+        </div>
       </div>
 
       <div className="admin-grid-4">

@@ -39,7 +39,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Total-Count"],  # фронт читает общее число записей для пагинации
+    expose_headers=["X-Total-Count", "Content-Disposition"],  # пагинация + имя файла выгрузки
 )
 
 # загруженные медиа (картинки/видео из админки) отдаются по /media/*
@@ -52,9 +52,9 @@ async def value_error_handler(request: Request, exc: ValueError):
     return JSONResponse(status_code=422, content={"code": "VALIDATION_ERROR", "detail": str(exc)})
 
 
-from .routers import (admin_catalog, admin_coupons, admin_customers, admin_orders,  # noqa: E402
-                      admin_outlets, admin_payments, auth, catalog, coupons, dashboard, orders,
-                      outlets, payments, screen, staff, ws)
+from .routers import (admin_catalog, admin_coupons, admin_customers, admin_exports,  # noqa: E402
+                      admin_orders, admin_outlets, admin_payments, auth, catalog, coupons,
+                      dashboard, orders, outlets, payments, screen, staff, ws)
 
 app.include_router(catalog.router)
 app.include_router(outlets.router)
@@ -70,6 +70,7 @@ app.include_router(admin_customers.router)
 app.include_router(admin_payments.router)
 app.include_router(admin_coupons.router)
 app.include_router(dashboard.router)
+app.include_router(admin_exports.router)
 app.include_router(screen.router)
 app.include_router(ws.router)
 

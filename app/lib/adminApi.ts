@@ -55,6 +55,40 @@ function pageQuery(p: { limit: number; offset: number } & Record<string, unknown
   return q.toString();
 }
 
+// сборка query из произвольных параметров (пустые/none — пропускаем); с ведущим "?"
+export function qs(params: Record<string, unknown>): string {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== "") q.set(k, String(v));
+  }
+  const s = q.toString();
+  return s ? `?${s}` : "";
+}
+
+// Скачивание выгрузки (.xlsx): авторизованный fetch → blob → клик по скрытой <a download>.
+// Имя файла берём из Content-Disposition (датированное на бэке), иначе — fallback.
+export async function downloadExport(path: string, fallbackName: string): Promise<void> {
+  const r = await fetch(`${API_URL}${path}`, {
+    headers: { ...(getStaffToken() ? { Authorization: `Bearer ${getStaffToken()}` } : {}) },
+  });
+  if (!r.ok) {
+    let d = r.statusText;
+    try { d = (await r.json()).detail ?? d; } catch {}
+    throw Object.assign(new Error(typeof d === "string" ? d : JSON.stringify(d)), { status: r.status });
+  }
+  const blob = await r.blob();
+  const cd = r.headers.get("Content-Disposition") || "";
+  const m = cd.match(/filename="?([^"]+)"?/);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = m?.[1] || fallbackName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export type Staff = { id: number; email: string; name: string; role: string;
   phone?: string | null; note?: string | null; disabled: boolean;
   outletIds?: number[] };  // точки сотрудника (REQ-2/7)

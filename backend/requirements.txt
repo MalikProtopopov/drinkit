@@ -5,6 +5,7 @@ pydantic-settings
 pyjwt
 passlib
 python-multipart
+openpyxl
 # prod:
 # psycopg[binary]
 # redis
