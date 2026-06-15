@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { STATIC_ROUTES, seedAuthenticatedState } from "./_helpers";
+import { seedAuthenticatedState } from "./_helpers";
 
 test.describe("Links: all <a href> on key screens point to valid routes", () => {
   for (const route of ["/home", "/menu", "/cart", "/orders", "/profile", "/outlets"]) {

@@ -10,7 +10,7 @@ from ..core.db import get_db
 from ..core.security import get_current_user
 from ..models.orders import Coupon, Order
 from ..models.users import User
-from ..services.order_flow import add_event, create_order, transition
+from ..services.order_flow import add_event, create_order
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
 

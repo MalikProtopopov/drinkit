@@ -1,5 +1,5 @@
-import { test, expect, Page, BrowserContext } from "@playwright/test";
-import { seedAuthenticatedState, seedCleanState, collectErrors } from "./_helpers";
+import { test, expect, Page } from "@playwright/test";
+import { seedAuthenticatedState, seedCleanState } from "./_helpers";
 
 const API = "http://127.0.0.1:8011";
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { Pager, useToast } from "@/components/admin/AdminUI";
+import { Pager } from "@/components/admin/AdminUI";
 import { PaymentDrawer, PAYMENT_STATUS, methodLine } from "@/components/admin/PaymentDrawer";
 import { adminApi } from "@/lib/adminApi";
 import { aed, fmtDateTime } from "@/lib/format";
@@ -84,7 +84,6 @@ function ConfigBanner({ cfg }: { cfg: any }) {
 }
 
 function PaymentsInner() {
-  const toast = useToast();
   const [period, setPeriod] = useState<string>("all");
   const [status, setStatus] = useState<string>("");
   const [method, setMethod] = useState<string>("");

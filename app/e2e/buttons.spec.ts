@@ -1,4 +1,4 @@
-import { test, expect, Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { collectErrors, seedAuthenticatedState } from "./_helpers";
 
 /**
@@ -10,35 +10,6 @@ import { collectErrors, seedAuthenticatedState } from "./_helpers";
  *
  * If a button doesn't trigger any of those, it's a "dead button" candidate.
  */
-async function snapshot(page: Page) {
-  return {
-    url: page.url(),
-    sheets: await page.locator(".animate-sheetUp, [role=dialog]").count(),
-    bodyLen: ((await page.locator("body").innerHTML().catch(() => "")) ?? "").length,
-  };
-}
-
-async function clickAndCheck(
-  page: Page,
-  buttonSelector: string,
-  label: string
-): Promise<string | null> {
-  const before = await snapshot(page);
-  try {
-    await page.locator(buttonSelector).first().click({ timeout: 1500 });
-  } catch {
-    return `${label}: not clickable`;
-  }
-  await page.waitForTimeout(200);
-  const after = await snapshot(page);
-
-  const changed =
-    before.url !== after.url ||
-    before.sheets !== after.sheets ||
-    Math.abs(before.bodyLen - after.bodyLen) > 20;
-  return changed ? null : `${label}: click had no effect (URL/sheet/DOM unchanged)`;
-}
-
 test.describe("Buttons: nothing dead on key screens", () => {
   test("home screen: all interactive elements respond", async ({ page, context }) => {
     await seedAuthenticatedState(context);
@@ -67,10 +38,6 @@ test.describe("Buttons: nothing dead on key screens", () => {
       }
     }
 
-    // Featured carousel dots
-    const dots = page.locator('button[style*="rgba(0,0,0"]').filter({ has: page.locator(":scope") });
-    // pagination dots are h-1.5 — check via SVG-less buttons with width transition style; safer: just try clicking
-    // we'll skip explicit assertion here as dots may not be uniquely selectable, focus on links.
 
     expect(dead, dead.join("\n")).toEqual([]);
     expect(errors, errors.join("\n")).toEqual([]);

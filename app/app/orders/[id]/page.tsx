@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { api, orderWs, STATUS_LABELS, type ApiOrder } from "@/lib/api";
+import { api, orderWs, type ApiOrder } from "@/lib/api";
 import { IconBack, IconThumbDown, IconThumbUp } from "@/components/icons";
 import { Loader } from "@/components/Loader";
 import { useT, statusLabel, stepLabel, type Locale } from "@/lib/i18n";
@@ -56,7 +56,6 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
   const canArrive = order.paymentStatus === "paid" && !order.arrived
     && order.status !== "completed" && !isRefund;
   const canRate = !order.rating && (order.arrived || order.status === "completed");
-  const st = STATUS_LABELS[order.status] ?? STATUS_LABELS.new;
 
   // оплата прямо отсюда (без отдельной страницы): Stripe-сессия → редирект/мок
   const payNow = async () => {

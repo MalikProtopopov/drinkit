@@ -10,9 +10,9 @@ from ..core.config import settings
 from ..core.db import get_db
 from ..core.pagination import PageLimit, PageOffset, paginate
 from ..core.security import require_super_admin
-from ..models.orders import Order, Payment
+from ..models.orders import Payment
 from ..services.order_flow import add_event, notify
-from ._serializers import _payment_row, _payment_row_full
+from ._serializers import _payment_row_full
 
 router = APIRouter(prefix="/api/admin", tags=["admin-payments"])
 
