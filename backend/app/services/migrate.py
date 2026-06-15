@@ -26,6 +26,12 @@ _ADD_COLUMNS = {
     "drink_categories": {
         "slug": "VARCHAR(60) DEFAULT ''",
     },
+    "drinks": {
+        # детали напитка (PUB-G-02): состав/аллергены/может содержать — добавлены позже базовой схемы
+        "ingredients": "JSON",
+        "allergens": "JSON",
+        "may_contain": "JSON",
+    },
     "staff_users": {
         "phone": "VARCHAR(30)",
         "note": "VARCHAR(200)",
