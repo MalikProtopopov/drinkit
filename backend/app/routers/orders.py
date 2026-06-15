@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, selectinload
 from ..core.config import settings
 from ..core.db import get_db
 from ..core.security import get_current_user
+from ..models.catalog import Drink
 from ..models.orders import Coupon, Order
 from ..models.users import User
 from ..services.i18n import t
@@ -47,7 +48,26 @@ def _outlet_block(o: Order, locale: str) -> dict | None:
             "address": o.outlet.address, "emirate": o.outlet.emirate}
 
 
-def order_payload(o: Order, full: bool = True, locale: str = "en") -> dict:
+def _drinks_for(db: Session, orders: list[Order]) -> dict[int, Drink]:
+    """drink_id -> Drink: чтобы локализовать названия позиций (актуальное имя из каталога)."""
+    ids = {i.drink_id for o in orders for i in o.items}
+    if not ids:
+        return {}
+    return {d.id: d for d in db.scalars(select(Drink).where(Drink.id.in_(ids)))}
+
+
+def _item_name(i, locale: str, drink_map: dict[int, Drink] | None) -> str:
+    """Имя позиции в нужной локали: имя клиента → актуальное имя из каталога → снэпшот.
+    Снэпшот (drink_name) хранится в одной локали (на момент заказа), поэтому для отображения
+    в текущей локали UI берём имя из каталога по drink_id; снэпшот — фолбэк для удалённых напитков."""
+    if i.custom_name:
+        return i.custom_name
+    d = drink_map.get(i.drink_id) if drink_map else None
+    return t(d.name, locale) if d else i.drink_name
+
+
+def order_payload(o: Order, full: bool = True, locale: str = "en",
+                  drink_map: dict[int, Drink] | None = None) -> dict:
     data = {
         "id": o.id, "number": o.number, "status": o.status, "paymentStatus": o.payment_status,
         "arrived": o.arrived_at is not None,
@@ -58,7 +78,7 @@ def order_payload(o: Order, full: bool = True, locale: str = "en") -> dict:
         "outlet": _outlet_block(o, locale),
         "items": [
             {
-                "id": i.id, "drinkId": i.drink_id, "name": i.custom_name or i.drink_name,
+                "id": i.id, "drinkId": i.drink_id, "name": _item_name(i, locale, drink_map),
                 "drinkName": i.drink_name, "sizeLabel": i.size_label,
                 "unitPrice": i.unit_price, "quantity": i.quantity,
                 "paidByCoupon": i.paid_by_coupon,
@@ -88,17 +108,20 @@ def order_payload(o: Order, full: bool = True, locale: str = "en") -> dict:
 def place_order(body: OrderIn, locale: str = Query("ru"),
                 user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     order = create_order(db, user, body, locale)
-    return order_payload(order, locale=locale)
+    return order_payload(order, locale=locale, drink_map=_drinks_for(db, [order]))
 
 
 @router.get("")
-def my_orders(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """PUB-A-07: список заказов клиента."""
+def my_orders(locale: str | None = Query(None, description="локаль UI для названий позиций"),
+              user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """PUB-A-07: список заказов клиента; названия позиций — в текущей локали UI."""
     orders = db.scalars(
         select(Order).options(selectinload(Order.items), selectinload(Order.outlet))
         .where(Order.user_id == user.id).order_by(Order.id.desc())
     ).all()
-    return [order_payload(o, full=False, locale=user.preferred_locale) for o in orders]
+    dm = _drinks_for(db, orders)
+    return [order_payload(o, full=False, locale=(locale or user.preferred_locale), drink_map=dm)
+            for o in orders]
 
 
 def _own_order(order_id: int, user: User, db: Session) -> Order:
@@ -109,9 +132,10 @@ def _own_order(order_id: int, user: User, db: Session) -> Order:
 
 
 @router.get("/{order_id}")
-def order_detail(order_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def order_detail(order_id: int, locale: str | None = Query(None),
+                 user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     o = _own_order(order_id, user, db)
-    data = order_payload(o, locale=user.preferred_locale)
+    data = order_payload(o, locale=(locale or user.preferred_locale), drink_map=_drinks_for(db, [o]))
     # PUB-A-04 AC1: флаг «пора показать модалку оценки» — приехал, не завершён > N минут
     # модалка оценки: прибыл, заказ не выдан дольше N минут — независимо от статуса готовки
     data["ratingPromptDue"] = bool(
@@ -123,7 +147,8 @@ def order_detail(order_id: int, user: User = Depends(get_current_user), db: Sess
 
 
 @router.post("/{order_id}/arrived")
-def mark_arrived(order_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def mark_arrived(order_id: int, locale: str | None = Query(None),
+                 user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """«Я на месте» — независимый флаг: доступен в любой момент после оплаты
     (клиент мог заказать, уже стоя у точки; бариста мог забыть «готово»)."""
     o = _own_order(order_id, user, db)
@@ -136,7 +161,7 @@ def mark_arrived(order_id: int, user: User = Depends(get_current_user), db: Sess
         add_event(db, o, "arrived", by_user_id=user.id)
         db.commit()
         notify(o)
-    return order_payload(o, locale=user.preferred_locale)
+    return order_payload(o, locale=(locale or user.preferred_locale), drink_map=_drinks_for(db, [o]))
 
 
 class RateIn(BaseModel):

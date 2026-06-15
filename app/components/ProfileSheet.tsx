@@ -25,7 +25,7 @@ export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => 
   const logout = useStore((s) => s.logout);
   const { t, locale } = useT();
 
-  const { orders, visibleCount, sentinelRef } = useMyOrders(open);
+  const { orders, visibleCount, sentinelRef } = useMyOrders(open, locale);
   const { setLocale, saveInfo, saveCar } = useProfileUpdate();
 
   const [editInfo, setEditInfo] = useState(false);

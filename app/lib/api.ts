@@ -132,9 +132,10 @@ export const api = {
     couponId?: number; couponItemIndex?: number; outletId?: number;
   }, locale = "en") => req<ApiOrder>(`/api/orders?locale=${locale}`,
     { method: "POST", body: JSON.stringify(body) }),
-  myOrders: () => req<ApiOrder[]>("/api/orders"),
-  order: (id: number) => req<ApiOrder>(`/api/orders/${id}`),
-  arrived: (id: number) => req<ApiOrder>(`/api/orders/${id}/arrived`, { method: "POST" }),
+  myOrders: (locale = "en") => req<ApiOrder[]>(`/api/orders?locale=${locale}`),
+  order: (id: number, locale = "en") => req<ApiOrder>(`/api/orders/${id}?locale=${locale}`),
+  arrived: (id: number, locale = "en") =>
+    req<ApiOrder>(`/api/orders/${id}/arrived?locale=${locale}`, { method: "POST" }),
   rate: (id: number, rating: "like" | "dislike") =>
     req<{ ok: boolean; couponIssued: boolean; couponId?: number }>(
       `/api/orders/${id}/rate`, { method: "POST", body: JSON.stringify({ rating }) }),

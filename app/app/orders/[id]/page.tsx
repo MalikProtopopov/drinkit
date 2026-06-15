@@ -21,14 +21,14 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
   const wsRef = useRef<WebSocket | null>(null);
 
   const load = useCallback(() => {
-    api.order(orderId)
+    api.order(orderId, locale)  // названия позиций — в текущей локали UI
       .then((o) => {
         setOrder(o);
         // PUB-A-04 AC1: модалка по таймауту 15 минут после «прибыл»
         if (o.ratingPromptDue && !o.rating) setShowRating(true);
       })
       .catch(() => router.replace("/home"));
-  }, [orderId, router]);
+  }, [orderId, router, locale]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -67,7 +67,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
   };
 
   const markArrived = async () => {
-    try { setOrder(await api.arrived(order.id)); } catch {}
+    try { setOrder(await api.arrived(order.id, locale)); } catch {}
   };
 
   const rate = async (rating: "like" | "dislike") => {

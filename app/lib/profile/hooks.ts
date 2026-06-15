@@ -12,7 +12,7 @@ const ACTIVE_STATUSES = new Set(["new", "in_progress", "ready"]);
  * Загрузка и ленивая подгрузка истории заказов профиля.
  * Возвращает заказы, sentinel-ref и количество видимых элементов истории.
  */
-export function useMyOrders(open: boolean) {
+export function useMyOrders(open: boolean, locale: "en" | "ar" = "en") {
   const [orders, setOrders] = useState<ApiOrder[] | null>(null);
   const [visibleCount, setVisibleCount] = useState(ORDERS_PAGE);
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -21,8 +21,8 @@ export function useMyOrders(open: boolean) {
     if (!open) return;
     setVisibleCount(ORDERS_PAGE);
     if (!getToken()) { setOrders([]); return; }
-    api.myOrders().then(setOrders).catch(() => setOrders([]));
-  }, [open]);
+    api.myOrders(locale).then(setOrders).catch(() => setOrders([]));  // имена позиций в локали UI
+  }, [open, locale]);
 
   // ленивая подгрузка истории: показываем по +10 при достижении конца списка
   useEffect(() => {
