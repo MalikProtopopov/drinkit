@@ -105,7 +105,7 @@ export const adminApi = {
       active: p.active, manager_id: p.managerId, unassigned: p.unassigned ? "true" : undefined,
       outlet_id: p.outletId,
     })}`),
-  customersPaged: (p: { limit: number; offset: number }) =>
+  customersPaged: (p: { limit: number; offset: number; sort?: string; dir?: "asc" | "desc" }) =>
     reqList<any>(`/api/admin/customers?${pageQuery(p)}`),
   paymentsPaged: (p: { limit: number; offset: number; status?: string; method?: string;
                        q?: string; from?: string; to?: string }) =>

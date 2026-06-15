@@ -38,6 +38,9 @@ DASH = "/api/admin/dashboard"
 EXPECTED_KEYS = {
     "revenue", "ordersCount", "drinksSold", "avgDrinksPerOrder",
     "avgOrderValue", "ordersByHour", "topProducts", "topCustomers",
+    # бизнес-аналитика (добавлено): дельты + бизнес-уровневые срезы
+    "deltas", "weekdayHourMatrix", "sizeMix", "serviceTime",
+    "topAddons", "affinity", "avgAddons",
 }
 
 

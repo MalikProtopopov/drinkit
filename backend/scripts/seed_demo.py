@@ -22,14 +22,14 @@ from sqlalchemy import func, select  # noqa: E402
 
 from app.core.db import SessionLocal  # noqa: E402
 from app.core.security import hash_password  # noqa: E402
-from app.models.catalog import Drink  # noqa: E402
-from app.models.orders import Order, OrderEvent, OrderItem  # noqa: E402
+from app.models.catalog import Addon, Drink, DrinkAddon  # noqa: E402
+from app.models.orders import Order, OrderEvent, OrderItem, OrderItemAddon  # noqa: E402
 from app.models.outlet import Outlet, StaffOutlet  # noqa: E402
 from app.models.users import StaffUser, User  # noqa: E402
 
 random.seed(42)
 TZ = ZoneInfo("Asia/Dubai")
-FORCE = "--force" in sys.argv
+SIZES = ["300 ml", "400 ml", "500 ml"]  # для разнообразия в распределении размеров
 
 # менеджеры: (email, имя, доля рабочих дней из 30, заказов в рабочий день)
 MANAGERS = [
@@ -73,12 +73,24 @@ def main():
             print("Нет активной точки — сначала запусти бэкенд (создаст дефолтную).")
             return
 
-        already = db.scalar(select(func.count(Order.id)).where(Order.car_plate.like("DEMO%")))
-        if already and not FORCE:
-            print(f"Демо-заказы уже есть ({already}). Повтори с --force, чтобы досыпать.")
-            return
+        # сброс прежних демо-заказов (перезапуск даёт свежие данные, без накопления)
+        old = db.scalars(select(Order).where(Order.car_plate.like("DEMO%"))).all()
+        for o in old:
+            db.delete(o)  # каскадом удаляет позиции/добавки/события заказа
+        if old:
+            db.commit()
+            print(f"Удалено прежних демо-заказов: {len(old)}")
 
         drinks = db.scalars(select(Drink).where(Drink.status == "published")).all()
+        # добавки каждого напитка (для случайной кастомизации позиций)
+        addon_names = {a.id: ((a.name or {}).get("en") or (a.name or {}).get("ru") or f"#{a.id}")
+                       for a in db.scalars(select(Addon))}
+        drink_addons: dict[int, list] = {}
+        for da in db.scalars(select(DrinkAddon)):
+            price = 0.0 if da.price_override is None else float(da.price_override)
+            drink_addons.setdefault(da.drink_id, []).append(
+                (da.addon_id, addon_names.get(da.addon_id, f"#{da.addon_id}"),
+                 da.portion_amount, price, da.max_portions))
         managers = [get_or_create_manager(db, e, n, outlet.id) for e, n, _, _ in MANAGERS]
         customers = [get_or_create_customer(db, p, n) for p, n in CUSTOMERS]
         db.flush()
@@ -115,8 +127,18 @@ def main():
                         qty = random.randint(1, 2)
                         price = float(it.base_price)
                         nm = (it.name or {}).get("en") or (it.name or {}).get("ru") or it.slug
-                        db.add(OrderItem(order_id=order.id, drink_id=it.id, drink_name=nm,
-                                         unit_price=price, quantity=qty))
+                        item = OrderItem(order_id=order.id, drink_id=it.id, drink_name=nm,
+                                         size_label=random.choice(SIZES), unit_price=price, quantity=qty)
+                        db.add(item)
+                        db.flush()
+                        # случайные добавки → наполняют топ-добавок, аффинити, ср. кастомизацию
+                        opts = drink_addons.get(it.id, [])
+                        for aid, an, amount_per, pp, mx in random.sample(opts, min(len(opts), random.randint(0, 3))):
+                            portions = random.randint(1, max(1, min(2, mx or 1)))
+                            db.add(OrderItemAddon(item_id=item.id, addon_id=aid, addon_name=an,
+                                                  portions=portions, amount=portions * (amount_per or 0),
+                                                  unit_code="g", price_per_portion=pp))
+                            subtotal += pp * portions * qty
                         subtotal += price * qty
                     order.subtotal = round(subtotal, 2)
                     order.total = round(subtotal, 2)

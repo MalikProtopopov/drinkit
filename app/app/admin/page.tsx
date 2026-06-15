@@ -9,6 +9,10 @@ import { useLiveReload } from "@/lib/useLiveReload";
 import { OutletFilter } from "@/components/admin/OutletFilter";
 import { Stat } from "@/components/admin/Stat";
 import { HourlyOrdersChart } from "@/components/admin/charts/HourlyOrdersChart";
+import { WeekdayHourHeatmap } from "@/components/admin/charts/WeekdayHourHeatmap";
+import { SizeMixDonut } from "@/components/admin/charts/SizeMixDonut";
+import { ServiceTimeChart } from "@/components/admin/charts/ServiceTimeChart";
+import { HorizontalBars } from "@/components/admin/charts/HorizontalBars";
 
 const PERIODS = [
   { key: "all", label: "All time", from: undefined },
@@ -81,10 +85,10 @@ function DashboardInner() {
       </div>
 
       <div className="admin-grid-4">
-        <Stat label="Revenue, AED" value={data.revenue.toFixed(0)} />
-        <Stat label="Sales (orders)" value={data.ordersCount} />
-        <Stat label="Drinks sold" value={data.drinksSold} />
-        <Stat label="Avg. order, AED" value={data.avgOrderValue.toFixed(2)} />
+        <Stat label="Revenue, AED" value={data.revenue.toFixed(0)} delta={data.deltas?.revenue} />
+        <Stat label="Sales (orders)" value={data.ordersCount} delta={data.deltas?.ordersCount} />
+        <Stat label="Drinks sold" value={data.drinksSold} delta={data.deltas?.drinksSold} />
+        <Stat label="Avg. order, AED" value={data.avgOrderValue.toFixed(2)} delta={data.deltas?.avgOrderValue} />
       </div>
       <div className="admin-grid-4" style={{ marginTop: 12 }}>
         <Stat label="Avg. drinks/order" value={data.avgDrinksPerOrder} />
@@ -135,6 +139,65 @@ function DashboardInner() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* пиковые часы (день×час) + распределение размеров — бизнес-уровень */}
+      <div className="admin-split" style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="admin-panel">
+          <div className="admin-panel-head"><div className="admin-panel-title">Peak times (day × hour)</div></div>
+          <div className="admin-panel-body"><WeekdayHourHeatmap matrix={data.weekdayHourMatrix} /></div>
+        </div>
+        <div className="admin-panel">
+          <div className="admin-panel-head"><div className="admin-panel-title">Sizes</div></div>
+          <div className="admin-panel-body"><SizeMixDonut data={data.sizeMix} /></div>
+        </div>
+      </div>
+
+      {/* время обслуживания + популярные добавки (конструктор) */}
+      <div className="admin-split" style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div className="admin-panel">
+          <div className="admin-panel-head">
+            <div className="admin-panel-title">Service time</div>
+            <span className="admin-meta">{data.serviceTime?.samples ? `${data.serviceTime.samples} order(s)` : "no data"}</span>
+          </div>
+          <div className="admin-panel-body">
+            <ServiceTimeChart prepMin={data.serviceTime?.prepMin ?? null}
+                              pickupMin={data.serviceTime?.pickupMin ?? null}
+                              totalMin={data.serviceTime?.totalMin ?? null} />
+          </div>
+        </div>
+        <div className="admin-panel">
+          <div className="admin-panel-head">
+            <div className="admin-panel-title">Popular add-ons</div>
+            <span className="admin-meta">avg {data.avgAddons} / drink</span>
+          </div>
+          <div className="admin-panel-body">
+            {data.topAddons.length ? (
+              <HorizontalBars data={data.topAddons.map((a: any) => ({ label: a.name, value: a.qty }))}
+                              suffix=" servings" color="#8E97F0"
+                              height={Math.max(160, data.topAddons.length * 34 + 16)} />
+            ) : <span className="admin-meta">No add-on data yet</span>}
+          </div>
+        </div>
+      </div>
+
+      {/* аффинити: какие добавки берут вместе в одном напитке (market basket) */}
+      <div className="admin-panel" style={{ marginTop: 16 }}>
+        <div className="admin-panel-head">
+          <div className="admin-panel-title">Add-ons ordered together</div>
+          <span className="admin-meta">which add-ons pair up in one drink</span>
+        </div>
+        {data.affinity.length ? (
+          <div className="admin-tablewrap"><table className="admin-table">
+            <thead><tr><th>Add-on A</th><th>Add-on B</th><th>Together (drinks)</th></tr></thead>
+            <tbody>
+              {data.affinity.map((p: any, i: number) => (
+                <tr key={i}><td><strong>{p.a}</strong></td><td><strong>{p.b}</strong></td>
+                  <td className="admin-num">{p.count}</td></tr>
+              ))}
+            </tbody>
+          </table></div>
+        ) : <div className="admin-panel-body admin-meta">Not enough data yet — pairs appear once drinks share add-ons.</div>}
       </div>
 
       <div className="admin-panel" style={{ marginTop: 16 }}>

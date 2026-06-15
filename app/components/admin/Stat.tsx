@@ -20,13 +20,21 @@ export function Kpi({ label, value, sub, tone }: {
  * Стат-карточка (стиль admin-stat): значение + подпись + опц. вспом. текст.
  * Раньше дублировалась в audience и дашборде.
  */
-export function Stat({ label, value, sub }: {
+export function Stat({ label, value, sub, delta }: {
   label: string; value: ReactNode; sub?: string;
+  delta?: number | null;  // % к прошлому периоду (▲/▼); null/undefined — не показываем
 }) {
+  const hasDelta = delta !== undefined && delta !== null;
+  const up = (delta ?? 0) >= 0;
   return (
     <div className="admin-stat">
       <div className="admin-stat-label">{label}</div>
       <div className="admin-stat-value">{value}</div>
+      {hasDelta && (
+        <div className="admin-stat-trend" style={{ color: up ? "#16A34A" : "#DC2626" }}>
+          {up ? "▲" : "▼"} {Math.abs(delta as number).toFixed(1)}% vs prev.
+        </div>
+      )}
       {sub && <div className="admin-meta" style={{ marginTop: 2 }}>{sub}</div>}
     </div>
   );

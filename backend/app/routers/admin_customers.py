@@ -127,14 +127,44 @@ def _customer_stats(orders: list[Order], payments: list[Payment], coupons: list[
 
 @router.get("/customers", dependencies=[Depends(require_super_admin)])
 def customers(response: Response, limit: int | None = PageLimit, offset: int = PageOffset,
+              sort: str = Query("registered", description="id|name|orders|spent|registered|lastOrder"),
+              direction: str = Query("desc", alias="dir", description="asc|desc"),
               db: Session = Depends(get_db)):
-    users = db.scalars(select(User).order_by(User.id.desc())).all()
-    return paginate([
-        {"id": u.id, "phone": u.phone, "name": u.name, "carPlate": u.car_plate,
-         "locale": u.preferred_locale,
-         "createdAt": u.created_at.isoformat() if u.created_at else None}
-        for u in users
-    ], response, limit, offset)
+    """Список клиентов + агрегаты по ОПЛАЧЕННЫМ заказам (кол-во, сумма, последний заказ).
+    Сортировка серверная (поверх всей когорты), затем пагинация."""
+    # агрегаты по оплаченным заказам одним проходом (как в _cohort_thresholds)
+    agg: dict[int, dict] = {}
+    for uid, total, created in db.execute(
+        select(Order.user_id, Order.total, Order.created_at).where(Order.payment_status == "paid")
+    ).all():
+        a = agg.setdefault(uid, {"orders": 0, "spent": 0.0, "last": None})
+        a["orders"] += 1
+        a["spent"] += (total or 0)
+        if created and (a["last"] is None or created > a["last"]):
+            a["last"] = created
+
+    rows = []
+    for u in db.scalars(select(User)).all():
+        a = agg.get(u.id)
+        rows.append({
+            "id": u.id, "phone": u.phone, "name": u.name, "carPlate": u.car_plate,
+            "locale": u.preferred_locale,
+            "createdAt": u.created_at.isoformat() if u.created_at else None,
+            "orders": a["orders"] if a else 0,
+            "spent": round(a["spent"], 2) if a else 0,
+            "lastOrderAt": a["last"].isoformat() if a and a["last"] else None,
+        })
+
+    key_fns = {
+        "id": lambda r: r["id"],
+        "name": lambda r: (r["name"] or "").lower(),
+        "orders": lambda r: r["orders"],
+        "spent": lambda r: r["spent"],
+        "registered": lambda r: r["createdAt"] or "",
+        "lastOrder": lambda r: r["lastOrderAt"] or "",
+    }
+    rows.sort(key=key_fns.get(sort, key_fns["registered"]), reverse=(direction != "asc"))
+    return paginate(rows, response, limit, offset)
 
 
 def _cohort_thresholds(db: Session) -> dict:
