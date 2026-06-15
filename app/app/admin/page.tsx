@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminApi } from "@/lib/adminApi";
+import { Stat } from "@/components/admin/Stat";
 
 const PERIODS = [
   { key: "all", label: "Всё время", from: undefined },
@@ -149,14 +150,6 @@ function DashboardInner() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="admin-stat">
-      <div className="admin-stat-label">{label}</div>
-      <div className="admin-stat-value">{value}</div>
-    </div>
-  );
-}
 
 export default function AdminDashboard() {
   return (

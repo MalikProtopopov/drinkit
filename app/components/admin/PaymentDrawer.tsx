@@ -4,13 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useToast } from "@/components/admin/AdminUI";
 import { adminApi } from "@/lib/adminApi";
+import { aed, fmtDateTime as fmtDT } from "@/lib/format";
 
-/* ---------- форматтеры ---------- */
-const money = (n?: number | null) =>
-  n == null ? "—" : `${Number(n).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED`;
-const fmtDateTime = (s?: string | null) =>
-  s ? new Date(/[Z+]/.test(s) ? s : s + "Z").toLocaleString("ru-RU",
-    { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+/* ---------- форматтеры: тонкие обёртки над общими (lib/format) ---------- */
+const money = (n?: number | null) => aed(n, { decimals: 2 });
+const fmtDateTime = (s?: string | null) => fmtDT(s, { year: true });
 
 export const PAYMENT_STATUS: Record<string, { label: string; cls: string }> = {
   succeeded: { label: "успешно", cls: "accent" },

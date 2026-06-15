@@ -5,15 +5,12 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { Pager, useToast } from "@/components/admin/AdminUI";
 import { PaymentDrawer, PAYMENT_STATUS, methodLine } from "@/components/admin/PaymentDrawer";
 import { adminApi } from "@/lib/adminApi";
+import { aed, fmtDateTime } from "@/lib/format";
+import { Kpi } from "@/components/admin/Stat";
 import { usePaged } from "@/lib/usePaged";
 
-/* ---------- форматтеры ---------- */
-const money = (n?: number | null, dec = false) =>
-  n == null ? "—" : `${Number(n).toLocaleString("ru-RU", dec
-    ? { minimumFractionDigits: 2, maximumFractionDigits: 2 } : { maximumFractionDigits: 0 })}`;
-const fmtDateTime = (s?: string | null) =>
-  s ? new Date(/[Z+]/.test(s) ? s : s + "Z").toLocaleString("ru-RU",
-    { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+// деньги без суффикса (« AED» добавляется в разметке); dec=true → 2 знака
+const money = (n?: number | null, dec = false) => aed(n, { decimals: dec ? 2 : 0, suffix: false });
 
 const PERIODS = [
   { key: "all", label: "Всё время" },
@@ -29,16 +26,6 @@ const STATUS_FILTERS = [
   { key: "pending", label: "Ожидание" },
   { key: "failed", label: "Ошибки" },
 ];
-
-function Kpi({ label, value, sub, tone }: { label: string; value: React.ReactNode; sub?: string; tone?: string }) {
-  return (
-    <div className="kbju-cell">
-      <div className="kbju-cell-label">{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, marginTop: 2, color: tone }}>{value}</div>
-      {sub && <div className="admin-meta" style={{ marginTop: 2 }}>{sub}</div>}
-    </div>
-  );
-}
 
 function Bar({ label, value, sub, max, tone = "#4A56E2" }: {
   label: string; value: number; sub?: string; max: number; tone?: string;

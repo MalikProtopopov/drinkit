@@ -6,6 +6,8 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { useToast } from "@/components/admin/AdminUI";
 import { CustomerForm, type CustomerDraft } from "@/components/admin/CustomerForm";
 import { adminApi, ADMIN_STATUS_LABEL } from "@/lib/adminApi";
+import { fmtDate, fmtDateTime, recencyText, aed as money } from "@/lib/format";
+import { Kpi } from "@/components/admin/Stat";
 import { MonthlyTrendChart } from "@/components/admin/charts/MonthlyTrendChart";
 import { WeekdayHourHeatmap } from "@/components/admin/charts/WeekdayHourHeatmap";
 import { ServiceTimeChart } from "@/components/admin/charts/ServiceTimeChart";
@@ -14,15 +16,6 @@ import { HorizontalBars } from "@/components/admin/charts/HorizontalBars";
 
 const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-const fmtDate = (s?: string) =>
-  s ? new Date(/[Z+]/.test(s) ? s : s + "Z").toLocaleDateString("ru-RU",
-    { day: "2-digit", month: "short", year: "numeric" }) : "—";
-const fmtDateTime = (s?: string) =>
-  s ? new Date(/[Z+]/.test(s) ? s : s + "Z").toLocaleString("ru-RU",
-    { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
-const money = (n: number) => `${Math.round(n).toLocaleString("ru-RU")} AED`;
-const recencyText = (d: number | null) =>
-  d == null ? "—" : d === 0 ? "сегодня" : d === 1 ? "вчера" : `${d} дн. назад`;
 
 const PAY_PILL: Record<string, { label: string; cls: string }> = {
   paid: { label: "оплачен", cls: "accent" },
@@ -70,15 +63,6 @@ const SEGMENT_NOTE: Record<string, string> = {
   no_purchase: "Зарегистрирован, но ещё не заказывал. Подтолкните приветственным промокодом на первый заказ.",
 };
 
-function Kpi({ label, value, sub }: { label: string; value: React.ReactNode; sub?: string }) {
-  return (
-    <div className="kbju-cell">
-      <div className="kbju-cell-label">{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 800, marginTop: 2 }}>{value}</div>
-      {sub && <div className="admin-meta" style={{ marginTop: 2 }}>{sub}</div>}
-    </div>
-  );
-}
 
 // одиночный RFM-балл (R/F/M) с цветовой заливкой 1..5
 function RfmScore({ label, score }: { label: string; score: number }) {

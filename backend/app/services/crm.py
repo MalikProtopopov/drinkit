@@ -377,3 +377,96 @@ def per_customer_extra(orders: list, events_by_order: dict, manager_names: dict,
         "managerAffinity": manager_affinity,
         "sizeMix": size_mix,
     }
+
+
+def build_audience(users, per_user_stats, now):
+    """Агрегирует CRM-аудиторию (сегменты / KPI / RFM-сетка / персоны) из уже
+    загруженной статистики клиентов. Чистая: на входе ORM-клиенты + per_user_stats,
+    DB-запросы делает вызывающий роутер."""
+    # пороги RFM один раз по всей когорте оплаченных клиентов
+    thresholds = rfm_thresholds(list(per_user_stats.values()))
+
+    seg_buckets: dict[str, list[dict]] = {k: [] for k in SEGMENTS}
+    rfm_grid = [[0] * 5 for _ in range(5)]  # [fIndex-1][rIndex-1]
+    persona_counter: Counter = Counter()
+    clv_sum = 0.0
+    kpi_active = kpi_at_risk = kpi_churned = kpi_new = 0
+    month_key = f"{now.year:04d}-{now.month:02d}"
+
+    for u in users:
+        st = per_user_stats[u.id]
+        paid = st["paidOrders"]
+        scores = rfm_scores(st["recencyDays"], paid, st["totalSpent"], thresholds)
+        r, f, m = scores["r"], scores["f"], scores["m"]
+        segment = rfm_segment(r, f) if paid >= 1 else "no_purchase"
+
+        churn = churn_metrics(st["recencyDays"], st["avgDaysBetween"], st["ordersPerMonth"])
+        clv = clv_metrics(st, churn)
+        clv_sum += clv["predicted"]
+        tags = persona_tags(st)
+        for tag in tags:
+            persona_counter[tag] += 1
+
+        recency = st["recencyDays"]
+        if recency is not None and recency <= 30:
+            kpi_active += 1
+        if churn["risk"] == "high" and paid > 0:
+            kpi_at_risk += 1
+        if recency is not None and recency > 60:
+            kpi_churned += 1
+        if (st["firstOrderAt"] or "").startswith(month_key):
+            kpi_new += 1
+
+        if paid >= 1:
+            rfm_grid[f - 1][r - 1] += 1
+
+        seg_buckets[segment].append({
+            "id": u.id, "name": u.name, "phone": u.phone,
+            "totalSpent": st["totalSpent"], "recencyDays": recency,
+            "paidOrders": paid,
+            "rfm": {"r": r, "f": f, "m": m, "score": f"{r}{f}{m}", "segment": segment},
+            "_tags": tags,
+        })
+
+    segments_out = []
+    for key, label_desc in SEGMENTS.items():
+        label, description = label_desc
+        members = seg_buckets[key]
+        count = len(members)
+        spents = [c["totalSpent"] for c in members]
+        recencies = [c["recencyDays"] for c in members if c["recencyDays"] is not None]
+        freqs = [c["paidOrders"] for c in members]
+        tag_counter: Counter = Counter()
+        for c in members:
+            for tg in c["_tags"]:
+                tag_counter[tg] += 1
+        top = sorted(members, key=lambda c: c["totalSpent"], reverse=True)[:12]
+        segments_out.append({
+            "key": key, "label": label, "description": description,
+            "count": count,
+            "share": round(count / len(users), 2) if users else 0.0,
+            "avgSpent": round(sum(spents) / count, 2) if count else 0.0,
+            "avgRecency": round(sum(recencies) / len(recencies), 1) if recencies else None,
+            "avgFrequency": round(sum(freqs) / count, 2) if count else 0.0,
+            "personaTags": [{"tag": tg, "count": cnt} for tg, cnt in tag_counter.most_common(5)],
+            "customers": [{k: v for k, v in c.items() if k != "_tags"} for c in top],
+        })
+
+    total = len(users)
+    personas = [{"tag": tg, "count": cnt, "share": round(cnt / total, 2) if total else 0.0}
+                for tg, cnt in persona_counter.most_common()]
+
+    return {
+        "total": total,
+        "kpis": {
+            "customers": total,
+            "active": kpi_active,
+            "atRisk": kpi_at_risk,
+            "churned": kpi_churned,
+            "newThisMonth": kpi_new,
+            "avgCLV": round(clv_sum / total, 2) if total else 0.0,
+        },
+        "segments": segments_out,
+        "rfmGrid": rfm_grid,
+        "personas": personas,
+    }

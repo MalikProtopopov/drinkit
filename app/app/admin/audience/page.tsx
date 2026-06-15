@@ -4,15 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminApi } from "@/lib/adminApi";
+import { aed as money, pct, recencyText as recency } from "@/lib/format";
+import { Stat } from "@/components/admin/Stat";
 import { SegmentDonut } from "@/components/admin/charts/SegmentDonut";
 import { RfmHeatGrid } from "@/components/admin/charts/RfmHeatGrid";
 import { HorizontalBars } from "@/components/admin/charts/HorizontalBars";
 
-const money = (n: number) => `${Math.round(n ?? 0).toLocaleString("ru-RU")} AED`;
-const recencyText = (d: number | null | undefined) =>
-  d == null ? "—" : d === 0 ? "сегодня" : d === 1 ? "вчера" : `${d} дн.`;
-const pct = (n: number | null | undefined) =>
-  n == null ? "—" : `${Math.round((n ?? 0) * 100)}%`;
+// аудитория показывает короткую форму давности («N дн.» без «назад»)
+const recencyText = (d?: number | null) => recency(d, { short: true });
 
 // RFM-сетка с бэка приходит как rfmGrid[f-1][r-1] (F снаружи 1..5, R внутри 1..5).
 // Компоненту нужен grid[f][r], где строка 0 = F5 (сверху) … строка 4 = F1,
@@ -25,15 +24,6 @@ function toHeatGrid(rfmGrid: number[][] | undefined): number[][] {
   return norm.slice().reverse(); // F1..F5 -> F5..F1
 }
 
-function Stat({ label, value, sub }: { label: string; value: React.ReactNode; sub?: string }) {
-  return (
-    <div className="admin-stat">
-      <div className="admin-stat-label">{label}</div>
-      <div className="admin-stat-value">{value}</div>
-      {sub && <div className="admin-meta" style={{ marginTop: 2 }}>{sub}</div>}
-    </div>
-  );
-}
 
 const RFM_PILL: Record<string, string> = {
   champions: "accent",
