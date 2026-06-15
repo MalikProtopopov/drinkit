@@ -42,7 +42,8 @@ def manager(client):
 def make_order(client, customer, coupon_id=None, coupon_item_index=None):
     """Хелпер: создать оплаченный (mock) заказ из 2 напитков."""
     det = client.get("/api/drinks/orange-fresh").json()
-    ginger = next(a for a in det["addons"] if a["name"] == "Имбирь")
+    # публичный каталог отдаётся в локали по умолчанию (en) — ищем добавку по EN-имени
+    ginger = next(a for a in det["addons"] if a["name"] == "Ginger")
     body = {
         "items": [
             {"drinkId": det["id"], "quantity": 1,

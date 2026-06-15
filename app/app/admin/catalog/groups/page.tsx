@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Modal, Toggle, useToast } from "@/components/admin/AdminUI";
+import { MediaUpload } from "@/components/admin/MediaUpload";
 import { catalogApi, type AddonCat, type Unit } from "@/lib/adminApi";
 
 const SEL_LABEL = { single: "один", multi: "несколько", counter: "счётчик" } as const;
@@ -37,7 +38,7 @@ function Inner() {
           Тип выбора задаётся здесь (дефолт для всех напитков) и может быть переопределён
           в связке с конкретным напитком — вкладка «Добавки» в редакторе напитка.
         </p>
-        <table className="admin-table">
+        <div className="admin-tablewrap"><table className="admin-table">
           <thead>
             <tr><th>Название</th><th>Тип выбора</th><th>Активна</th></tr>
           </thead>
@@ -65,7 +66,7 @@ function Inner() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       <div className="admin-panel" style={{ marginTop: 16 }}>
@@ -73,7 +74,7 @@ function Inner() {
           <div className="admin-panel-title">Единицы измерения</div>
           <button className="admin-btn sm" onClick={() => setUnitOpen(true)}>+ Единица</button>
         </div>
-        <table className="admin-table">
+        <div className="admin-tablewrap"><table className="admin-table">
           <thead><tr><th>Код</th><th>Название</th></tr></thead>
           <tbody>
             {units.map((u) => (
@@ -83,7 +84,7 @@ function Inner() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       <Modal open={catOpen} title="Новая категория добавок" onClose={() => setCatOpen(false)}
@@ -98,8 +99,8 @@ function Inner() {
           <input className="admin-input" autoFocus value={nameRu} onChange={(e) => setNameRu(e.target.value)} />
         </div>
         <div className="admin-field">
-          <label className="admin-label">Фото для иконки (URL)</label>
-          <input className="admin-input mono" value={iconUrl} onChange={(e) => setIconUrl(e.target.value)} />
+          <label className="admin-label">Иконка категории</label>
+          <MediaUpload accept="image" value={iconUrl} onChange={(url) => setIconUrl(url ?? "")} />
         </div>
         <div className="admin-field">
           <label className="admin-label">Тип выбора</label>

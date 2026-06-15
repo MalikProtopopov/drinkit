@@ -19,6 +19,35 @@ _ADD_COLUMNS = {
     "drink_categories": {
         "slug": "VARCHAR(60) DEFAULT ''",
     },
+    "staff_users": {
+        "phone": "VARCHAR(30)",
+        "note": "VARCHAR(200)",
+    },
+    # расширение карточки платежа под Stripe (ADM-S-09): идентификаторы, карта,
+    # комиссия/чистыми/возвраты, риск/споры — всё nullable, работает и на mock
+    "payments": {
+        "payment_intent_id": "VARCHAR(120)",
+        "charge_id": "VARCHAR(120)",
+        "customer_id": "VARCHAR(120)",
+        "method_type": "VARCHAR(20) DEFAULT 'card'",
+        "card_brand": "VARCHAR(20)",
+        "card_last4": "VARCHAR(4)",
+        "card_funding": "VARCHAR(12)",
+        "card_country": "VARCHAR(2)",
+        "card_exp": "VARCHAR(7)",
+        "fee_amount": "FLOAT DEFAULT 0",
+        "net_amount": "FLOAT",
+        "refunded_amount": "FLOAT DEFAULT 0",
+        "receipt_url": "VARCHAR(300)",
+        "failure_code": "VARCHAR(40)",
+        "failure_message": "VARCHAR(200)",
+        "risk_level": "VARCHAR(20)",
+        "risk_score": "INTEGER",
+        "dispute_status": "VARCHAR(20)",
+        "livemode": "BOOLEAN DEFAULT 0",
+        "paid_at": "DATETIME",
+        "updated_at": "DATETIME",
+    },
 }
 
 # ---------- slug-утилиты для категорий ----------
@@ -170,6 +199,22 @@ def localize_catalog_en(db: Session):
         d.allergens = _with_en(d.allergens, det["allergens"])
         d.may_contain = _with_en(d.may_contain, det["may"])
 
+    db.commit()
+
+
+def backfill_payments(db: Session):
+    """Наполняет Stripe-поля платежей mock-синтетиком для строк, созданных до
+    расширения схемы. Признак «уже наполнено» — заполненный card_brand."""
+    from ..models.orders import Order, Payment
+    from .payment_mock import apply_mock_stripe
+
+    rows = db.scalars(select(Payment).where(Payment.card_brand.is_(None))).all()
+    if not rows:
+        return
+    order_ids = {p.order_id for p in rows}
+    orders = {o.id: o for o in db.scalars(select(Order).where(Order.id.in_(order_ids)))}
+    for p in rows:
+        apply_mock_stripe(p, orders.get(p.order_id))
     db.commit()
 
 

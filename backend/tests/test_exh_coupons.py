@@ -558,7 +558,7 @@ def test_carplate_uppercased_in_coupon_order(client, manager):
     assert r.json()["carPlate"] == "DXB 7Z"
 
 
-def test_locale_en_normalized_to_ru_for_coupon_owner(client):
-    """locale 'en' (вне {ru,ar}) нормализуется к дефолту 'ru' при регистрации владельца купона."""
+def test_locale_en_preserved_for_coupon_owner(client):
+    """locale 'en' входит в {en,ar} -> сохраняется при регистрации владельца купона."""
     cust = _new_customer(client, locale="en")
-    assert cust["user"]["locale"] == "ru"
+    assert cust["user"]["locale"] == "en"

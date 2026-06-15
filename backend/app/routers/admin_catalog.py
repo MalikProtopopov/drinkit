@@ -1,11 +1,15 @@
 """Админка-каталог (ADM-S-01..05): CRUD категорий напитков, категорий добавок,
 добавок, единиц измерения, напитков и связки напиток×добавка."""
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import uuid
+
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from ..core.db import get_db
+from ..core.pagination import PageLimit, PageOffset, paginate
 from ..core.security import require_super_admin
 from ..models.catalog import (Addon, AddonCategory, Drink, DrinkAddon, DrinkCategory,
                               DrinkDescription, DrinkSize, Unit)
@@ -17,6 +21,29 @@ DESC_LOCALES = ["ru", "en", "ar"]
 
 router = APIRouter(prefix="/api/admin/catalog", tags=["admin-catalog"],
                    dependencies=[Depends(require_super_admin)])
+
+# ---------- Загрузка медиа (drag-and-drop в админке) ----------
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
+ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".mp4", ".webm", ".mov", ".m4v"}
+MAX_BYTES = 60 * 1024 * 1024  # 60 МБ (под видео-петли)
+
+
+@router.post("/upload")
+async def upload_media(request: Request, file: UploadFile = File(...)):
+    """Сохраняет картинку/видео и возвращает абсолютный URL (отдаётся через /media)."""
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in ALLOWED_EXT:
+        raise HTTPException(422, "UNSUPPORTED_MEDIA_TYPE")
+    data = await file.read()
+    if len(data) > MAX_BYTES:
+        raise HTTPException(413, "FILE_TOO_LARGE")
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    name = f"{uuid.uuid4().hex}{ext}"
+    with open(os.path.join(UPLOAD_DIR, name), "wb") as f:
+        f.write(data)
+    base = str(request.base_url).rstrip("/")
+    kind = "video" if ext in {".mp4", ".webm", ".mov", ".m4v"} else "image"
+    return {"url": f"{base}/media/{name}", "kind": kind}
 
 
 # ---------- Категории напитков (ADM-S-01) ----------
@@ -158,8 +185,10 @@ def _addon(a: Addon):
 
 
 @router.get("/addons")
-def list_addons(db: Session = Depends(get_db)):
-    return [_addon(a) for a in db.scalars(select(Addon)).all()]
+def list_addons(response: Response, limit: int | None = PageLimit, offset: int = PageOffset,
+                db: Session = Depends(get_db)):
+    rows = [_addon(a) for a in db.scalars(select(Addon)).all()]
+    return paginate(rows, response, limit, offset)
 
 
 def _check_addon_refs(body: "AddonIn", db: Session):
@@ -252,11 +281,13 @@ def _drink(d: Drink):
 
 
 @router.get("/drinks")
-def admin_list_drinks(db: Session = Depends(get_db)):
+def admin_list_drinks(response: Response, limit: int | None = PageLimit, offset: int = PageOffset,
+                      db: Session = Depends(get_db)):
     """Все напитки, включая черновики и скрытые."""
-    return [_drink(d) for d in db.scalars(
+    rows = [_drink(d) for d in db.scalars(
         select(Drink).options(selectinload(Drink.addon_links), selectinload(Drink.sizes),
                               selectinload(Drink.descriptions))).all()]
+    return paginate(rows, response, limit, offset)
 
 
 @router.post("/drinks")

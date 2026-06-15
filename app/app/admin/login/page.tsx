@@ -17,7 +17,10 @@ export default function AdminLoginPage() {
     try {
       const r = await adminApi.login(email, password);
       setStaffToken(r.token);
-      router.replace(r.staff.role === "super_admin" ? "/admin" : "/admin/orders");
+      router.replace(
+        r.staff.role === "screen" ? "/admin/screen"
+        : r.staff.role === "super_admin" ? "/admin"
+        : "/admin/orders");
     } catch {
       setError(true);
     } finally {
@@ -26,16 +29,16 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center", background: "#F5F2EA" }}>
+    <div style={{ minHeight: "100dvh", width: "100%", display: "flex", alignItems: "center",
+                  justifyContent: "center", padding: 24, background: "#F5F2EA" }}>
       <form onSubmit={submit}
-            style={{ width: 360, background: "#fff", padding: 28, borderRadius: 16,
+            style={{ width: "100%", maxWidth: 380, background: "#fff", padding: 28, borderRadius: 16,
                      boxShadow: "0 10px 40px rgba(14,14,16,0.08)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <span className="admin-brand-mark">J</span>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>Juicy Admin</div>
-            <div style={{ fontSize: 12, color: "#5A6172" }}>вход для персонала</div>
-          </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
+                      gap: 8, marginBottom: 22 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="JOOZ" style={{ height: 26, width: "auto" }} />
+          <div style={{ fontSize: 12, color: "#5A6172" }}>Админка · вход для персонала</div>
         </div>
         <div className="admin-field">
           <label className="admin-label">Email</label>

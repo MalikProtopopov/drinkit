@@ -174,4 +174,7 @@ def seed(db: Session):
                      name="Super Admin", role="super_admin"))
     db.add(StaffUser(email="manager@juicy.ae", password_hash=hash_password("manager123"),
                      name="Manager", role="manager"))
+    # учётка публичного табло выдачи (ТВ у стойки) — логинится один раз на экране
+    db.add(StaffUser(email="screen@juicy.ae", password_hash=hash_password("screen123"),
+                     name="Экран выдачи", role="screen"))
     db.commit()

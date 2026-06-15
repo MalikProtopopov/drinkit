@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet">
+<style>
+  *{ box-sizing:border-box; }
+  body{ margin:0; }
+  ::-webkit-scrollbar{ display:none; }
+  .noscroll{ scrollbar-width:none; }
+  @keyframes sheetUp{ from{ transform:translateY(100%); } to{ transform:translateY(0); } }
+  @keyframes fadeIn{ from{ opacity:0; } to{ opacity:1; } }
+  @keyframes pop{ 0%{ transform:scale(.55); } 55%{ transform:scale(1.18); } 100%{ transform:scale(1); } }
+</style>
+</helmet>
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:40px; background:radial-gradient(120% 130% at 50% 0%, #efe7d9 0%, #e6dccc 55%, #dccfba 100%); font-family:'Nunito',system-ui,sans-serif;">
+  <div style="position:relative; width:393px; height:852px; border-radius:48px; background:#000; box-shadow:0 50px 110px -34px rgba(60,38,18,.6), 0 0 0 12px #18130f, 0 0 0 14px #2c2419; flex:none;">
+    <div style="position:absolute; inset:0; border-radius:48px; overflow:hidden; background:#eceef1;">
+
+      <!-- ============ HOME ============ -->
+      <sc-if value="{{ showHome }}" hint-placeholder-val="{{ true }}">
+      <div class="noscroll" style="position:absolute; inset:0; overflow-y:auto; background:#eceef1;">
+
+        <div style="position:relative; height:516px;">
+          <img src="{{ hero.poster }}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
+          <div style="position:absolute; inset:0; background:linear-gradient(180deg, rgba(26,15,5,.5) 0%, rgba(26,15,5,0) 26%, rgba(26,15,5,0) 60%, rgba(236,238,241,.65) 84%, #eceef1 100%);"></div>
+
+          <div style="position:absolute; top:15px; left:0; right:0; height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 30px; color:#fff; z-index:6;">
+            <span style="font-weight:800; font-size:16px; letter-spacing:.4px;">12:40</span>
+            <span style="display:flex; align-items:center; gap:7px;">
+              <span style="display:flex; align-items:flex-end; gap:2px; height:12px;">
+                <i style="width:3px; height:5px; background:#fff; border-radius:1px; display:block;"></i>
+                <i style="width:3px; height:7px; background:#fff; border-radius:1px; display:block;"></i>
+                <i style="width:3px; height:10px; background:#fff; border-radius:1px; display:block;"></i>
+                <i style="width:3px; height:12px; background:rgba(255,255,255,.45); border-radius:1px; display:block;"></i>
+              </span>
+              <span style="width:18px; height:13px; border:2px solid #fff; border-radius:4px; position:relative; display:block;">
+                <i style="position:absolute; top:2px; bottom:2px; left:2px; right:5px; background:#fff; border-radius:1px;"></i>
+              </span>
+            </span>
+          </div>
+
+          <div style="position:absolute; top:62px; left:0; right:0; padding:0 20px; display:flex; align-items:flex-start; justify-content:space-between; z-index:6;">
+            <div>
+              <img src="assets/jooz_white.png" style="height:19px; width:auto; display:block; filter:drop-shadow(0 1px 6px rgba(0,0,0,.35));">
+              <div style="color:#fff; font-weight:700; font-size:13px; margin-top:6px; white-space:nowrap; text-shadow:0 1px 8px rgba(0,0,0,.4);">Авиапарк · 1 этаж · до 22:00</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div onClick="{{ openProfile }}" style="width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,.94); border:2px solid rgba(255,255,255,.7); display:flex; align-items:flex-end; justify-content:center; overflow:hidden; cursor:pointer; box-shadow:0 8px 20px rgba(40,20,8,.28); position:relative;">
+                <div style="width:13px; height:13px; border-radius:50%; background:#c2b6a3; position:absolute; top:9px;"></div>
+                <div style="width:24px; height:14px; border-radius:12px 12px 0 0; background:#c2b6a3; position:absolute; bottom:0;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div onClick="{{ hero.onOpen }}" style="position:absolute; left:0; right:0; bottom:14px; padding:0 24px; z-index:6; text-align:center; cursor:pointer;">
+            <div style="color:#1d2027; font-weight:900; font-size:27px; line-height:1.08; letter-spacing:-.4px;">{{ hero.name }}</div>
+            <div style="color:#3a3e47; font-weight:800; font-size:17px; margin-top:6px;">{{ hero.priceLabel }}</div>
+          </div>
+        </div>
+
+        <div class="noscroll" style="display:flex; gap:20px; overflow-x:auto; padding:6px 24px 4px;">
+          <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+            <span onClick="{{ t.onTap }}" style="font-weight:900; font-size:20px; white-space:nowrap; cursor:pointer; color:{{ t.color }};">{{ t.label }}</span>
+          </sc-for>
+        </div>
+
+        <div style="padding:18px 16px 130px;">
+          <sc-for list="{{ sections }}" as="sec" hint-placeholder-count="2">
+            <sc-if value="{{ sec.hasTitle }}" hint-placeholder-val="{{ true }}">
+              <div style="font-weight:900; font-size:23px; color:#1d2027; padding:8px 6px 14px;">{{ sec.title }}</div>
+            </sc-if>
+
+            <sc-if value="{{ sec.hasBig }}" hint-placeholder-val="{{ false }}">
+              <div onClick="{{ sec.big.onOpen }}" style="display:flex; align-items:center; gap:14px; background:#fff; border-radius:24px; padding:13px; box-shadow:0 16px 32px -22px rgba(40,50,80,.5); cursor:pointer; margin-bottom:16px;">
+                <div style="position:relative; width:104px; height:124px; flex:none;">
+                  <img src="{{ sec.big.poster }}" style="width:104px; height:124px; object-fit:cover; border-radius:18px; display:block;">
+                  <img src="assets/jooz_white.png" style="position:absolute; left:50%; top:54%; transform:translate(-50%,-50%); width:62px; opacity:.92; filter:drop-shadow(0 2px 6px rgba(0,0,0,.35));">
+                </div>
+                <div style="flex:1; min-width:0;">
+                  <div style="font-weight:800; font-size:18px; color:#1d2027; line-height:1.18;">{{ sec.big.name }}</div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; margin-top:18px;">
+                    <div style="font-weight:800; font-size:17px; color:#1d2027; white-space:nowrap;">{{ sec.big.priceLabel }}</div>
+                    <div style="width:30px; height:30px; border-radius:50%; background:#eef0f4; display:flex; align-items:center; justify-content:center; color:#1d2027; font-weight:800;">→</div>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+              <sc-for list="{{ sec.grid }}" as="p" hint-placeholder-count="2">
+                <div onClick="{{ p.onOpen }}" style="background:#fff; border-radius:22px; overflow:hidden; box-shadow:0 16px 32px -22px rgba(40,50,80,.5); cursor:pointer;">
+                  <div style="position:relative; width:100%; height:158px;">
+                    <img src="{{ p.poster }}" style="width:100%; height:158px; object-fit:cover; display:block;">
+                    <img src="assets/jooz_white.png" style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:80px; opacity:.92; filter:drop-shadow(0 2px 7px rgba(0,0,0,.35));">
+                  </div>
+                  <div style="padding:12px 13px 14px;">
+                    <div style="font-weight:800; font-size:15px; color:#1d2027; line-height:1.15; min-height:35px;">{{ p.name }}</div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:9px;">
+                      <span style="font-weight:800; font-size:15px; color:#1d2027; white-space:nowrap;">{{ p.priceLabel }}</span>
+                      <span style="width:26px; height:26px; border-radius:50%; background:#eef0f4; display:flex; align-items:center; justify-content:center; font-weight:800; color:#1d2027;">→</span>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ cartHas }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ openProfile }}" style="position:absolute; left:18px; right:18px; bottom:26px; z-index:9; height:60px; border-radius:999px; background:#3a3de0; color:#fff; display:flex; align-items:center; justify-content:space-between; padding:0 14px 0 22px; box-shadow:0 16px 34px -10px rgba(58,61,224,.6); cursor:pointer;">
+          <span style="font-weight:800; font-size:17px;">{{ cartLabel }}</span>
+          <span style="height:42px; padding:0 18px; border-radius:999px; background:rgba(255,255,255,.2); display:flex; align-items:center; font-weight:800; font-size:16px;">Оформить →</span>
+        </div>
+      </sc-if>
+      </sc-if>
+
+      <!-- ============ CONSTRUCTOR ============ -->
+      <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+      <div dir="{{ dir }}" style="position:absolute; inset:0; overflow:hidden; background:#1a120b; animation:fadeIn .22s ease both;">
+        <img src="{{ detail.poster }}" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
+
+        <sc-if value="{{ chipActive }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; inset:0; backdrop-filter:blur(6px); background:rgba(28,17,7,.16); z-index:2;"></div>
+        </sc-if>
+
+        <div style="position:absolute; top:0; left:0; right:0; height:300px; background:linear-gradient(180deg, rgba(18,11,5,.72) 0%, rgba(18,11,5,0) 100%); z-index:3; pointer-events:none;"></div>
+        <div style="position:absolute; bottom:0; left:0; right:0; height:440px; background:linear-gradient(180deg, rgba(150,86,28,0) 0%, rgba(146,82,26,.5) 40%, rgba(118,64,18,.93) 100%); z-index:3; pointer-events:none;"></div>
+
+        <div style="position:absolute; top:15px; left:0; right:0; height:42px; display:flex; align-items:center; justify-content:space-between; padding:0 32px; color:#fff; z-index:8;">
+          <span style="font-weight:800; font-size:16px; letter-spacing:.4px;">12:41</span>
+          <span style="display:flex; align-items:center; gap:7px;">
+            <span style="display:flex; align-items:flex-end; gap:2px; height:12px;">
+              <i style="width:3px; height:5px; background:#fff; border-radius:1px; display:block;"></i>
+              <i style="width:3px; height:7px; background:#fff; border-radius:1px; display:block;"></i>
+              <i style="width:3px; height:10px; background:#fff; border-radius:1px; display:block;"></i>
+              <i style="width:3px; height:12px; background:rgba(255,255,255,.45); border-radius:1px; display:block;"></i>
+            </span>
+            <span style="width:18px; height:13px; border:2px solid #fff; border-radius:4px; position:relative; display:block;">
+              <i style="position:absolute; top:2px; bottom:2px; left:2px; right:5px; background:#fff; border-radius:1px;"></i>
+            </span>
+          </span>
+        </div>
+
+        <sc-if value="{{ topVisible }}" hint-placeholder-val="{{ true }}">
+        <div style="position:absolute; top:62px; left:0; right:0; padding:0 16px; display:flex; align-items:center; justify-content:space-between; gap:8px; z-index:8;">
+          <div style="display:flex; background:rgba(255,255,255,.16); backdrop-filter:blur(8px); border-radius:999px; padding:3px; flex:none;">
+            <div onClick="{{ setEn }}" style="padding:6px 11px; border-radius:999px; font-weight:800; font-size:12px; cursor:pointer; background:{{ langEnBgD }}; color:{{ langEnColorD }};">EN</div>
+            <div onClick="{{ setAr }}" style="padding:6px 11px; border-radius:999px; font-weight:800; font-size:12px; cursor:pointer; background:{{ langArBgD }}; color:{{ langArColorD }};">عربي</div>
+          </div>
+          <div style="position:absolute; left:98px; right:98px; top:1px; text-align:center; color:#fff; font-weight:800; font-size:19px; line-height:1.12; text-shadow:0 2px 14px rgba(0,0,0,.4); pointer-events:none;">{{ detail.name }}</div>
+          <div onClick="{{ closeDetail }}" style="width:54px; height:54px; flex:none; border-radius:50%; background:rgba(38,26,14,.46); backdrop-filter:blur(10px); display:flex; align-items:center; justify-content:center; cursor:pointer; color:#fff; font-size:20px; font-weight:700;">✕</div>
+        </div>
+        </sc-if>
+
+        <div style="position:absolute; top:150px; left:0; right:0; padding:0 18px; display:flex; justify-content:space-between; z-index:8; color:#fff; transform:{{ nutShift }}; transition:transform .34s cubic-bezier(.3,1,.4,1);">
+          <div style="text-align:center; flex:1;"><div style="font-weight:800; font-size:19px;">{{ nut.kcal }} {{ L.kcal }}</div><div style="font-weight:600; font-size:12.5px; opacity:.72;">{{ L.energy }}</div></div>
+          <div style="text-align:center; flex:1;"><div style="font-weight:800; font-size:19px;">{{ nut.protein }} {{ L.g }}</div><div style="font-weight:600; font-size:12.5px; opacity:.72;">{{ L.protein }}</div></div>
+          <div style="text-align:center; flex:1;"><div style="font-weight:800; font-size:19px;">{{ nut.fat }} {{ L.g }}</div><div style="font-weight:600; font-size:12.5px; opacity:.72;">{{ L.fat }}</div></div>
+          <div style="text-align:center; flex:1;"><div style="font-weight:800; font-size:19px;">{{ nut.carb }} {{ L.g }}</div><div style="font-weight:600; font-size:12.5px; opacity:.72;">{{ L.carbs }}</div></div>
+        </div>
+
+        <div onClick="{{ openDetails }}" style="position:absolute; top:214px; left:50%; transform:{{ detShift }}; transition:transform .34s cubic-bezier(.3,1,.4,1); z-index:8; background:rgba(38,26,14,.46); backdrop-filter:blur(10px); color:#fff; font-weight:700; font-size:15px; padding:9px 18px; border-radius:999px; cursor:pointer; white-space:nowrap;">{{ L.details }} ⌄</div>
+
+        <sc-if value="{{ raised.visible }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute; left:0; right:0; bottom:250px; z-index:6; display:flex; justify-content:center; gap:14px; padding:0 18px;">
+            <sc-for list="{{ raised.options }}" as="o" hint-placeholder-count="2">
+              <sc-if value="{{ o.selected }}" hint-placeholder-val="{{ false }}">
+                <div style="width:152px; border-radius:24px; padding:16px 14px 14px; background:#fff; box-shadow:0 22px 44px -16px rgba(0,0,0,.5); display:flex; flex-direction:column; align-items:center;">
+                  <img src="{{ o.icon }}" style="width:90px; height:90px; object-fit:contain; margin:-6px 0 2px; filter:drop-shadow(0 8px 12px rgba(40,25,8,.3)); animation:pop .4s cubic-bezier(.3,1.4,.5,1) both;">
+                  <div style="font-weight:800; font-size:15.5px; color:#241a12; text-align:center; line-height:1.15; min-height:38px; display:flex; align-items:center;">{{ o.name }}</div>
+                  <sc-if value="{{ o.hasPrice }}" hint-placeholder-val="{{ false }}"><div style="font-weight:700; font-size:13.5px; color:#9c9081; margin:3px 0 12px; white-space:nowrap;">{{ o.priceLabel }}</div></sc-if>
+                  <sc-if value="{{ o.stepper }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <div onClick="{{ o.onDec }}" style="width:42px; height:42px; border-radius:50%; background:#f0ece4; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#241a12; cursor:pointer;">−</div>
+                      <div style="min-width:30px; text-align:center; font-weight:800; font-size:18px; color:#241a12;">{{ o.qty }}</div>
+                      <div onClick="{{ o.onInc }}" style="width:42px; height:42px; border-radius:50%; background:#f0ece4; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:700; color:#241a12; cursor:pointer;">+</div>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ o.showCheck }}" hint-placeholder-val="{{ false }}">
+                    <div onClick="{{ o.onPick }}" style="width:42px; height:42px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; color:#3a3de0; cursor:pointer;">✓</div>
+                  </sc-if>
+                </div>
+              </sc-if>
+              <sc-if value="{{ o.notSelected }}" hint-placeholder-val="{{ true }}">
+                <div onClick="{{ o.onPick }}" style="width:152px; border-radius:24px; padding:16px 14px 14px; background:rgba(70,48,26,.5); backdrop-filter:blur(14px); border:1px solid rgba(255,255,255,.14); display:flex; flex-direction:column; align-items:center; cursor:pointer;">
+                  <img src="{{ o.icon }}" style="width:74px; height:74px; object-fit:contain; margin-bottom:6px; filter:drop-shadow(0 6px 10px rgba(0,0,0,.3));">
+                  <div style="font-weight:800; font-size:15.5px; color:#fff; text-align:center; line-height:1.15; min-height:38px; display:flex; align-items:center;">{{ o.name }}</div>
+                  <sc-if value="{{ o.hasPrice }}" hint-placeholder-val="{{ false }}"><div style="font-weight:700; font-size:13.5px; color:rgba(255,255,255,.7); margin:3px 0 12px; white-space:nowrap;">{{ o.priceLabel }}</div></sc-if>
+                  <div style="width:42px; height:42px; border-radius:50%; background:rgba(255,255,255,.16); display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:600; color:#fff;">+</div>
+                </div>
+              </sc-if>
+            </sc-for>
+          </div>
+        </sc-if>
+
+        <div class="noscroll" style="position:absolute; left:0; right:0; bottom:126px; z-index:6; display:flex; gap:12px; overflow-x:auto; padding:14px 18px 0;">
+          <sc-for list="{{ chips }}" as="c" hint-placeholder-count="6">
+            <div onClick="{{ c.onTap }}" style="flex:none; width:106px; height:116px; border-radius:24px; background:rgba(70,48,26,.5); backdrop-filter:blur(12px); box-shadow:{{ c.ring }}; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; padding:9px 6px 8px; cursor:pointer;">
+              <div style="position:relative; height:50px; display:flex; align-items:center; justify-content:center; gap:3px; transform:{{ c.iconScale }}; transition:transform .24s cubic-bezier(.3,1.35,.5,1);">
+                <sc-for list="{{ c.icons }}" as="ic" hint-placeholder-count="1">
+                  <img src="{{ ic.src }}" style="width:{{ ic.size }}; height:{{ ic.size }}; object-fit:contain; filter:drop-shadow(0 3px 5px rgba(0,0,0,.3));">
+                </sc-for>
+                <sc-if value="{{ c.hasCount }}" hint-placeholder-val="{{ false }}">
+                  <div style="position:absolute; top:-6px; right:-12px; min-width:20px; height:20px; padding:0 5px; border-radius:10px; background:#3a3de0; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">{{ c.count }}</div>
+                </sc-if>
+              </div>
+              <div style="font-weight:700; font-size:12.5px; color:#fff; text-align:center; line-height:1.08; padding:0 2px;">{{ c.name }}</div>
+              <sc-if value="{{ c.hasSub }}" hint-placeholder-val="{{ false }}"><div style="font-weight:800; font-size:11.5px; color:rgba(255,255,255,.82); margin-top:1px; white-space:nowrap;">{{ c.sub }}</div></sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="position:absolute; left:0; right:0; bottom:26px; z-index:8; padding:0 18px; display:flex; gap:12px; align-items:center;">
+          <div onClick="{{ cycleSize }}" style="height:62px; flex:none; padding:0 22px; border-radius:999px; background:rgba(38,26,14,.46); backdrop-filter:blur(10px); color:#fff; font-weight:800; font-size:17px; display:flex; align-items:center; justify-content:center; cursor:pointer; white-space:nowrap;">{{ sizeLabel }}</div>
+          <div onClick="{{ addToCart }}" style="flex:1; height:62px; border-radius:999px; background:#3a3de0; color:#fff; font-weight:800; font-size:19px; display:flex; align-items:center; justify-content:center; gap:9px; cursor:pointer; white-space:nowrap; box-shadow:0 16px 34px -10px rgba(58,61,224,.62);"><span style="font-size:24px; font-weight:500;">+</span> {{ addLabel }}</div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ============ DETAILS SHEET ============ -->
+      <sc-if value="{{ detailsOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeDetails }}" style="position:absolute; inset:0; background:rgba(20,12,5,.4); z-index:18; animation:fadeIn .25s ease both;"></div>
+        <div class="noscroll" style="position:absolute; left:0; right:0; bottom:0; height:660px; background:#fff; border-radius:30px 30px 48px 48px; z-index:19; overflow-y:auto; padding:24px 26px 40px; animation:sheetUp .38s cubic-bezier(.22,1,.36,1) both;">
+          <div onClick="{{ closeDetails }}" style="position:absolute; top:20px; right:22px; width:46px; height:46px; border-radius:50%; background:#f3efe7; display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:700; color:#241a12; cursor:pointer;">✕</div>
+          <div style="font-weight:900; font-size:27px; color:#1d2027; line-height:1.08; max-width:280px; margin-top:6px;">{{ detail.name }}</div>
+          <div style="font-weight:600; font-size:16px; color:#6a7079; line-height:1.45; margin-top:14px;">{{ detail.desc }}</div>
+          <div style="font-weight:900; font-size:21px; color:#1d2027; margin-top:28px;">что внутри</div>
+          <div style="font-weight:600; font-size:15.5px; color:#6a7079; line-height:1.5; margin-top:8px;">{{ detail.inside }}</div>
+          <div style="font-weight:900; font-size:21px; color:#1d2027; margin-top:24px;">аллергены</div>
+          <div style="font-weight:600; font-size:15.5px; color:#6a7079; line-height:1.5; margin-top:8px;">{{ detail.allergens }}</div>
+          <div style="font-weight:900; font-size:21px; color:#1d2027; margin-top:24px;">может содержать</div>
+          <div style="font-weight:600; font-size:15.5px; color:#6a7079; line-height:1.5; margin-top:8px;">{{ detail.may }}</div>
+        </div>
+      </sc-if>
+
+      <!-- ============ PROFILE (ЛК) ============ -->
+      <sc-if value="{{ profileOpen }}" hint-placeholder-val="{{ false }}">
+        <div onClick="{{ closeProfile }}" style="position:absolute; inset:0; background:rgba(15,10,4,.45); z-index:20; animation:fadeIn .25s ease both;"></div>
+        <div dir="{{ dir }}" class="noscroll" style="position:absolute; left:0; right:0; top:34px; bottom:0; z-index:21; background:linear-gradient(180deg, #f0a23a 0%, #f3c98f 10%, #eef0f3 19%, #eef0f3 100%); border-radius:30px 30px 48px 48px; overflow-y:auto; padding:18px 18px 150px; animation:sheetUp .4s cubic-bezier(.22,1,.36,1) both;">
+          <div style="position:relative; display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:20px;">
+            <div style="display:flex; background:rgba(255,255,255,.7); border-radius:999px; padding:3px; position:relative; z-index:1;">
+              <div onClick="{{ setEn }}" style="padding:6px 13px; border-radius:999px; font-weight:800; font-size:13px; cursor:pointer; background:{{ langEnBg }}; color:{{ langEnColor }};">EN</div>
+              <div onClick="{{ setAr }}" style="padding:6px 13px; border-radius:999px; font-weight:800; font-size:13px; cursor:pointer; background:{{ langArBg }}; color:{{ langArColor }};">عربي</div>
+            </div>
+            <div style="position:absolute; left:0; right:0; text-align:center; font-weight:800; font-size:18px; color:#1d2027; pointer-events:none;">{{ L.profile }}</div>
+            <div onClick="{{ closeProfile }}" style="width:46px; height:46px; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:700; color:#1d2027; cursor:pointer; position:relative; z-index:1; box-shadow:0 6px 16px rgba(40,20,8,.14);">✕</div>
+          </div>
+
+          <sc-if value="{{ prof.hasPhone }}" hint-placeholder-val="{{ true }}">
+            <div onClick="{{ startEditInfo }}" style="background:#fff; border-radius:24px; padding:16px; display:flex; align-items:center; gap:15px; box-shadow:0 14px 30px -20px rgba(40,50,80,.5); cursor:pointer;">
+              <div style="width:64px; height:64px; border-radius:50%; flex:none; background:linear-gradient(145deg,#3a3de0,#7b80ff); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:900; font-size:24px; box-shadow:0 8px 18px -6px rgba(58,61,224,.5);">
+                <sc-if value="{{ prof.hasName }}" hint-placeholder-val="{{ true }}">{{ prof.initials }}</sc-if>
+                <sc-if value="{{ prof.noName }}" hint-placeholder-val="{{ false }}"><div style="position:relative; width:26px; height:26px;"><div style="position:absolute; left:50%; top:0; transform:translateX(-50%); width:11px; height:11px; border-radius:50%; background:#fff;"></div><div style="position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:22px; height:12px; border-radius:11px 11px 0 0; background:#fff;"></div></div></sc-if>
+              </div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-weight:800; font-size:21px; color:#1d2027;">{{ prof.name }}</div>
+                <div style="font-weight:600; font-size:15px; color:#8a8f99; margin-top:2px;">{{ prof.phone }}</div>
+              </div>
+              <div style="width:38px; height:38px; border-radius:50%; background:#f2f3f6; display:flex; align-items:center; justify-content:center; flex:none; font-size:16px;">✎</div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ prof.profNew }}" hint-placeholder-val="{{ false }}">
+            <div style="background:#fff; border-radius:24px; padding:24px 18px; display:flex; flex-direction:column; align-items:center; text-align:center; box-shadow:0 14px 30px -20px rgba(40,50,80,.5);">
+              <div style="width:78px; height:78px; border-radius:50%; background:linear-gradient(145deg,#3a3de0,#7b80ff); display:flex; align-items:center; justify-content:center; box-shadow:0 10px 22px -6px rgba(58,61,224,.5); margin-bottom:14px;">
+                <div style="position:relative; width:34px; height:34px;"><div style="position:absolute; left:50%; top:0; transform:translateX(-50%); width:14px; height:14px; border-radius:50%; background:#fff;"></div><div style="position:absolute; left:50%; bottom:0; transform:translateX(-50%); width:28px; height:15px; border-radius:14px 14px 0 0; background:#fff;"></div></div>
+              </div>
+              <div style="font-weight:800; font-size:19px; color:#1d2027; max-width:250px; line-height:1.25;">{{ L.addInfo }}</div>
+              <div onClick="{{ startEditInfo }}" style="margin-top:16px; height:48px; padding:0 28px; border-radius:999px; background:#3a3de0; color:#fff; font-weight:800; font-size:16px; display:flex; align-items:center; cursor:pointer; white-space:nowrap;">{{ L.signin }}</div>
+            </div>
+          </sc-if>
+
+          <div style="font-weight:900; font-size:19px; color:#1d2027; margin:24px 4px 12px;">{{ L.car }}</div>
+          <sc-if value="{{ prof.hasCar }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ startEditCar }}" style="background:#fff; border-radius:22px; padding:14px; display:flex; align-items:center; gap:12px; box-shadow:0 14px 30px -20px rgba(40,50,80,.5); cursor:pointer;">
+              <div style="flex:1; background:#fcfcfa; border:2.5px solid #15171c; border-radius:12px; padding:8px 12px; display:flex; align-items:center; gap:12px;">
+                <div style="display:flex; flex-direction:column; line-height:1.05;">
+                  <div style="font-size:10px; font-weight:900; color:#c0392b; letter-spacing:.3px;">{{ prof.emirateName }}</div>
+                  <div style="font-size:8.5px; font-weight:800; color:#15171c; letter-spacing:1px; margin-top:2px;">U.A.E</div>
+                </div>
+                <div style="width:1.5px; height:32px; background:#dcdcd6;"></div>
+                <div style="font-weight:900; font-size:23px; color:#15171c;">{{ prof.code }}</div>
+                <div style="font-weight:900; font-size:27px; color:#15171c; letter-spacing:1px; flex:1; text-align:center;">{{ prof.plate }}</div>
+              </div>
+              <div style="width:38px; height:38px; border-radius:50%; background:#f2f3f6; display:flex; align-items:center; justify-content:center; flex:none; font-size:16px;">✎</div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ prof.noCar }}" hint-placeholder-val="{{ true }}">
+            <div onClick="{{ startEditCar }}" style="background:rgba(255,255,255,.55); border:2px dashed #c2c6cd; border-radius:22px; padding:20px; display:flex; align-items:center; justify-content:center; gap:10px; cursor:pointer;">
+              <div style="width:34px; height:34px; border-radius:50%; background:#3a3de0; color:#fff; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:500;">+</div>
+              <div style="font-weight:800; font-size:16px; color:#1d2027; white-space:nowrap;">{{ L.addCar }}</div>
+            </div>
+          </sc-if>
+
+          <div style="font-weight:900; font-size:19px; color:#1d2027; margin:24px 4px 12px;">{{ L.orders }}</div>
+          <div style="display:flex; flex-direction:column; align-items:center; padding:22px 0 6px;">
+            <div style="width:96px; height:96px; border-radius:50%; background:#dde0e5; display:flex; align-items:center; justify-content:center; margin-bottom:16px;">
+              <div style="width:42px; height:42px; border-radius:50%; border:5px solid #eef0f3; position:relative;">
+                <i style="position:absolute; left:50%; top:7px; width:4px; height:13px; background:#eef0f3; border-radius:2px; transform:translateX(-50%);"></i>
+                <i style="position:absolute; left:50%; top:16px; width:11px; height:4px; background:#eef0f3; border-radius:2px; transform-origin:left; transform:rotate(40deg);"></i>
+              </div>
+            </div>
+            <div style="font-weight:800; font-size:18px; color:#1d2027; text-align:center; max-width:240px;">{{ L.noOrders }}</div>
+          </div>
+
+          <sc-if value="{{ prof.hasPhone }}" hint-placeholder-val="{{ false }}">
+            <div onClick="{{ signOut }}" style="text-align:center; margin-top:18px; font-weight:700; font-size:15px; color:#b04a3a; cursor:pointer;">{{ L.signout }}</div>
+          </sc-if>
+        </div>
+        <div onClick="{{ closeProfile }}" style="position:absolute; left:18px; right:18px; bottom:26px; z-index:22; height:62px; border-radius:999px; background:#3a3de0; color:#fff; font-weight:800; font-size:19px; display:flex; align-items:center; justify-content:center; cursor:pointer; white-space:nowrap; box-shadow:0 16px 34px -10px rgba(58,61,224,.6);">{{ L.order }}</div>
+
+        <sc-if value="{{ editInfo }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ cancelEdit }}" style="position:absolute; inset:0; background:rgba(15,10,4,.5); z-index:30; animation:fadeIn .2s ease both;"></div>
+          <div dir="{{ dir }}" style="position:absolute; left:0; right:0; bottom:0; z-index:31; background:#fff; border-radius:28px 28px 48px 48px; padding:14px 22px 30px; animation:sheetUp .34s cubic-bezier(.22,1,.36,1) both;">
+            <div style="width:42px; height:5px; border-radius:3px; background:#e2e3e7; margin:0 auto 18px;"></div>
+            <div style="font-weight:900; font-size:23px; color:#1d2027; margin-bottom:18px;">{{ L.editInfo }}</div>
+            <div style="font-weight:700; font-size:13px; color:#8a8f99; margin:0 0 7px 4px;">{{ L.name }}</div>
+            <input value="{{ draftName }}" onInput="{{ onDraftName }}" placeholder="{{ L.namePh }}" style="width:100%; height:54px; border:2px solid #eceef1; border-radius:16px; padding:0 16px; font-size:17px; font-weight:700; color:#1d2027; font-family:inherit; outline:none; background:#f7f8fa;">
+            <div style="font-weight:700; font-size:13px; color:#8a8f99; margin:16px 0 7px 4px;">{{ L.phone }}</div>
+            <input value="{{ draftPhone }}" onInput="{{ onDraftPhone }}" inputmode="tel" placeholder="{{ L.phonePh }}" style="width:100%; height:54px; border:2px solid #eceef1; border-radius:16px; padding:0 16px; font-size:17px; font-weight:700; color:#1d2027; font-family:inherit; outline:none; background:#f7f8fa;">
+            <div style="display:flex; gap:12px; margin-top:22px;">
+              <div onClick="{{ cancelEdit }}" style="flex:1; height:56px; border-radius:999px; background:#f2f3f6; color:#1d2027; font-weight:800; font-size:17px; display:flex; align-items:center; justify-content:center; cursor:pointer;">{{ L.cancel }}</div>
+              <div onClick="{{ saveInfo }}" style="flex:1.4; height:56px; border-radius:999px; background:#3a3de0; color:#fff; font-weight:800; font-size:17px; display:flex; align-items:center; justify-content:center; cursor:pointer;">{{ L.save }}</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ editCar }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ cancelEdit }}" style="position:absolute; inset:0; background:rgba(15,10,4,.5); z-index:30; animation:fadeIn .2s ease both;"></div>
+          <div dir="{{ dir }}" class="noscroll" style="position:absolute; left:0; right:0; bottom:0; max-height:90%; overflow-y:auto; z-index:31; background:#fff; border-radius:28px 28px 48px 48px; padding:14px 22px 30px; animation:sheetUp .34s cubic-bezier(.22,1,.36,1) both;">
+            <div style="width:42px; height:5px; border-radius:3px; background:#e2e3e7; margin:0 auto 18px;"></div>
+            <div style="font-weight:900; font-size:23px; color:#1d2027; margin-bottom:16px;">{{ L.addCar }}</div>
+            <div style="background:#fcfcfa; border:2.5px solid #15171c; border-radius:12px; padding:10px 14px; display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+              <div style="display:flex; flex-direction:column; line-height:1.05;">
+                <div style="font-size:10px; font-weight:900; color:#c0392b;">{{ draftEmirateName }}</div>
+                <div style="font-size:8.5px; font-weight:800; color:#15171c; letter-spacing:1px; margin-top:2px;">U.A.E</div>
+              </div>
+              <div style="width:1.5px; height:32px; background:#dcdcd6;"></div>
+              <div style="font-weight:900; font-size:23px; color:#15171c;">{{ draftCode }}</div>
+              <div style="font-weight:900; font-size:27px; color:#15171c; letter-spacing:1px; flex:1; text-align:center;">{{ draftPlate }}</div>
+            </div>
+            <div style="font-weight:700; font-size:13px; color:#8a8f99; margin:0 0 8px 4px;">{{ L.emirate }}</div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+              <sc-for list="{{ emirates }}" as="e" hint-placeholder-count="7">
+                <div onClick="{{ e.onSelect }}" style="padding:9px 14px; border-radius:999px; font-weight:800; font-size:14px; cursor:pointer; background:{{ e.bg }}; color:{{ e.color }};">{{ e.name }}</div>
+              </sc-for>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:18px;">
+              <div style="width:104px;">
+                <div style="font-weight:700; font-size:13px; color:#8a8f99; margin:0 0 7px 4px;">{{ L.code }}</div>
+                <input value="{{ draftCode }}" onInput="{{ onDraftCode }}" placeholder="A" style="width:100%; height:54px; border:2px solid #eceef1; border-radius:16px; padding:0 14px; font-size:17px; font-weight:800; color:#1d2027; font-family:inherit; outline:none; background:#f7f8fa; text-align:center;">
+              </div>
+              <div style="flex:1;">
+                <div style="font-weight:700; font-size:13px; color:#8a8f99; margin:0 0 7px 4px;">{{ L.plate }}</div>
+                <input value="{{ draftPlate }}" onInput="{{ onDraftPlate }}" inputmode="numeric" placeholder="{{ L.platePh }}" style="width:100%; height:54px; border:2px solid #eceef1; border-radius:16px; padding:0 16px; font-size:17px; font-weight:800; color:#1d2027; font-family:inherit; outline:none; background:#f7f8fa;">
+              </div>
+            </div>
+            <div style="display:flex; gap:12px; margin-top:22px;">
+              <div onClick="{{ cancelEdit }}" style="flex:1; height:56px; border-radius:999px; background:#f2f3f6; color:#1d2027; font-weight:800; font-size:17px; display:flex; align-items:center; justify-content:center; cursor:pointer;">{{ L.cancel }}</div>
+              <div onClick="{{ saveCar }}" style="flex:1.4; height:56px; border-radius:999px; background:#3a3de0; color:#fff; font-weight:800; font-size:17px; display:flex; align-items:center; justify-content:center; cursor:pointer;">{{ L.save }}</div>
+            </div>
+          </div>
+        </sc-if>
+      </sc-if>
+
+    </div>
+    <div style="position:absolute; top:12px; left:50%; transform:translateX(-50%); width:122px; height:34px; background:#0a0908; border-radius:20px; z-index:60;"></div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 540, &quot;height&quot;: 940}}">
+class Component extends DCLogic {
+  state = {
+    screen: 'home',
+    tab: 'season',
+    drinkId: 'caramel',
+    sizeIdx: 0,
+    opts: { temp: 'ice', ice: 'with' },
+    activeChip: null,
+    detailsOpen: false,
+    profileOpen: false,
+    lang: 'en',
+    profile: { name:'Малик', phone:'+971 50 123 4567', emirate:'DXB', code:'A', plate:'82741' },
+    pEdit: null,
+    draft: {},
+    fav: {},
+    cart: 0,
+  };
+
+  LANGS = {
+    en: { profile:'Profile', editInfo:'Edit details', name:'Name', phone:'Phone number', addInfo:'Add your name and phone to speed up orders', signin:'Add details', car:'My car', plate:'Plate number', emirate:'Emirate', addCar:'Add car plate', code:'Code', save:'Save', cancel:'Cancel', orders:'Order history', noOrders:'Your orders will appear here', signout:'Sign out', order:'Order', guest:'Guest', namePh:'Your name', phonePh:'+971 50 000 0000', platePh:'00000', kcal:'kcal', g:'g', energy:'Energy', protein:'Protein', fat:'Fat', carbs:'Carbs', details:'details', ml:'ml' },
+    ar: { profile:'الملف الشخصي', editInfo:'تعديل البيانات', name:'الاسم', phone:'رقم الهاتف', addInfo:'أضف اسمك ورقمك لتسريع الطلبات', signin:'أضف بياناتك', car:'سيارتي', plate:'رقم اللوحة', emirate:'الإمارة', addCar:'أضف لوحة سيارتك', code:'الرمز', save:'حفظ', cancel:'إلغاء', orders:'سجل الطلبات', noOrders:'ستظهر طلباتك هنا', signout:'تسجيل الخروج', order:'اطلب الآن', guest:'ضيف', namePh:'اسمك', phonePh:'+971 50 000 0000', platePh:'00000', kcal:'سعرة', g:'غ', energy:'طاقة', protein:'بروتين', fat:'دهون', carbs:'كربوهيدرات', details:'التفاصيل', ml:'مل' },
+  };
+
+  EMIRATES = [
+    { id:'AUH', en:'Abu Dhabi', ar:'أبوظبي' },
+    { id:'DXB', en:'Dubai', ar:'دبي' },
+    { id:'SHJ', en:'Sharjah', ar:'الشارقة' },
+    { id:'AJM', en:'Ajman', ar:'عجمان' },
+    { id:'RAK', en:'Ras Al Khaimah', ar:'رأس الخيمة' },
+    { id:'FUJ', en:'Fujairah', ar:'الفجيرة' },
+    { id:'UAQ', en:'Umm Al Quwain', ar:'أم القيوين' },
+  ];
+
+  ICONS = { hot:'assets/icons/ic_hot.png', ice:'assets/icons/ic_iced.png', protein:'assets/icons/ic_protein.png', collagen:'assets/icons/ic_collagen.png', cocoa:'assets/icons/ic_cocoa.png', cinnamon:'assets/icons/ic_cinnamon.png', mango:'assets/icons/ic_foam_mango.png', plombir:'assets/icons/ic_foam_plombir.png', vanilla:'assets/icons/ic_syrup_vanilla.png', hazelnut:'assets/icons/ic_syrup_hazelnut.png', with:'assets/icons/ic_ice.png', without:'assets/icons/ic_ice_no.png', sauce:'assets/icons/ic_sauce.png', salted:'assets/icons/ic_caramel.png', popballs:'assets/icons/ic_popballs.png', flowers:'assets/icons/ic_flowers.png' };
+
+  DRINKS = [
+    { id:'caramel', name:'Айс латте Карамель на пекане', note:'хит сезона', poster:'assets/poster_caramel.jpg', video:'uploads/5866001-hd_1080_1920_24fps.mp4',
+      kcal:304, protein:5.2, fat:13.2, carb:38.8, sizes:[{ml:350,price:395},{ml:400,price:425}],
+      desc:'Холодный латте со слоями тягучего карамельного сиропа, ноткой пекана и облаком молочной пенки.',
+      inside:'молоко, эспрессо, карамельный сироп, паста пекан, лёд',
+      allergens:'молоко (лактоза), орехи (пекан)',
+      may:'молоко, глютен, орехи, соя, какао, кунжут' },
+    { id:'icelatte', name:'Айс латте на кокосовом', note:'на кокосовом молоке', poster:'assets/poster_icelatte.jpg', video:'uploads/13878342_2160_3840_30fps.mp4',
+      kcal:346, protein:5.6, fat:16.1, carb:42.7, sizes:[{ml:350,price:425},{ml:400,price:455}],
+      desc:'Эспрессо на кокосовом молоке со льдом — мягкий, сливочный, с лёгкой ванильной сладостью.',
+      inside:'кокосовое молоко, двойной эспрессо, ванильный сироп, лёд',
+      allergens:'кокос',
+      may:'молоко, глютен, орехи, соя, цитрусовые' },
+    { id:'cacao', name:'Какао бархат', note:'тёмный шоколад', poster:'assets/poster_cacao.jpg', video:'uploads/6535487-uhd_2160_4096_30fps.mp4',
+      kcal:320, protein:8.0, fat:12.0, carb:44.0, sizes:[{ml:300,price:345},{ml:400,price:385}],
+      desc:'Густое какао на тёмном шоколаде 60% с бархатной текстурой и тёплой пряной ноткой.',
+      inside:'молоко, тёмный шоколад 60%, какао, тростниковый сахар',
+      allergens:'молоко (лактоза), какао',
+      may:'орехи, соя, глютен' },
+    { id:'milk', name:'Раф ванильный', note:'нежный и сливочный', poster:'assets/poster_milk.jpg', video:'uploads/13643191_1080_1920_30fps.mp4',
+      kcal:280, protein:6.0, fat:14.0, carb:30.0, sizes:[{ml:300,price:365},{ml:400,price:395}],
+      desc:'Сливочный раф на тёплых сливках с ванилью — обволакивающий и в меру сладкий.',
+      inside:'сливки, молоко, эспрессо, ванильный сахар',
+      allergens:'молоко (лактоза)',
+      may:'орехи, соя, глютен' },
+    { id:'americano', name:'Колд брю классический', note:'12 часов настаивания', poster:'assets/poster_americano.jpg', video:'uploads/13737095-uhd_2160_3840_24fps.mp4',
+      kcal:15, protein:0.3, fat:0, carb:3.0, sizes:[{ml:300,price:255},{ml:400,price:285}],
+      desc:'Холодный кофе медленной экстракции — мягкий, без горечи, с ягодно-шоколадным послевкусием.',
+      inside:'кофе медленной экстракции, вода, лёд',
+      allergens:'не содержит',
+      may:'следы молока и орехов на производстве' },
+    { id:'moka', name:'Фильтр V60', note:'альтернатива', poster:'assets/poster_moka.jpg', video:'uploads/5935497-hd_1080_1920_25fps.mp4',
+      kcal:5, protein:0.2, fat:0, carb:0.8, sizes:[{ml:250,price:240},{ml:350,price:270}],
+      desc:'Зерно одного происхождения, заваренное проливом — чистый вкус с цветочной кислотностью.',
+      inside:'кофе свежей обжарки, вода',
+      allergens:'не содержит',
+      may:'следы молока и орехов на производстве' },
+    { id:'espresso', name:'Двойной эспрессо', note:'насыщенный', poster:'assets/poster_espresso.jpg', video:'uploads/15697596-hd_1080_1920_30fps.mp4',
+      kcal:9, protein:0.5, fat:0, carb:1.5, sizes:[{ml:40,price:160},{ml:80,price:190}],
+      desc:'Два шота на купажной обжарке с плотной карамельной крема и тёмно-шоколадным телом.',
+      inside:'кофе купажной обжарки, вода',
+      allergens:'не содержит',
+      may:'следы молока и орехов на производстве' },
+  ];
+
+  TABS = [
+    { id:'foryou', label:'для тебя', heroId:'icelatte', sections:[
+        { title:'рекомендуем', big:'caramel', grid:['cacao','milk'] },
+        { title:'классика', grid:['americano','espresso'] } ] },
+    { id:'season', label:'сезон 🍂', heroId:'caramel', sections:[
+        { title:'кофе авторский', big:'icelatte', grid:['cacao','milk'] } ] },
+    { id:'coffee', label:'кофе', heroId:'espresso', sections:[
+        { title:'классика', grid:['americano','moka','espresso'] },
+        { title:'на молоке', grid:['icelatte','milk'] } ] },
+    { id:'nocoffee', label:'не кофе', heroId:'cacao', sections:[
+        { title:'', big:'cacao', grid:['milk'] } ] },
+  ];
+
+  CATS = [
+    { id:'temp', kind:'choice', def:'ice', options:[
+        { id:'hot', name:'Горячая версия', short:'Горячая', price:0 },
+        { id:'ice', name:'Айс версия', short:'Айс', price:0 } ] },
+    { id:'boost', name:'Полезные добавки', kind:'step', options:[
+        { id:'protein', name:'Ванильный протеин', price:90, kcal:30, protein:6 },
+        { id:'collagen', name:'Морской коллаген', price:90, kcal:7, protein:2 } ] },
+    { id:'powder', name:'Посыпки', kind:'step', options:[
+        { id:'cocoa', name:'Какао', price:0, kcal:15 },
+        { id:'cinnamon', name:'Корица', price:0, kcal:5 } ] },
+    { id:'foam', name:'Пенка JOOZ', kind:'step', options:[
+        { id:'mango', name:'Манговая пенка', price:70, kcal:60 },
+        { id:'plombir', name:'Пенка пломбир', price:70, kcal:80 } ] },
+    { id:'syrup', name:'Сиропы', kind:'step', options:[
+        { id:'vanilla', name:'Ваниль', price:50, kcal:35, carb:8.5 },
+        { id:'hazelnut', name:'Лесной орех', price:50, kcal:38, carb:9 } ] },
+    { id:'ice', name:'Лёд', kind:'choice', def:'with', options:[
+        { id:'with', name:'Со льдом', short:'Со льдом', price:0 },
+        { id:'without', name:'Без льда', short:'Без льда', price:0 } ] },
+    { id:'top', name:'Топпинги', kind:'step', options:[
+        { id:'sauce', name:'Соус карамель', price:0, kcal:40, carb:9 },
+        { id:'salted', name:'Солёная карамель', price:60, kcal:55, carb:11 } ] },
+    { id:'balls', name:'Цветы и шарики', kind:'step', options:[
+        { id:'popballs', name:'Поп-болы', price:60, kcal:45, carb:10 },
+        { id:'flowers', name:'Сухоцветы', price:40, kcal:10 } ] },
+  ];
+
+  f1(n){ return Number.isInteger(n) ? String(n) : (Math.round(n*10)/10).toFixed(1).replace('.', ','); }
+  rub(n){ return n + ' \u20bd'; }
+  drink(id){ return this.DRINKS.find(d => d.id === id); }
+  tabDef(id){ return this.TABS.find(t => t.id === id); }
+
+  setTab = (id) => this.setState({ tab:id });
+  openDrink = (id) => this.setState({ screen:'detail', drinkId:id, sizeIdx:0, activeChip:null, detailsOpen:false, opts:{ temp:'ice', ice:'with' } });
+  closeDetail = () => this.setState({ screen:'home', activeChip:null, detailsOpen:false });
+  cycleSize = () => this.setState(s => { const d=this.drink(s.drinkId); return { sizeIdx:(s.sizeIdx+1)%d.sizes.length }; });
+  toggleChip = (cat) => this.setState(s => ({ activeChip: s.activeChip===cat ? null : cat }));
+  incOpt = (cat,opt) => this.setState(s => { const o={...s.opts}; const m={...(o[cat]||{})}; m[opt]=(m[opt]||0)+1; o[cat]=m; return { opts:o }; });
+  decOpt = (cat,opt) => this.setState(s => { const o={...s.opts}; const m={...(o[cat]||{})}; m[opt]=Math.max(0,(m[opt]||0)-1); if(!m[opt]) delete m[opt]; o[cat]=m; return { opts:o }; });
+  pickChoice = (cat,opt) => this.setState(s => ({ opts:{...s.opts,[cat]:opt} }));
+  toggleFav = () => this.setState(s => ({ fav:{...s.fav,[s.drinkId]:!s.fav[s.drinkId]} }));
+  openDetails = () => this.setState({ detailsOpen:true });
+  closeDetails = () => this.setState({ detailsOpen:false });
+  openProfile = () => this.setState({ profileOpen:true });
+  closeProfile = () => this.setState({ profileOpen:false, pEdit:null });
+  addToCart = () => this.setState(s => ({ cart:s.cart+1, screen:'home', activeChip:null }));
+  setLang = (l) => this.setState({ lang:l });
+  startEditInfo = () => this.setState(s => ({ pEdit:'info', draft:{ name:s.profile.name, phone:s.profile.phone } }));
+  startEditCar = () => this.setState(s => ({ pEdit:'car', draft:{ emirate:s.profile.emirate||'DXB', code:s.profile.code, plate:s.profile.plate } }));
+  draftSet = (k,v) => this.setState(s => ({ draft:{...s.draft,[k]:v} }));
+  selectEmirate = (id) => this.setState(s => ({ draft:{...s.draft, emirate:id} }));
+  saveInfo = () => this.setState(s => ({ profile:{...s.profile, name:(s.draft.name||'').trim(), phone:(s.draft.phone||'').trim()}, pEdit:null }));
+  saveCar = () => this.setState(s => ({ profile:{...s.profile, emirate:s.draft.emirate, code:(s.draft.code||'').trim(), plate:(s.draft.plate||'').trim()}, pEdit:null }));
+  cancelEdit = () => this.setState({ pEdit:null });
+  signOut = () => this.setState({ profile:{ name:'', phone:'', emirate:'', code:'', plate:'' }, pEdit:null });
+
+  card(id){ const d=this.drink(id); return { id, name:d.name, note:d.note, poster:d.poster, priceLabel:this.rub(d.sizes[0].price), onOpen:()=>this.openDrink(id) }; }
+
+  renderVals(){
+    const s = this.state;
+    const isHome = s.screen === 'home';
+    const isDetail = s.screen === 'detail';
+    const tab = this.tabDef(s.tab);
+
+    const out = {
+      isHome, isDetail, showHome: isHome,
+      detailsOpen: s.detailsOpen, profileOpen: s.profileOpen,
+      openProfile: this.openProfile, closeProfile: this.closeProfile,
+      closeDetails: this.closeDetails, openDetails: this.openDetails,
+      cartHas: s.cart > 0,
+      cartLabel: 'В корзине · ' + s.cart,
+    };
+
+    if (isHome || isDetail) {
+      const heroD = this.drink(tab.heroId);
+      out.hero = { name:heroD.name, priceLabel:this.rub(heroD.sizes[0].price), poster:heroD.poster, onOpen:()=>this.openDrink(tab.heroId) };
+      out.tabs = this.TABS.map(t => ({ label:t.label, color: t.id===s.tab ? '#1d2027' : '#a2a7b0', onTap:()=>this.setTab(t.id) }));
+      out.sections = tab.sections.map(sec => ({
+        title: sec.title,
+        hasTitle: !!sec.title,
+        hasBig: !!sec.big,
+        big: sec.big ? this.card(sec.big) : null,
+        grid: sec.grid.map(id => this.card(id)),
+      }));
+    }
+
+    if (isDetail) {
+      const d = this.drink(s.drinkId);
+      const size = d.sizes[s.sizeIdx];
+      let kcal=d.kcal, pr=d.protein, fat=d.fat, carb=d.carb, optTotal=0;
+      for (const cat of this.CATS) {
+        if (cat.kind !== 'step') continue;
+        const m = s.opts[cat.id] || {};
+        for (const o of cat.options) {
+          const q = m[o.id] || 0;
+          if (q) { optTotal += q*o.price; kcal += q*(o.kcal||0); pr += q*(o.protein||0); fat += q*(o.fat||0); carb += q*(o.carb||0); }
+        }
+      }
+      const total = size.price + optTotal;
+
+      out.detail = { name:d.name, poster:d.poster, desc:d.desc, inside:d.inside, allergens:d.allergens, may:d.may, heartColor: s.fav[d.id] ? '#ff5a5f' : '#ffffff' };
+      out.nut = { kcal: Math.round(kcal), protein:this.f1(pr), fat:this.f1(fat), carb:this.f1(carb) };
+      out.sizeLabel = size.ml + ' ' + this.LANGS[s.lang].ml;
+      out.addLabel = this.rub(total);
+      out.cycleSize = this.cycleSize;
+      out.closeDetail = this.closeDetail;
+      out.toggleFav = this.toggleFav;
+      out.chipActive = s.activeChip != null;
+      out.topVisible = !out.chipActive;
+      out.nutShift = out.chipActive ? 'translateY(-88px)' : 'translateY(0)';
+      out.detShift = out.chipActive ? 'translateX(-50%) translateY(-88px)' : 'translateX(-50%) translateY(0)';
+
+      out.chips = this.CATS.map(cat => {
+        let count=0, sub='', name=cat.name;
+        if (cat.kind === 'choice') {
+          const sel = s.opts[cat.id];
+          if (cat.id === 'temp') name = (sel === 'ice') ? 'Горячая версия' : 'Айс версия';
+          if (sel && sel !== cat.def) { const o = cat.options.find(x=>x.id===sel); sub = o ? o.short : ''; }
+        } else {
+          const m = s.opts[cat.id] || {}; let t=0;
+          for (const o of cat.options) { const q=m[o.id]||0; count+=q; t+=q*o.price; }
+          if (t > 0) sub = this.rub(t);
+          else if (count > 0) sub = count + ' шт';
+        }
+        let selIds = [];
+        if (cat.kind === 'choice') { if (s.opts[cat.id]) selIds = [s.opts[cat.id]]; }
+        else { const mm = s.opts[cat.id]||{}; selIds = cat.options.filter(o=>(mm[o.id]||0)>0).map(o=>o.id); }
+        const iconIds = selIds.length ? selIds : [cat.options[0].id];
+        const isz = iconIds.length>1 ? '34px' : '48px';
+        const icons = iconIds.map(id=>({ src:this.ICONS[id], size:isz }));
+        const active = s.activeChip === cat.id;
+        return { id:cat.id, name, sub, hasSub:!!sub, count, hasCount:count>0, noCount:count===0, icons, iconScale: active ? 'scale(1.18)' : 'scale(1)',
+          ring: active ? 'inset 0 0 0 2.5px #ffffff' : 'none', onTap:()=>this.toggleChip(cat.id) };
+      });
+
+      let raised = { visible:false, options:[] };
+      if (s.activeChip) {
+        const cat = this.CATS.find(c => c.id === s.activeChip);
+        raised.visible = true;
+        const ICONS = { hot:'assets/icons/ic_hot.png', ice:'assets/icons/ic_iced.png', protein:'assets/icons/ic_protein.png', collagen:'assets/icons/ic_collagen.png', cocoa:'assets/icons/ic_cocoa.png', cinnamon:'assets/icons/ic_cinnamon.png', mango:'assets/icons/ic_foam_mango.png', plombir:'assets/icons/ic_foam_plombir.png', vanilla:'assets/icons/ic_syrup_vanilla.png', hazelnut:'assets/icons/ic_syrup_hazelnut.png', with:'assets/icons/ic_ice.png', without:'assets/icons/ic_ice_no.png', sauce:'assets/icons/ic_sauce.png', salted:'assets/icons/ic_caramel.png', popballs:'assets/icons/ic_popballs.png', flowers:'assets/icons/ic_flowers.png' };
+        raised.options = cat.options.map(o => {
+          if (cat.kind === 'choice') {
+            const selected = s.opts[cat.id] === o.id;
+            return { id:o.id, name:o.name, priceLabel:o.price?('+'+this.rub(o.price)):'', hasPrice:!!o.price,
+              selected, notSelected:!selected, stepper:false, showCheck:selected, qty:0, icon:ICONS[o.id]||'',
+              onPick:()=>this.pickChoice(cat.id,o.id), onInc:()=>{}, onDec:()=>{} };
+          } else {
+            const q = (s.opts[cat.id]||{})[o.id] || 0;
+            const selected = q > 0;
+            return { id:o.id, name:o.name, priceLabel:'+'+this.rub(o.price), hasPrice:true,
+              selected, notSelected:!selected, stepper:selected, showCheck:false, qty:q, icon:ICONS[o.id]||'',
+              onPick:()=>this.incOpt(cat.id,o.id), onInc:()=>this.incOpt(cat.id,o.id), onDec:()=>this.decOpt(cat.id,o.id) };
+          }
+        });
+      }
+      out.raised = raised;
+    }
+
+    {
+      const lang = s.lang, L = this.LANGS[lang], p = s.profile;
+      const hasPhone = !!(p.phone && p.phone.trim());
+      const hasName = !!(p.name && p.name.trim());
+      const hasCar = !!(p.plate && p.plate.trim());
+      const initials = hasName ? p.name.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase() : '';
+      const em = this.EMIRATES.find(e=>e.id===p.emirate);
+      out.L = L; out.lang = lang; out.dir = lang==='ar' ? 'rtl' : 'ltr';
+      out.langEnBg = lang==='en' ? '#1d2027' : 'transparent';
+      out.langEnColor = lang==='en' ? '#ffffff' : '#8a8f99';
+      out.langArBg = lang==='ar' ? '#1d2027' : 'transparent';
+      out.langArColor = lang==='ar' ? '#ffffff' : '#8a8f99';
+      out.langEnBgD = lang==='en' ? '#ffffff' : 'transparent';
+      out.langEnColorD = lang==='en' ? '#1d2027' : 'rgba(255,255,255,.82)';
+      out.langArBgD = lang==='ar' ? '#ffffff' : 'transparent';
+      out.langArColorD = lang==='ar' ? '#1d2027' : 'rgba(255,255,255,.82)';
+      out.setEn = ()=>this.setLang('en'); out.setAr = ()=>this.setLang('ar');
+      out.prof = { hasPhone, profNew:!hasPhone, hasName, noName:!hasName, hasCar, noCar:!hasCar,
+        name: hasName ? p.name : L.guest, phone: p.phone, initials,
+        emirateName: em ? em[lang] : '', code: p.code, plate: p.plate };
+      out.startEditInfo = this.startEditInfo; out.startEditCar = this.startEditCar; out.signOut = this.signOut;
+      out.editInfo = s.pEdit==='info'; out.editCar = s.pEdit==='car';
+      out.onDraftName = (e)=>this.draftSet('name', e.target.value);
+      out.onDraftPhone = (e)=>this.draftSet('phone', e.target.value);
+      out.onDraftCode = (e)=>this.draftSet('code', e.target.value);
+      out.onDraftPlate = (e)=>this.draftSet('plate', e.target.value);
+      out.saveInfo = this.saveInfo; out.saveCar = this.saveCar; out.cancelEdit = this.cancelEdit;
+      out.emirates = this.EMIRATES.map(e=>({ id:e.id, name:e[lang],
+        bg: s.draft.emirate===e.id ? '#3a3de0' : '#f2f3f6',
+        color: s.draft.emirate===e.id ? '#ffffff' : '#1d2027',
+        onSelect:()=>this.selectEmirate(e.id) }));
+      const dem = this.EMIRATES.find(e=>e.id===s.draft.emirate);
+      out.draftEmirateName = dem ? dem[lang] : '';
+      out.draftName = s.draft.name || ''; out.draftPhone = s.draft.phone || '';
+      out.draftCode = s.draft.code || ''; out.draftPlate = s.draft.plate || '';
+    }
+
+    return out;
+  }
+}
+</script>
+</body>
+</html>

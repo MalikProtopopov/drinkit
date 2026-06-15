@@ -100,7 +100,12 @@ class OrderEvent(Base):
 
 
 class Payment(Base):
-    """Платежи (ADM-S-09); связь заказ↔платёж↔клиент."""
+    """Платёж (ADM-S-09); связь заказ↔платёж↔клиент.
+
+    Поля смоделированы по объектам Stripe (PaymentIntent / Charge / BalanceTransaction /
+    Refund / Dispute / Radar), чтобы админка показывала полную картину платежа и без
+    правок «зажглась» на реальных данных при подключении ключей. В mock-режиме они
+    заполняются детерминированным синтетиком (services/payment_mock.py)."""
 
     __tablename__ = "payments"
 
@@ -109,8 +114,38 @@ class Payment(Base):
     amount: Mapped[float] = mapped_column(Float)
     currency: Mapped[str] = mapped_column(String(5), default="AED")
     provider: Mapped[str] = mapped_column(String(20), default="stripe")
-    provider_id: Mapped[str | None] = mapped_column(String(120))
+    provider_id: Mapped[str | None] = mapped_column(String(120))  # Checkout Session (cs_...) или mock_
     status: Mapped[str] = mapped_column(String(15), default="pending")  # pending|succeeded|failed|refunded
+
+    # --- идентификаторы Stripe (кликабельны в Dashboard) ---
+    payment_intent_id: Mapped[str | None] = mapped_column(String(120))  # pi_...
+    charge_id: Mapped[str | None] = mapped_column(String(120))          # ch_...
+    customer_id: Mapped[str | None] = mapped_column(String(120))        # cus_...
+
+    # --- способ оплаты / карта (PaymentMethod) ---
+    method_type: Mapped[str] = mapped_column(String(20), default="card")  # card|apple_pay|google_pay|link
+    card_brand: Mapped[str | None] = mapped_column(String(20))            # visa|mastercard|amex|mada
+    card_last4: Mapped[str | None] = mapped_column(String(4))
+    card_funding: Mapped[str | None] = mapped_column(String(12))          # credit|debit|prepaid
+    card_country: Mapped[str | None] = mapped_column(String(2))           # AE|SA|...
+    card_exp: Mapped[str | None] = mapped_column(String(7))               # MM/YYYY
+
+    # --- деньги: комиссия Stripe / чистыми / возвраты (BalanceTransaction + Refund) ---
+    fee_amount: Mapped[float] = mapped_column(Float, default=0)
+    net_amount: Mapped[float | None] = mapped_column(Float)               # amount - fee
+    refunded_amount: Mapped[float] = mapped_column(Float, default=0)
+    receipt_url: Mapped[str | None] = mapped_column(String(300))
+
+    # --- ошибки / риск / споры (Radar + Dispute) ---
+    failure_code: Mapped[str | None] = mapped_column(String(40))
+    failure_message: Mapped[str | None] = mapped_column(String(200))
+    risk_level: Mapped[str | None] = mapped_column(String(20))            # normal|elevated|highest
+    risk_score: Mapped[int | None] = mapped_column(Integer)              # 0..99 (Radar)
+    dispute_status: Mapped[str | None] = mapped_column(String(20))        # warning|needs_response|won|lost
+
+    livemode: Mapped[bool] = mapped_column(Boolean, default=False)        # боевой ключ vs test/mock
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     order = relationship("Order", back_populates="payments")

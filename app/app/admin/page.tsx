@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminApi } from "@/lib/adminApi";
 
@@ -13,14 +14,26 @@ const PERIODS = [
 ] as const;
 
 function DashboardInner() {
+  const router = useRouter();
   const [period, setPeriod] = useState<string>("all");
+  const [customFrom, setCustomFrom] = useState<string>("");
+  const [customTo, setCustomTo] = useState<string>("");
+  const [topExpanded, setTopExpanded] = useState(false);
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    const p = PERIODS.find((x) => x.key === period)!;
-    const from = typeof p.from === "function" ? p.from().toISOString() : undefined;
-    adminApi.dashboard(from).then(setData).catch(() => {});
-  }, [period]);
+    let from: string | undefined;
+    let to: string | undefined;
+    if (period === "custom") {
+      // свой период: даты «от/до» (включительно по дню), в локальном времени
+      from = customFrom ? new Date(`${customFrom}T00:00:00`).toISOString() : undefined;
+      to = customTo ? new Date(`${customTo}T23:59:59`).toISOString() : undefined;
+    } else {
+      const p = PERIODS.find((x) => x.key === period)!;
+      from = typeof p.from === "function" ? p.from().toISOString() : undefined;
+    }
+    adminApi.dashboard(from, to).then(setData).catch(() => {});
+  }, [period, customFrom, customTo]);
 
   if (!data) return <div className="admin-meta">Загрузка…</div>;
 
@@ -30,8 +43,8 @@ function DashboardInner() {
 
   return (
     <>
-      {/* фильтр по периоду (ADM-S-10) */}
-      <div className="admin-filter-row">
+      {/* фильтр по периоду (ADM-S-10): пресеты + свой период от/до */}
+      <div className="admin-filter-row" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ display: "inline-flex", gap: 4, padding: 4, background: "#FFF", borderRadius: 999 }}>
           {PERIODS.map((p) => (
             <button key={p.key} className="admin-btn sm" onClick={() => setPeriod(p.key)}
@@ -39,7 +52,22 @@ function DashboardInner() {
               {p.label}
             </button>
           ))}
+          <button className="admin-btn sm" onClick={() => setPeriod("custom")}
+                  style={period === "custom" ? { background: "#4A56E2", color: "#FFF" } : { background: "transparent" }}>
+            Свой период
+          </button>
         </div>
+
+        {period === "custom" && (
+          <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+            <span className="admin-meta">от</span>
+            <input type="date" className="admin-input" value={customFrom} max={customTo || undefined}
+                   onChange={(e) => setCustomFrom(e.target.value)} style={{ width: 160 }} />
+            <span className="admin-meta">до</span>
+            <input type="date" className="admin-input" value={customTo} min={customFrom || undefined}
+                   onChange={(e) => setCustomTo(e.target.value)} style={{ width: 160 }} />
+          </div>
+        )}
       </div>
 
       <div className="admin-grid-4">
@@ -71,19 +99,29 @@ function DashboardInner() {
         <div className="admin-panel">
           <div className="admin-panel-head">
             <div className="admin-panel-title">Top revenue by product</div>
+            <span className="admin-meta">{data.topProducts.length} поз.</span>
           </div>
-          <table className="admin-table">
+          <div className="admin-tablewrap"><table className="admin-table">
             <thead><tr><th>Напиток</th><th>Шт</th><th>Выручка</th></tr></thead>
             <tbody>
-              {data.topProducts.map((p: any) => (
-                <tr key={p.name}>
-                  <td><strong>{p.name}</strong></td>
+              {(topExpanded ? data.topProducts : data.topProducts.slice(0, 6)).map((p: any) => (
+                <tr key={p.name} className={p.slug ? "admin-row-link" : undefined}
+                    onClick={() => p.slug && router.push(`/admin/catalog/products/${p.slug}`)}
+                    style={p.slug ? { cursor: "pointer" } : undefined}>
+                  <td><strong>{p.name}</strong>{p.slug && <span className="admin-meta" style={{ marginLeft: 6 }}>→</span>}</td>
                   <td className="admin-num">{p.qty}</td>
                   <td className="admin-num">{p.revenue.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
+          {data.topProducts.length > 6 && (
+            <div className="admin-panel-body" style={{ textAlign: "center" }}>
+              <button className="admin-btn ghost sm" onClick={() => setTopExpanded((v) => !v)}>
+                {topExpanded ? "Свернуть список" : `Раскрыть список (${data.topProducts.length})`}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -92,7 +130,7 @@ function DashboardInner() {
           <div className="admin-panel-title">Клиенты: кто, сколько раз, на какие суммы</div>
           <Link href="/admin/customers" className="admin-btn ghost sm">Все клиенты →</Link>
         </div>
-        <table className="admin-table">
+        <div className="admin-tablewrap"><table className="admin-table">
           <thead><tr><th>Клиент</th><th>Телефон</th><th>Заказов</th><th>Сумма</th><th>Последний заказ</th></tr></thead>
           <tbody>
             {data.topCustomers.map((c: any) => (
@@ -105,7 +143,7 @@ function DashboardInner() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </>
   );

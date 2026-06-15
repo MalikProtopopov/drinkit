@@ -5,8 +5,8 @@ def test_categories_active_only(client):
     cats = client.get("/api/categories").json()
     names = [c["name"] for c in cats]
     # 4 сид-категории присутствуют (другие тесты могут добавлять свои)
-    assert {"Фреши", "Смузи", "Детокс", "Шоты"} <= set(names)
-    assert names[0] == "Фреши"  # сортировка по sort
+    assert {"Fresh", "Smoothies", "Detox", "Shots"} <= set(names)
+    assert names[0] == "Fresh"  # сортировка по sort
 
 
 def test_categories_locale_ar(client):
@@ -16,8 +16,9 @@ def test_categories_locale_ar(client):
 
 def test_drinks_filter_by_category(client):
     cats = client.get("/api/categories").json()
-    fresh = next(c for c in cats if c["name"] == "Фреши")
-    drinks = client.get(f"/api/drinks?category={fresh['id']}").json()
+    fresh = next(c for c in cats if c["name"] == "Fresh")
+    # фильтр по slug категории (PUB-G-01 AC4)
+    drinks = client.get(f"/api/drinks?category={fresh['slug']}").json()
     slugs = {d["slug"] for d in drinks}
     assert {"orange-fresh", "watermelon-fresh", "pomegranate-fresh"} <= slugs
     assert len(slugs) >= 10  # расширенный каталог
@@ -40,19 +41,19 @@ def test_draft_detail_404(client):
 def test_detail_addons_recalced_to_default_portions(client):
     """PUB-G-03 AC2: КБЖУ пересчитан на дефолтный объём порции."""
     det = client.get("/api/drinks/orange-fresh").json()
-    ginger = next(a for a in det["addons"] if a["name"] == "Имбирь")
+    ginger = next(a for a in det["addons"] if a["name"] == "Ginger")
     # имбирь: 80 ккал/100г, порция 10г => 8.0
     assert ginger["kcal"] == 8.0
     assert ginger["free"] is False
-    carrot = next(a for a in det["addons"] if a["name"] == "Морковь")
+    carrot = next(a for a in det["addons"] if a["name"] == "Carrot")
     assert carrot["free"] is True  # price_override = NULL => бесплатно
 
 
 def test_preview_price_and_kbju(client):
     """PUB-G-03 AC1/AC3: цена и КБЖУ растут с порциями."""
     det = client.get("/api/drinks/orange-fresh").json()
-    ginger = next(a for a in det["addons"] if a["name"] == "Имбирь")
-    collagen = next(a for a in det["addons"] if a["name"] == "Коллаген")
+    ginger = next(a for a in det["addons"] if a["name"] == "Ginger")
+    collagen = next(a for a in det["addons"] if a["name"] == "Collagen")
     r = client.post("/api/drinks/orange-fresh/preview", json={"selections": [
         {"addonId": ginger["addonId"], "portions": 1},
         {"addonId": collagen["addonId"], "portions": 2},
@@ -67,7 +68,7 @@ def test_preview_price_and_kbju(client):
 
 def test_preview_portions_out_of_range(client):
     det = client.get("/api/drinks/orange-fresh").json()
-    ginger = next(a for a in det["addons"] if a["name"] == "Имбирь")
+    ginger = next(a for a in det["addons"] if a["name"] == "Ginger")
     r = client.post("/api/drinks/orange-fresh/preview", json={"selections": [
         {"addonId": ginger["addonId"], "portions": 99}]})
     assert r.status_code == 409
@@ -76,7 +77,7 @@ def test_preview_portions_out_of_range(client):
 def test_preview_selection_type_multi_violated(client):
     """ADM-S-02 AC4: multi не допускает >1 порции одной добавки."""
     det = client.get("/api/drinks/orange-fresh").json()
-    mango = next(a for a in det["addons"] if a["name"] == "Манго")
+    mango = next(a for a in det["addons"] if a["name"] == "Mango")
     r = client.post("/api/drinks/orange-fresh/preview", json={"selections": [
         {"addonId": mango["addonId"], "portions": 2}]})
     assert r.status_code == 409

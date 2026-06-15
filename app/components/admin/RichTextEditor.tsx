@@ -67,6 +67,8 @@ export function RichTextEditor({
         style={{
           minHeight: 160, padding: "14px 16px", borderRadius: 12,
           border: "2px solid #eceef1", background: "#fff", outline: "none",
+          // RTL: курсор и текст справа; иначе пустое поле показывает каретку слева
+          direction: dir, textAlign: dir === "rtl" ? "right" : "left",
         }}
       />
       <p className="admin-meta" style={{ marginTop: 6 }}>

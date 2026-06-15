@@ -155,7 +155,7 @@ def test_place_order_custom_name_used_in_item(client, customer):
 
 def test_place_order_with_addons_grams_and_price(client, customer):
     det = client.get("/api/drinks/orange-fresh").json()
-    ginger = next(a for a in det["addons"] if a["name"] == "Имбирь")
+    ginger = next(a for a in det["addons"] if a["name"] == "Ginger")
     body = _basic_body(client, items=[
         {"drinkId": det["id"], "quantity": 1,
          "addons": [{"addonId": ginger["addonId"], "portions": 1}]},
@@ -165,7 +165,7 @@ def test_place_order_with_addons_grams_and_price(client, customer):
     it = r.json()["items"][0]
     assert len(it["addons"]) == 1
     a = it["addons"][0]
-    assert a["name"] == "Имбирь"
+    assert a["name"] == "Ginger"
     assert a["portions"] == 1
     assert a["amount"] > 0          # граммовка = portions * portion_amount
     assert it["unitPrice"] > det["basePrice"]   # добавка платная → цена выросла
@@ -184,7 +184,7 @@ def test_place_order_locale_en_normalized_to_ru_snapshot(client, customer):
     r = _place(client, customer["headers"], body, locale="en")
     assert r.status_code == 200, r.text
     # имя апельсинового фреша по-русски (en→ru нормализация в t())
-    assert r.json()["items"][0]["drinkName"] == "Апельсиновый фреш"
+    assert r.json()["items"][0]["drinkName"] == "Orange fresh"
 
 
 def test_place_order_locale_ar_snapshot(client, customer):
@@ -317,7 +317,7 @@ def test_place_order_409_draft_drink_not_available(client, customer):
 def test_place_order_409_addon_out_of_range(client, customer):
     """portions сверх max_portions → 409 ADDON_PORTIONS_OUT_OF_RANGE (из drink_preview)."""
     det = client.get("/api/drinks/orange-fresh").json()
-    ginger = next(a for a in det["addons"] if a["name"] == "Имбирь")
+    ginger = next(a for a in det["addons"] if a["name"] == "Ginger")
     body = _basic_body(client, items=[{
         "drinkId": det["id"],
         "addons": [{"addonId": ginger["addonId"], "portions": ginger["maxPortions"] + 5}],

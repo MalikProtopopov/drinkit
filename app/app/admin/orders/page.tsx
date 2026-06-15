@@ -3,26 +3,27 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { adminApi, adminOrdersWs, ADMIN_STATUS_LABEL, type AdminOrder, type Staff } from "@/lib/adminApi";
+import { Pager } from "@/components/admin/AdminUI";
+import { adminApi, adminOrdersWs, ADMIN_STATUS_LABEL, type AdminOrder } from "@/lib/adminApi";
 import { useAdmin } from "@/components/admin/AdminShell";
+import { usePaged } from "@/lib/usePaged";
 
 function OrdersInner() {
   const { staff } = useAdmin();
-  const [rows, setRows] = useState<AdminOrder[]>([]);
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "done">("active");
   const [managerFilter, setManagerFilter] = useState<"all" | "mine" | "unassigned">("all");
-  const [managers, setManagers] = useState<Staff[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
 
-  const load = useCallback(() => {
-    adminApi.orders({
-      active: activeFilter === "all" ? undefined : activeFilter === "active",
-      managerId: managerFilter === "mine" ? staff?.id : undefined,
-      unassigned: managerFilter === "unassigned",
-    }).then(setRows).catch(() => {});
-  }, [activeFilter, managerFilter, staff]);
+  const fetcher = useCallback((p: { limit: number; offset: number }) => adminApi.ordersPaged({
+    ...p,
+    active: activeFilter === "all" ? undefined : activeFilter === "active",
+    managerId: managerFilter === "mine" ? staff?.id : undefined,
+    unassigned: managerFilter === "unassigned",
+  }), [activeFilter, managerFilter, staff]);
 
-  useEffect(() => { load(); }, [load]);
+  const { items: rows, total, limit, offset, loading, setOffset, setLimit, reload } =
+    usePaged<AdminOrder>(fetcher, [activeFilter, managerFilter, staff?.id], 20);
+
   useEffect(() => {
     // realtime-лента заказов (ADM-M-03 AC2)
     try {
@@ -30,11 +31,11 @@ function OrdersInner() {
       wsRef.current = ws;
       ws.onmessage = (e) => {
         const m = JSON.parse(e.data);
-        if (m.type !== "ping") load();
+        if (m.type !== "ping") reload();
       };
     } catch {}
     return () => wsRef.current?.close();
-  }, [load]);
+  }, [reload]);
 
   return (
     <>
@@ -56,12 +57,12 @@ function OrdersInner() {
           ))}
         </div>
         <span className="admin-meta" style={{ marginLeft: "auto", alignSelf: "center" }}>
-          Показано <strong>{rows.length}</strong>
+          Всего <strong>{total}</strong>
         </span>
       </div>
 
       <div className="admin-panel">
-        <table className="admin-table">
+        <div className="admin-tablewrap"><table className="admin-table">
           <thead>
             <tr>
               <th>№</th><th>Клиент</th><th>Машина</th><th>Состав</th>
@@ -101,7 +102,7 @@ function OrdersInner() {
                 <td style={{ textAlign: "right" }}>
                   {o.status === "new" ? (
                     <button className="admin-btn primary sm"
-                            onClick={() => adminApi.take(o.id).then(load)}>
+                            onClick={() => adminApi.take(o.id).then(reload)}>
                       Взять в работу
                     </button>
                   ) : (
@@ -112,11 +113,13 @@ function OrdersInner() {
             ))}
             {rows.length === 0 && (
               <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "#5A6172" }}>
-                Заказов нет
+                {loading ? "Загрузка…" : "Заказов нет"}
               </td></tr>
             )}
           </tbody>
-        </table>
+        </table></div>
+        <Pager total={total} limit={limit} offset={offset} loading={loading}
+               onOffset={setOffset} onLimit={setLimit} />
       </div>
     </>
   );

@@ -35,8 +35,8 @@ const NAV_GROUPS: {
     title: "Клиенты и деньги",
     items: [
       { href: "/admin/customers", label: "Клиенты", roles: ["super_admin"] },
+      { href: "/admin/audience", label: "Аудитория", roles: ["super_admin"] },
       { href: "/admin/payments", label: "Платежи", roles: ["super_admin"] },
-      { href: "/admin/coupons", label: "Купоны", roles: ["super_admin"] },
     ],
   },
   {
@@ -67,7 +67,11 @@ export function AdminShell({
       router.replace("/admin/login");
       return;
     }
-    adminApi.me().then(setStaff).catch(() => {
+    adminApi.me().then((s) => {
+      // учётка табло выдачи не ходит по админке — только полноэкранный экран
+      if (s.role === "screen") { router.replace("/admin/screen"); return; }
+      setStaff(s);
+    }).catch(() => {
       setStaffToken(null);
       router.replace("/admin/login");
     });

@@ -8,7 +8,7 @@
 
 Проверяются: счастливый путь, 401/403/404/409/422, валидация полей
 (phone-regex, обязательность, типы, границы), нормализация (carPlate uppercase,
-locale en->ru), enum locale (ru/ar, 422 на fr в PATCH), идемпотентность,
+legacy locale ru->en), enum locale (en/ar, 422 на fr/ru в PATCH), идемпотентность,
 протухание/повторное использование OTP-кода.
 
 OTP включён глобально через conftest (AUTH_OTP_ENABLED=true).
@@ -142,13 +142,13 @@ def test_request_code_returns_fresh_code_each_call(client):
 
 def test_verify_creates_user_happy(client):
     phone = _new_phone(20000001)
-    data = _login(client, phone, name="Иван", locale="ru")
+    data = _login(client, phone, name="Иван", locale="en")
     assert data["created"] is True
     assert "token" in data
     u = data["user"]
     assert u["phone"] == phone
     assert u["name"] == "Иван"
-    assert u["locale"] == "ru"
+    assert u["locale"] == "en"
     assert u["carPlate"] is None
     assert u["emirate"] is None
     assert isinstance(u["id"], int)
@@ -168,26 +168,26 @@ def test_verify_locale_ar_persists(client):
     assert data["user"]["locale"] == "ar"
 
 
-def test_verify_locale_en_normalized_to_ru(client):
-    # en (legacy из localStorage) -> дефолтный ru, без падения
+def test_verify_locale_ru_normalized_to_en(client):
+    # ru (legacy из localStorage, более не поддерживается) -> дефолтный en, без падения
     phone = _new_phone(20000004)
-    data = _login(client, phone, locale="en")
-    assert data["user"]["locale"] == "ru"
+    data = _login(client, phone, locale="ru")
+    assert data["user"]["locale"] == "en"
 
 
-def test_verify_locale_fr_normalized_to_ru_not_422(client):
+def test_verify_locale_fr_normalized_to_en_not_422(client):
     # ВАЖНО: в verify невалидная locale НЕ даёт 422 — тихо падает в default.
     phone = _new_phone(20000005)
     code = _request_code(client, phone)["devCode"]
     r = _verify(client, phone, code=code, locale="fr")
     assert r.status_code == 200
-    assert r.json()["user"]["locale"] == "ru"
+    assert r.json()["user"]["locale"] == "en"
 
 
-def test_verify_locale_missing_defaults_to_ru(client):
+def test_verify_locale_missing_defaults_to_en(client):
     phone = _new_phone(20000006)
     data = _login(client, phone)  # без locale
-    assert data["user"]["locale"] == "ru"
+    assert data["user"]["locale"] == "en"
 
 
 def test_verify_name_optional(client):
@@ -407,12 +407,12 @@ def test_patch_me_name_update(client):
     assert r.json()["name"] == "Новое Имя"
 
 
-def test_patch_me_locale_ru_ok(client):
+def test_patch_me_locale_en_ok(client):
     phone = _new_phone(50000004)
     headers = _auth_headers(client, phone, locale="ar")
-    r = client.patch("/api/auth/me", headers=headers, json={"locale": "ru"})
+    r = client.patch("/api/auth/me", headers=headers, json={"locale": "en"})
     assert r.status_code == 200
-    assert r.json()["locale"] == "ru"
+    assert r.json()["locale"] == "en"
 
 
 def test_patch_me_locale_ar_ok(client):
@@ -424,7 +424,7 @@ def test_patch_me_locale_ar_ok(client):
 
 
 def test_patch_me_locale_fr_422(client):
-    # enum: fr не в {ru, ar} -> 422 (в PATCH, в отличие от verify)
+    # enum: fr не в {en, ar} -> 422 (в PATCH, в отличие от verify)
     phone = _new_phone(50000006)
     headers = _auth_headers(client, phone)
     r = client.patch("/api/auth/me", headers=headers, json={"locale": "fr"})
@@ -432,11 +432,11 @@ def test_patch_me_locale_fr_422(client):
     assert r.json()["detail"] == "VALIDATION_ERROR"
 
 
-def test_patch_me_locale_en_422(client):
-    # en НЕ нормализуется в PATCH (в отличие от verify) — это 422
+def test_patch_me_locale_ru_422(client):
+    # ru (legacy) НЕ нормализуется в PATCH (в отличие от verify) и больше не поддерживается — это 422
     phone = _new_phone(50000007)
     headers = _auth_headers(client, phone)
-    r = client.patch("/api/auth/me", headers=headers, json={"locale": "en"})
+    r = client.patch("/api/auth/me", headers=headers, json={"locale": "ru"})
     assert r.status_code == 422
 
 

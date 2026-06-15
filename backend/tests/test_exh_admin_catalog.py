@@ -144,13 +144,15 @@ def test_drink_category_list_ok(client, admin):
 
 
 def test_drink_category_create_full(client, admin):
-    body = {"name": {"ru": "Лимонады", "ar": "ليمونادة"}, "photoUrl": "/p.jpg",
+    # уникальное имя: slug генерируется из имени и обязан быть уникальным
+    # (в test_admin.py есть категория «Лимонады» с тем же slug)
+    body = {"name": {"ru": "Лимонады Полная", "ar": "ليمونادة كاملة"}, "photoUrl": "/p.jpg",
             "videoUrl": "/v.mp4", "isActive": False, "sort": 42}
     r = client.post(f"{BASE}/drink-categories", headers=_h(admin), json=body)
     assert r.status_code == 200, r.text
     d = r.json()
     assert d["id"] > 0
-    assert d["name"] == {"ru": "Лимонады", "ar": "ليمونادة"}
+    assert d["name"] == {"ru": "Лимонады Полная", "ar": "ليمونادة كاملة"}
     assert d["photoUrl"] == "/p.jpg" and d["videoUrl"] == "/v.mp4"
     assert d["isActive"] is False and d["sort"] == 42
 

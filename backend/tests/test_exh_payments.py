@@ -15,7 +15,7 @@ import pytest
 # ---------------------------------------------------------------------------
 def _new_unpaid_order(client, cust, car_plate="f 12345"):
     det = client.get("/api/drinks/orange-fresh").json()
-    ginger = next(a for a in det["addons"] if a["name"] == "Имбирь")
+    ginger = next(a for a in det["addons"] if a["name"] == "Ginger")
     body = {
         "items": [
             {"drinkId": det["id"], "quantity": 1,

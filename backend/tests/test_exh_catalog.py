@@ -17,7 +17,7 @@
 """
 import pytest
 
-# Локали из конфигурации: ru (default), ar. "en" НЕ входит -> fallback на ru.
+# Локали из конфигурации: en (default), ar. "ru" НЕ входит -> fallback на en.
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ import pytest
 # Имена 4 сид-категорий в порядке поля sort (другие тест-модули могут
 # дозасеивать категории в общую session-БД, поэтому проверяем ВКЛЮЧЕНИЕ
 # и ОТНОСИТЕЛЬНЫЙ порядок сид-категорий, а не точную длину списка.)
-SEED_CATEGORIES_RU = ["Фреши", "Смузи", "Детокс", "Шоты"]
+SEED_CATEGORIES_EN = ["Fresh", "Smoothies", "Detox", "Shots"]
 SEED_CATEGORIES_AR = ["عصائر طازجة", "سموذي", "ديتوكس", "شوتات"]
 
 
@@ -43,20 +43,21 @@ def test_categories_happy_default_locale(client):
     assert isinstance(cats, list)
     names = [c["name"] for c in cats]
     # сид-категории присутствуют и идут в порядке поля sort
-    for n in SEED_CATEGORIES_RU:
+    for n in SEED_CATEGORIES_EN:
         assert n in names
-    assert _subsequence_in_order(names, SEED_CATEGORIES_RU)
+    assert _subsequence_in_order(names, SEED_CATEGORIES_EN)
     # форма ответа
-    fresh = next(c for c in cats if c["name"] == "Фреши")
-    assert set(fresh.keys()) == {"id", "name", "photoUrl", "videoUrl"}
+    fresh = next(c for c in cats if c["name"] == "Fresh")
+    assert set(fresh.keys()) == {"id", "slug", "name", "photoUrl", "videoUrl"}
     assert isinstance(fresh["id"], int)
     assert fresh["id"] == 1
+    assert fresh["slug"] == "fresh"
 
 
 def test_categories_sorted_by_sort_field(client):
     cats = client.get("/api/categories").json()
     # выборка только сид-категорий сохраняет порядок sort -> id по возрастанию
-    seed_ids = [c["id"] for c in cats if c["name"] in SEED_CATEGORIES_RU]
+    seed_ids = [c["id"] for c in cats if c["name"] in SEED_CATEGORIES_EN]
     assert seed_ids[:4] == [1, 2, 3, 4]
 
 
@@ -68,16 +69,17 @@ def test_categories_locale_ar(client):
     assert _subsequence_in_order(names, SEED_CATEGORIES_AR)
 
 
-def test_categories_locale_en_falls_back_to_ru(client):
-    # en не входит в settings.locales -> pick_locale возвращает ru
+def test_categories_locale_en_default(client):
+    # en — язык по умолчанию (settings.default_locale) -> EN-имена
     cats = client.get("/api/categories?locale=en").json()
     names = [c["name"] for c in cats]
-    assert "Фреши" in names
+    assert "Fresh" in names
 
 
-def test_categories_unknown_locale_falls_back_to_ru(client):
+def test_categories_unknown_locale_falls_back_to_en(client):
+    # zz не входит в settings.locales -> pick_locale возвращает en (default)
     names = [c["name"] for c in client.get("/api/categories?locale=zz").json()]
-    assert "Фреши" in names
+    assert "Fresh" in names
 
 
 def test_categories_public_no_auth_required(client):
@@ -111,41 +113,47 @@ def test_drinks_item_shape(client):
         "id", "slug", "name", "previewUrl", "videoUrl",
         "basePrice", "kcal", "categoryId",
     }
-    assert d["name"] == "Апельсиновый фреш"
+    assert d["name"] == "Orange fresh"
     assert d["basePrice"] == 22
     assert d["kcal"] == 88
     assert d["categoryId"] == 1
 
 
 def test_drinks_filter_by_category(client):
-    fresh = client.get("/api/drinks?category=1").json()
+    # фильтр по slug категории (PUB-G-01 AC4)
+    fresh = client.get("/api/drinks?category=fresh").json()
     assert len(fresh) >= 10
-    assert all(d["categoryId"] == 1 for d in fresh)  # фильтр строго по category_id
+    assert all(d["categoryId"] == 1 for d in fresh)  # slug=fresh -> category_id=1
     assert "orange-fresh" in {d["slug"] for d in fresh}
-    shots = client.get("/api/drinks?category=4").json()
+    shots = client.get("/api/drinks?category=shots").json()
     assert len(shots) >= 5
     assert all(d["categoryId"] == 4 for d in shots)
     assert "immunity-shot" in {d["slug"] for d in shots}
 
 
 def test_drinks_filter_unknown_category_returns_empty(client):
-    assert client.get("/api/drinks?category=999999").json() == []
+    # неизвестный slug -> пустой список
+    assert client.get("/api/drinks?category=no-such-slug").json() == []
 
 
 def test_drinks_filter_category_draft_category_only_published(client):
-    # draft-example в категории shots(4); фильтр всё равно не возвращает draft
-    shots = client.get("/api/drinks?category=4").json()
+    # draft-example в категории shots; фильтр всё равно не возвращает draft
+    shots = client.get("/api/drinks?category=shots").json()
     assert all(d["slug"] != "draft-example" for d in shots)
 
 
-def test_drinks_category_invalid_type_422(client):
+def test_drinks_category_numeric_slug_returns_empty(client):
+    # category — строковый slug-параметр; "abc" не slug -> пустой список (200)
     r = client.get("/api/drinks?category=abc")
-    assert r.status_code == 422
+    assert r.status_code == 200
+    assert r.json() == []
 
 
-def test_drinks_category_float_type_422(client):
-    r = client.get("/api/drinks?category=1.5")
-    assert r.status_code == 422
+def test_drinks_category_id_value_returns_empty(client):
+    # числовое значение (бывший id) не является slug -> пустой список (200)
+    r = client.get("/api/drinks?category=1")
+    assert r.status_code == 200
+    assert r.json() == []
 
 
 def test_drinks_locale_ar(client):
@@ -153,9 +161,9 @@ def test_drinks_locale_ar(client):
     assert d["name"] == "عصير برتقال"
 
 
-def test_drinks_locale_en_falls_back_to_ru(client):
+def test_drinks_locale_en_default(client):
     d = next(x for x in client.get("/api/drinks?locale=en").json() if x["slug"] == "orange-fresh")
-    assert d["name"] == "Апельсиновый фреш"
+    assert d["name"] == "Orange fresh"
 
 
 def test_drinks_unknown_locale_does_not_error(client):
@@ -179,20 +187,28 @@ def test_drink_detail_happy(client):
     assert set(d.keys()) == {
         "id", "slug", "name", "description", "videoUrl", "previewUrl",
         "basePrice", "kcal", "protein", "fat", "carbs", "addons",
+        # rich-описание, размерные вариации и «детали напитка» (sizes/i18n-поля)
+        "richDescription", "sizes", "ingredients", "allergens", "mayContain",
     }
     assert d["slug"] == "orange-fresh"
-    assert d["name"] == "Апельсиновый фреш"
+    assert d["name"] == "Orange fresh"
     assert d["basePrice"] == 22
     assert d["kcal"] == 88
     assert d["protein"] == 1.4
     assert d["fat"] == 0.4
     assert d["carbs"] == 20
     assert isinstance(d["addons"], list) and len(d["addons"]) > 0
+    # размеры напитка (ADM-S-05): дефолтный размер 400 ml по базовой цене
+    assert isinstance(d["sizes"], list) and len(d["sizes"]) >= 1
+    default_size = next(s for s in d["sizes"] if s["isDefault"])
+    assert set(default_size.keys()) == {"id", "volume", "unit", "label", "price", "isDefault"}
+    assert default_size["label"] == "400 ml"
+    assert default_size["price"] == 22
 
 
 def test_drink_detail_addon_shape_and_kbju(client):
     d = client.get("/api/drinks/orange-fresh").json()
-    ginger = next(a for a in d["addons"] if a["name"] == "Имбирь")
+    ginger = next(a for a in d["addons"] if a["name"] == "Ginger")
     expected_keys = {
         "addonId", "name", "imageUrl", "categoryId", "categoryName",
         "selectionType", "unit", "free", "pricePerPortion",
@@ -212,7 +228,7 @@ def test_drink_detail_addon_shape_and_kbju(client):
 
 def test_drink_detail_free_addon_flag(client):
     d = client.get("/api/drinks/orange-fresh").json()
-    mint = next(a for a in d["addons"] if a["name"] == "Мята")
+    mint = next(a for a in d["addons"] if a["name"] == "Mint")
     # price_override == None -> free=True (включена в стоимость)
     assert mint["free"] is True
 
@@ -235,15 +251,15 @@ def test_drink_detail_locale_ar(client):
     assert ginger["categoryName"] == "أعشاب وتوابل"
 
 
-def test_drink_detail_locale_en_falls_back_to_ru(client):
+def test_drink_detail_locale_en_default(client):
     d = client.get("/api/drinks/orange-fresh?locale=en").json()
-    assert d["name"] == "Апельсиновый фреш"
-    assert d["description"] == "Свежевыжатый, без сахара."
+    assert d["name"] == "Orange fresh"
+    assert d["description"] == "Freshly pressed, no added sugar."
 
 
 def test_drink_detail_unknown_locale_fallback(client):
     d = client.get("/api/drinks/orange-fresh?locale=qq").json()
-    assert d["name"] == "Апельсиновый фреш"
+    assert d["name"] == "Orange fresh"
 
 
 def test_drink_detail_not_found_unknown_slug(client):
@@ -302,7 +318,7 @@ def test_preview_missing_selections_field_defaults_empty(client):
 
 
 def test_preview_paid_addon_adds_price_and_kbju(client):
-    ginger = _addon(client, "orange-fresh", "Имбирь")
+    ginger = _addon(client, "orange-fresh", "Ginger")
     r = client.post(
         "/api/drinks/orange-fresh/preview",
         json={"selections": [{"addonId": ginger["addonId"], "portions": 1}]},
@@ -318,7 +334,7 @@ def test_preview_paid_addon_adds_price_and_kbju(client):
 
 def test_preview_counter_multiple_portions(client):
     # коллаген — counter, max 2, price 8 за порцию, portion_amount 10
-    coll = _addon(client, "orange-fresh", "Коллаген")
+    coll = _addon(client, "orange-fresh", "Collagen")
     r = client.post(
         "/api/drinks/orange-fresh/preview",
         json={"selections": [{"addonId": coll["addonId"], "portions": 2}]},
@@ -329,8 +345,8 @@ def test_preview_counter_multiple_portions(client):
 
 def test_preview_multi_category_two_addons_ok(client):
     # herbs == multi: можно несколько добавок по 1 порции
-    ginger = _addon(client, "orange-fresh", "Имбирь")
-    mint = _addon(client, "orange-fresh", "Мята")
+    ginger = _addon(client, "orange-fresh", "Ginger")
+    mint = _addon(client, "orange-fresh", "Mint")
     r = client.post(
         "/api/drinks/orange-fresh/preview",
         json={"selections": [
@@ -344,7 +360,7 @@ def test_preview_multi_category_two_addons_ok(client):
 
 def test_preview_single_category_one_addon_ok(client):
     # coconut — категория base == single; 1 добавка 1 порция допустима
-    coconut = _addon(client, "watermelon-fresh", "Кокосовая вода")
+    coconut = _addon(client, "watermelon-fresh", "Coconut water")
     assert coconut["selectionType"] == "single"
     r = client.post(
         "/api/drinks/watermelon-fresh/preview",
@@ -355,7 +371,7 @@ def test_preview_single_category_one_addon_ok(client):
 
 def test_preview_default_portions_value_is_one(client):
     # PreviewSelection.portions имеет дефолт 1 -> можно не указывать
-    ginger = _addon(client, "orange-fresh", "Имбирь")
+    ginger = _addon(client, "orange-fresh", "Ginger")
     r = client.post(
         "/api/drinks/orange-fresh/preview",
         json={"selections": [{"addonId": ginger["addonId"]}]},
@@ -366,7 +382,7 @@ def test_preview_default_portions_value_is_one(client):
 
 def test_preview_min_portions_zero_allowed(client):
     # ginger min_portions=0 -> portions 0 в пределах диапазона, цена не растёт
-    ginger = _addon(client, "orange-fresh", "Имбирь")
+    ginger = _addon(client, "orange-fresh", "Ginger")
     r = client.post(
         "/api/drinks/orange-fresh/preview",
         json={"selections": [{"addonId": ginger["addonId"], "portions": 0}]},
@@ -389,7 +405,7 @@ def test_preview_nonexistent_addon_409(client):
 
 def test_preview_existing_but_unlinked_addon_409(client):
     # чиа существует, но НЕ привязан к orange-fresh -> ADDON_NOT_AVAILABLE
-    chia = _addon(client, "mango-smoothie", "Чиа")
+    chia = _addon(client, "mango-smoothie", "Chia")
     assert chia["addonId"] not in {a["addonId"] for a in client.get("/api/drinks/orange-fresh").json()["addons"]}
     r = client.post(
         "/api/drinks/orange-fresh/preview",
@@ -401,7 +417,7 @@ def test_preview_existing_but_unlinked_addon_409(client):
 
 def test_preview_portions_over_max_409(client):
     # коллаген max_portions=2 -> 3 вне диапазона
-    coll = _addon(client, "orange-fresh", "Коллаген")
+    coll = _addon(client, "orange-fresh", "Collagen")
     r = client.post(
         "/api/drinks/orange-fresh/preview",
         json={"selections": [{"addonId": coll["addonId"], "portions": 3}]},
@@ -412,7 +428,7 @@ def test_preview_portions_over_max_409(client):
 
 def test_preview_portions_below_min_409(client):
     # ginger min_portions=0 -> -1 ниже минимума
-    ginger = _addon(client, "orange-fresh", "Имбирь")
+    ginger = _addon(client, "orange-fresh", "Ginger")
     r = client.post(
         "/api/drinks/orange-fresh/preview",
         json={"selections": [{"addonId": ginger["addonId"], "portions": -1}]},
@@ -423,7 +439,7 @@ def test_preview_portions_below_min_409(client):
 
 def test_preview_multi_with_extra_portions_violates_type_409(client):
     # herbs == multi: portions>1 для одной добавки нарушает тип выбора
-    ginger = _addon(client, "orange-fresh", "Имбирь")  # max_portions=2 -> 2 в диапазоне
+    ginger = _addon(client, "orange-fresh", "Ginger")  # max_portions=2 -> 2 в диапазоне
     r = client.post(
         "/api/drinks/orange-fresh/preview",
         json={"selections": [{"addonId": ginger["addonId"], "portions": 2}]},
@@ -434,7 +450,7 @@ def test_preview_multi_with_extra_portions_violates_type_409(client):
 
 def test_preview_range_check_precedes_type_check(client):
     # turmeric (counter) max_portions=1: portions=2 -> сначала диапазон, не тип
-    turmeric = _addon(client, "orange-fresh", "Куркума")
+    turmeric = _addon(client, "orange-fresh", "Turmeric")
     assert turmeric["selectionType"] == "counter"
     r = client.post(
         "/api/drinks/orange-fresh/preview",
@@ -462,7 +478,7 @@ def test_preview_draft_slug_404(client):
 # POST preview — 422 валидация полей
 # ---------------------------------------------------------------------------
 def test_preview_portions_wrong_type_422(client):
-    ginger = _addon(client, "orange-fresh", "Имбирь")
+    ginger = _addon(client, "orange-fresh", "Ginger")
     r = client.post(
         "/api/drinks/orange-fresh/preview",
         json={"selections": [{"addonId": ginger["addonId"], "portions": "two"}]},
@@ -510,7 +526,7 @@ def test_preview_no_body_422(client):
 
 def test_preview_extra_field_ignored(client):
     # pydantic по умолчанию игнорирует лишние поля -> 200
-    ginger = _addon(client, "orange-fresh", "Имбирь")
+    ginger = _addon(client, "orange-fresh", "Ginger")
     r = client.post(
         "/api/drinks/orange-fresh/preview",
         json={"selections": [{"addonId": ginger["addonId"], "portions": 1, "junk": "x"}],
@@ -531,7 +547,7 @@ def test_preview_wrong_method(client):
 # к итоговой цене: 22 -> 24. Ожидаем 22 (бесплатная не должна менять цену).
 # ---------------------------------------------------------------------------
 def test_preview_free_addon_does_not_increase_price(client):
-    mint = _addon(client, "orange-fresh", "Мята")
+    mint = _addon(client, "orange-fresh", "Mint")
     assert mint["free"] is True
     r = client.post(
         "/api/drinks/orange-fresh/preview",

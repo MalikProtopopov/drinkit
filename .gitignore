@@ -27,3 +27,9 @@ app/tsconfig.tsbuildinfo
 
 # local sqlite DBs
 backend/*.db
+
+# uploaded media (admin drag-and-drop)
+backend/uploads/
+
+# legacy reference web project (removed from tree)
+docs/grabzi-web/

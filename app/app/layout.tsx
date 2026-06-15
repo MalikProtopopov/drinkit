@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Nunito } from "next/font/google";
 import { LocaleEffect } from "@/components/LocaleEffect";
+import { FrameShell } from "@/components/FrameShell";
 import "./globals.css";
 
 // JOOZ UI-kit: Nunito (тяжёлые начертания — основа айдентики редизайна)
@@ -33,7 +34,7 @@ export default function RootLayout({
     <html lang="en" className={`${nunito.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <LocaleEffect />
-        <main className="mobile-frame flex flex-col">{children}</main>
+        <FrameShell>{children}</FrameShell>
       </body>
     </html>
   );

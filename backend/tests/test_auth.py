@@ -30,7 +30,7 @@ def test_me_requires_auth(client):
 
 def test_profile_update(client, customer):
     r = client.patch("/api/auth/me", headers=customer["headers"],
-                     json={"carPlate": "o 12345", "emirate": "Dubai", "locale": "ru"})
+                     json={"carPlate": "o 12345", "emirate": "Dubai", "locale": "en"})
     assert r.status_code == 200
     assert r.json()["carPlate"] == "O 12345"  # uppercase-нормализация
 
@@ -41,12 +41,12 @@ def test_profile_bad_locale(client, customer):
 
 
 def test_verify_normalizes_legacy_locale(client):
-    """Регресс: старый прототип присылал locale='en' — нормализуем, а не падаем."""
+    """Регресс: старый прототип присылал locale='ru' — нормализуем в дефолт en, а не падаем."""
     client.post("/api/auth/request-code", json={"phone": "+971506666666"})
     r = client.post("/api/auth/verify", json={"phone": "+971506666666", "code": "1836",
-                                              "locale": "en"})
+                                              "locale": "ru"})
     assert r.status_code == 200
-    assert r.json()["user"]["locale"] == "ru"
+    assert r.json()["user"]["locale"] == "en"
 
 
 def test_order_legacy_item_without_drink_id_422(client, customer):

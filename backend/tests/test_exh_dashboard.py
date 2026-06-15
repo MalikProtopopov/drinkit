@@ -157,8 +157,9 @@ def test_top_products_item_shape(client, admin, customer):
     data = _dash(client, admin)
     assert len(data["topProducts"]) >= 1
     for p in data["topProducts"]:
-        assert set(p.keys()) == {"name", "revenue", "qty"}
+        assert set(p.keys()) == {"name", "slug", "revenue", "qty"}
         assert isinstance(p["name"], str) and p["name"]
+        assert p["slug"] is None or isinstance(p["slug"], str)
         assert isinstance(p["revenue"], (int, float)) and p["revenue"] >= 0
         assert isinstance(p["qty"], int) and p["qty"] >= 1
 

@@ -102,7 +102,7 @@ export default function OutletsPage() {
           </div>
         </div>
         <div style={{ overflowX: "auto" }}>
-          <table className="admin-table" style={{ minWidth: 600 }}>
+          <div className="admin-tablewrap"><table className="admin-table" style={{ minWidth: 600 }}>
             <thead>
               <tr>
                 <th>Блюдо</th>
@@ -139,7 +139,7 @@ export default function OutletsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       </div>
 

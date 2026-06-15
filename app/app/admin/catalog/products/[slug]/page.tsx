@@ -1,11 +1,13 @@
 "use client";
 
-import { use, useCallback, useEffect, useState } from "react";
+import { Fragment, use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Toggle, useToast } from "@/components/admin/AdminUI";
-import { catalogApi, DESC_LOCALES, type AdminAddon, type AdminDrink, type Binding, type DrinkCat, type DrinkSize } from "@/lib/adminApi";
+import { catalogApi, DESC_LOCALES, type AddonCat, type AdminAddon, type AdminDrink, type Binding, type DrinkCat, type DrinkSize, type Unit } from "@/lib/adminApi";
 import { RichTextEditor } from "@/components/admin/RichTextEditor";
+import { MediaUpload } from "@/components/admin/MediaUpload";
+import { NumInput } from "@/components/admin/NumInput";
 
 /** ADM-S-05: редактор напитка — поля, статус, и промежуточная таблица напиток×добавка:
  *  цена в этом напитке (пусто = бесплатно), мин/дефолт/макс порций, объём порции,
@@ -16,21 +18,34 @@ function Editor({ slug }: { slug: string }) {
   const [drink, setDrink] = useState<AdminDrink | null>(null);
   const [cats, setCats] = useState<DrinkCat[]>([]);
   const [addons, setAddons] = useState<AdminAddon[]>([]);
+  const [addonCats, setAddonCats] = useState<AddonCat[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [bindings, setBindings] = useState<Binding[]>([]);
   const [sizes, setSizes] = useState<DrinkSize[]>([]);
   const [tab, setTab] = useState<"main" | "sizes" | "desc" | "bindings">("main");
   // rich-описания по локалям: текущая выбранная локаль + черновик HTML
-  const [descLocale, setDescLocale] = useState<string>("ru");
+  const [descLocale, setDescLocale] = useState<string>("en");
   const [descDraft, setDescDraft] = useState<string>("");
   const [descRev, setDescRev] = useState(0); // ремонтирует редактор при смене локали/загрузке
+  const [addonQuery, setAddonQuery] = useState(""); // фильтр по вкладке «Доступные добавки»
+  const baselineRef = useRef<string>(""); // снимок «основного» для индикатора несохранённого
+
+  // подпись полей вкладки «Основное» (для отслеживания несохранённых изменений)
+  const mainSig = (d: AdminDrink) => JSON.stringify([
+    d.name, d.description, d.status, d.previewUrl, d.videoUrl,
+    d.basePrice, d.kcal, d.protein, d.fat, d.carbs, d.categoryId,
+  ]);
 
   const load = useCallback(async () => {
-    const [drinks, cs, as_] = await Promise.all([
+    const [drinks, cs, as_, acs, us] = await Promise.all([
       catalogApi.drinks(), catalogApi.drinkCategories(), catalogApi.addons(),
+      catalogApi.addonCategories(), catalogApi.units(),
     ]);
     const d = drinks.find((x) => x.slug === slug);
     if (!d) { router.replace("/admin/catalog/products"); return; }
     setDrink(d); setBindings(d.bindings); setSizes(d.sizes); setCats(cs); setAddons(as_);
+    setAddonCats(acs); setUnits(us);
+    baselineRef.current = mainSig(d);
     setDescDraft(d.descriptions.find((x) => x.locale === descLocale)?.body ?? "");
     setDescRev((r) => r + 1);
   }, [slug, router, descLocale]);
@@ -39,10 +54,12 @@ function Editor({ slug }: { slug: string }) {
   if (!drink) return <div className="admin-meta">Загрузка…</div>;
 
   const set = (patch: Partial<AdminDrink>) => setDrink({ ...drink, ...patch });
+  const dirtyMain = mainSig(drink) !== baselineRef.current;
 
   const saveMain = async () => {
     try {
-      await catalogApi.updateDrink(drink.id, drink);
+      const d = await catalogApi.updateDrink(drink.id, drink);
+      setDrink(d); baselineRef.current = mainSig(d);
       toast("Напиток сохранён");
     } catch (e) { toast(e instanceof Error ? e.message : "Ошибка", "warn"); }
   };
@@ -118,8 +135,63 @@ function Editor({ slug }: { slug: string }) {
   const descLocalesFilled = new Set(drink.descriptions.map((x) => x.locale));
 
   const bound = new Set(bindings.map((b) => b.addonId));
-  const addonName = (id: number) => addons.find((a) => a.id === id)?.name.ru ?? `#${id}`;
+  const addonName = (id: number) => { const a = addons.find((x) => x.id === id); return a?.name.en ?? a?.name.ru ?? `#${id}`; };
   const addonBasePrice = (id: number) => addons.find((a) => a.id === id)?.basePrice ?? 0;
+  const addonUnit = (id: number) => {
+    const a = addons.find((x) => x.id === id);
+    return units.find((u) => u.id === a?.unitId)?.code ?? "";
+  };
+  const addonCatName = (c: AddonCat) => c.name.en ?? c.name.ru ?? "—";
+
+  // строка таблицы напиток×добавка — общая для всех групп
+  const bindingRow = (a: AdminAddon) => {
+    const b = bindings.find((x) => x.addonId === a.id);
+    return (
+      <tr key={a.id} style={b ? undefined : { opacity: 0.5 }}>
+        <td>
+          <Toggle defaultOn={bound.has(a.id)}
+                  onChange={(v) => setBindings((arr) => v
+                    ? [...arr, { addonId: a.id, priceOverride: null, minPortions: 0,
+                                 defaultPortions: 1, maxPortions: 3, portionAmount: 30,
+                                 selectionTypeOverride: null }]
+                    : arr.filter((x) => x.addonId !== a.id))} />
+        </td>
+        <td>
+          <strong>{addonName(a.id)}</strong>
+          <div className="admin-meta">базовая цена {addonBasePrice(a.id)} AED</div>
+        </td>
+        {b ? (
+          <>
+            <td>
+              <input className="admin-input mono" style={{ width: 90 }} placeholder="бесплатно"
+                     value={b.priceOverride ?? ""}
+                     onChange={(e) => setBindings((arr) => arr.map((x) => x.addonId === a.id
+                       ? { ...x, priceOverride: e.target.value === "" ? null : +e.target.value } : x))} />
+            </td>
+            {(["minPortions", "defaultPortions", "maxPortions"] as const).map((k) => (
+              <td key={k}>
+                <NumInput value={b[k]} min={0} style={{ width: 64 }}
+                          onChange={(n) => setBindings((arr) => arr.map((x) => x.addonId === a.id
+                            ? { ...x, [k]: n } : x))} />
+              </td>
+            ))}
+            <td>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <NumInput value={b.portionAmount} min={0} style={{ width: 64 }}
+                          onChange={(n) => setBindings((arr) => arr.map((x) => x.addonId === a.id
+                            ? { ...x, portionAmount: n } : x))} />
+                <span className="admin-meta">{addonUnit(a.id) || "—"}</span>
+              </span>
+            </td>
+          </>
+        ) : (
+          <td colSpan={5} className="admin-meta">не доступна в этом напитке</td>
+        )}
+      </tr>
+    );
+  };
+  // подсветка непереведённого поля
+  const warn = { borderColor: "#B45309", background: "#FFF7E5" } as const;
 
   return (
     <>
@@ -135,11 +207,15 @@ function Editor({ slug }: { slug: string }) {
             </button>
           ))}
         </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+          {tab === "main" && dirtyMain && (
+            <span className="admin-meta" style={{ color: "#B45309", fontWeight: 600 }}>● есть несохранённые изменения</span>
+          )}
+          {tab === "desc" && <span className="admin-meta">описание сохраняется кнопкой во вкладке</span>}
           {tab !== "desc" && (
             <button className="admin-btn primary"
                     onClick={tab === "main" ? saveMain : tab === "sizes" ? saveSizes : saveBindings}>
-              Сохранить
+              {tab === "main" ? "Сохранить основное" : tab === "sizes" ? "Сохранить размеры" : "Сохранить добавки"}
             </button>
           )}
         </div>
@@ -151,7 +227,7 @@ function Editor({ slug }: { slug: string }) {
           Размеры ({sizes.length})
         </button>
         <button className="admin-tab" data-active={tab === "desc"} onClick={() => setTab("desc")}>
-          Описание ({drink.descriptions.length})
+          Описание ({drink.descriptions.filter((d) => d.locale !== "ru").length})
         </button>
         <button className="admin-tab" data-active={tab === "bindings"} onClick={() => setTab("bindings")}>
           Доступные добавки ({bindings.length})
@@ -161,50 +237,61 @@ function Editor({ slug }: { slug: string }) {
       {tab === "main" && (
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
           <div className="admin-panel">
-            <div className="admin-panel-head"><div className="admin-panel-title">Тексты и медиа</div></div>
+            <div className="admin-panel-head">
+              <div className="admin-panel-title">Тексты и медиа</div>
+              <span className="admin-meta">на сайте: английский и арабский</span>
+            </div>
             <div className="admin-panel-body">
               <div className="admin-grid-2">
                 <div className="admin-field">
-                  <label className="admin-label">Название (RU)</label>
-                  <input className="admin-input" value={drink.name.ru ?? ""}
-                         onChange={(e) => set({ name: { ...drink.name, ru: e.target.value } })} />
+                  <label className="admin-label">Название (EN) — основное на сайте</label>
+                  <input className="admin-input" value={drink.name.en ?? ""} placeholder="нет перевода"
+                         style={!drink.name.en ? warn : undefined}
+                         onChange={(e) => set({ name: { ...drink.name, en: e.target.value } })} />
                 </div>
                 <div className="admin-field">
                   <label className="admin-label">Название (AR)</label>
-                  <input className="admin-input" dir="rtl" value={drink.name.ar ?? ""}
+                  <input className="admin-input" dir="rtl" value={drink.name.ar ?? ""} placeholder="نص عربي"
+                         style={!drink.name.ar ? warn : undefined}
                          onChange={(e) => set({ name: { ...drink.name, ar: e.target.value } })} />
                 </div>
               </div>
-              <div className="admin-field">
-                <label className="admin-label">Описание (RU)</label>
-                <textarea className="admin-textarea" value={drink.description.ru ?? ""}
-                          onChange={(e) => set({ description: { ...drink.description, ru: e.target.value } })} />
+              <div className="admin-grid-2">
+                <div className="admin-field">
+                  <label className="admin-label">Краткое описание (EN)</label>
+                  <textarea className="admin-textarea" value={drink.description.en ?? ""}
+                            onChange={(e) => set({ description: { ...drink.description, en: e.target.value } })} />
+                </div>
+                <div className="admin-field">
+                  <label className="admin-label">Краткое описание (AR)</label>
+                  <textarea className="admin-textarea" dir="rtl" value={drink.description.ar ?? ""}
+                            onChange={(e) => set({ description: { ...drink.description, ar: e.target.value } })} />
+                </div>
               </div>
               <div className="admin-grid-2">
                 <div className="admin-field">
                   <label className="admin-label">Категория</label>
                   <select className="admin-select" value={drink.categoryId}
                           onChange={(e) => set({ categoryId: +e.target.value })}>
-                    {cats.map((c) => <option key={c.id} value={c.id}>{c.name.ru}</option>)}
+                    {cats.map((c) => <option key={c.id} value={c.id}>{c.name.en ?? c.name.ru}</option>)}
                   </select>
                 </div>
                 <div className="admin-field">
                   <label className="admin-label">Цена базы (= размер по умолчанию), AED</label>
-                  <input className="admin-input mono" type="number" value={drink.basePrice}
-                         onChange={(e) => set({ basePrice: +e.target.value || 0 })} />
+                  <NumInput value={drink.basePrice} min={0} onChange={(n) => set({ basePrice: n })} />
                   <span className="admin-meta">синхронизируется с ценой размера «по умолчанию» во вкладке «Размеры»</span>
                 </div>
               </div>
               <div className="admin-grid-2">
                 <div className="admin-field">
-                  <label className="admin-label">Превью (URL)</label>
-                  <input className="admin-input mono" value={drink.previewUrl ?? ""}
-                         onChange={(e) => set({ previewUrl: e.target.value || null })} />
+                  <label className="admin-label">Превью (картинка)</label>
+                  <MediaUpload accept="image" value={drink.previewUrl}
+                               onChange={(url) => set({ previewUrl: url })} />
                 </div>
                 <div className="admin-field">
-                  <label className="admin-label">Видео для сайта (URL)</label>
-                  <input className="admin-input mono" value={drink.videoUrl ?? ""}
-                         onChange={(e) => set({ videoUrl: e.target.value || null })} />
+                  <label className="admin-label">Видео для сайта</label>
+                  <MediaUpload accept="video" value={drink.videoUrl}
+                               onChange={(url) => set({ videoUrl: url })} />
                 </div>
               </div>
             </div>
@@ -212,21 +299,22 @@ function Editor({ slug }: { slug: string }) {
 
           <div className="admin-panel">
             <div className="admin-panel-head">
-              <div className="admin-panel-title">КБЖУ базы</div>
-              <span className="admin-meta">с добавками пересчитывается</span>
+              <div className="admin-panel-title">КБЖУ базового напитка</div>
             </div>
             <div className="admin-panel-body">
-              <div className="kbju-grid">
-                {([["kcal", "Ккал"], ["protein", "Белки"], ["fat", "Жиры"], ["carbs", "Углев."]] as const)
-                  .map(([k, l]) => (
-                  <div className="kbju-cell" key={k}>
-                    <div className="kbju-cell-label">{l}</div>
-                    <input className="admin-input mono" type="number" value={drink[k]}
-                           onChange={(e) => set({ [k]: +e.target.value || 0 } as Partial<AdminDrink>)}
-                           style={{ marginTop: 4 }} />
+              <div className="admin-grid-2">
+                {([["kcal", "Ккал", "ккал"], ["protein", "Белки", "г"],
+                   ["fat", "Жиры", "г"], ["carbs", "Углеводы", "г"]] as const).map(([k, l, u]) => (
+                  <div className="admin-field" key={k}>
+                    <label className="admin-label">{l}, {u}</label>
+                    <NumInput value={drink[k]} min={0}
+                              onChange={(n) => set({ [k]: n } as Partial<AdminDrink>)} />
                   </div>
                 ))}
               </div>
+              <p className="admin-meta" style={{ marginTop: 8 }}>
+                На 1 порцию (размер по умолчанию). С добавками пересчитывается на сайте.
+              </p>
             </div>
           </div>
         </div>
@@ -238,7 +326,7 @@ function Editor({ slug }: { slug: string }) {
             <div className="admin-panel-title">Размеры напитка</div>
             <span className="admin-meta">объём и своя цена; цена «по умолчанию» идёт в карточку витрины</span>
           </div>
-          <table className="admin-table">
+          <div className="admin-tablewrap"><table className="admin-table">
             <thead>
               <tr>
                 <th>По умолч.</th><th>Объём</th><th>Ед.</th><th>Цена, AED</th><th>Активен</th><th></th>
@@ -252,9 +340,9 @@ function Editor({ slug }: { slug: string }) {
                            disabled={!s.isActive} onChange={() => pickDefaultSize(i)} />
                   </td>
                   <td>
-                    <input className="admin-input mono" style={{ width: 90 }} type="number" value={s.volume}
-                           onChange={(e) => setSizes((arr) => arr.map((x, j) => j === i
-                             ? { ...x, volume: +e.target.value || 0 } : x))} />
+                    <NumInput value={s.volume} min={0} style={{ width: 90 }}
+                              onChange={(n) => setSizes((arr) => arr.map((x, j) => j === i
+                                ? { ...x, volume: n } : x))} />
                   </td>
                   <td>
                     <select className="admin-select" style={{ width: 80 }} value={s.unit}
@@ -266,9 +354,9 @@ function Editor({ slug }: { slug: string }) {
                     </select>
                   </td>
                   <td>
-                    <input className="admin-input mono" style={{ width: 100 }} type="number" value={s.price}
-                           onChange={(e) => setSizes((arr) => arr.map((x, j) => j === i
-                             ? { ...x, price: +e.target.value || 0 } : x))} />
+                    <NumInput value={s.price} min={0} style={{ width: 100 }}
+                              onChange={(n) => setSizes((arr) => arr.map((x, j) => j === i
+                                ? { ...x, price: n } : x))} />
                   </td>
                   <td>
                     <Toggle defaultOn={s.isActive}
@@ -287,7 +375,7 @@ function Editor({ slug }: { slug: string }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <div className="admin-panel-body">
             <button className="admin-btn" onClick={addSize}>+ Добавить размер</button>
             <p className="admin-meta" style={{ marginTop: 8 }}>
@@ -306,18 +394,23 @@ function Editor({ slug }: { slug: string }) {
               <span className="admin-meta">шторка «Подробнее»; своё для каждой локали</span>
             </div>
             <div className="admin-panel-body">
-              {/* выбор локали — отмечаем, где описание уже заполнено */}
+              {/* выбор языка описания — галочка у языков, где описание уже есть */}
               <div className="admin-field">
-                <label className="admin-label">Локализация</label>
+                <label className="admin-label">Язык описания</label>
                 <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F5EFE7", borderRadius: 999 }}>
                   {DESC_LOCALES.map((l) => (
                     <button key={l.code} className="admin-btn sm" onClick={() => switchDescLocale(l.code)}
                             style={descLocale === l.code ? { background: "#4A56E2", color: "#FFF" } : { background: "transparent" }}>
-                      {l.label}{descLocalesFilled.has(l.code) ? " ●" : ""}
+                      {l.label}{descLocalesFilled.has(l.code) ? " ✓" : ""}
                     </button>
                   ))}
                 </div>
-                <span className="admin-meta">● — описание для локали заполнено</span>
+                {/* понятный статус именно выбранного языка + что это значит для сайта */}
+                <span className="admin-meta">
+                  {descLocalesFilled.has(descLocale)
+                    ? "✓ Для этого языка описание добавлено — на сайте показывается кнопка «Подробнее»."
+                    : "Для этого языка описания пока нет — кнопка «Подробнее» на сайте скрыта, пока вы его не добавите и не сохраните."}
+                </span>
               </div>
 
               <RichTextEditor key={`${descLocale}-${descRev}`} initialHtml={descDraft}
@@ -344,7 +437,7 @@ function Editor({ slug }: { slug: string }) {
             </div>
             <div className="admin-panel-body">
               <div style={{ background: "#fff", border: "1px solid #ECE6DC", borderRadius: 20, padding: 18 }}>
-                <div style={{ fontWeight: 900, fontSize: 22, marginBottom: 8 }}>{drink.name.ru || drink.slug}</div>
+                <div style={{ fontWeight: 900, fontSize: 22, marginBottom: 8 }}>{drink.name.en || drink.name.ru || drink.slug}</div>
                 {descDraft && descDraft.replace(/<[^>]*>/g, "").trim() ? (
                   <div className="rich-desc" dir={descLocale === "ar" ? "rtl" : "ltr"}
                        dangerouslySetInnerHTML={{ __html: descDraft }} />
@@ -357,72 +450,62 @@ function Editor({ slug }: { slug: string }) {
         </div>
       )}
 
-      {tab === "bindings" && (
-        <div className="admin-panel">
-          <div className="admin-panel-head">
-            <div className="admin-panel-title">Промежуточная таблица напиток×добавка</div>
-            <span className="admin-meta">пустая цена = бесплатно, включена в стоимость напитка</span>
+      {tab === "bindings" && (() => {
+        // активные добавки, сгруппированные по своей категории; поиск по названию
+        const q = addonQuery.trim().toLowerCase();
+        const active = addons.filter((a) => a.isActive);
+        const matches = (a: AdminAddon) => !q
+          || addonName(a.id).toLowerCase().includes(q) || (a.name.ar ?? "").includes(addonQuery.trim());
+        const groups = addonCats.map((c) => ({ cat: c as AddonCat | null,
+          items: active.filter((a) => a.categoryId === c.id && matches(a)) }));
+        const orphan = active.filter((a) => !addonCats.some((c) => c.id === a.categoryId) && matches(a));
+        if (orphan.length) groups.push({ cat: null, items: orphan });
+        const visible = groups.filter((g) => g.items.length > 0);
+        return (
+          <div className="admin-panel">
+            <div className="admin-panel-head">
+              <div className="admin-panel-title">Доступные добавки</div>
+              <span className="admin-meta">включено {bound.size} из {active.length} · пустая цена = бесплатно</span>
+            </div>
+            <div className="admin-panel-body" style={{ paddingBottom: 8 }}>
+              <input className="admin-input" placeholder="Поиск добавки…" value={addonQuery}
+                     onChange={(e) => setAddonQuery(e.target.value)} style={{ maxWidth: 280 }} />
+            </div>
+            <div className="admin-tablewrap"><table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Доступна</th><th>Добавка</th><th>Цена в этом напитке, AED</th>
+                  <th>Мин</th><th>Дефолт</th><th>Макс</th><th>Объём порции</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((g) => (
+                  <Fragment key={g.cat ? g.cat.id : "orphan"}>
+                    <tr style={{ background: "#F2ECE2" }}>
+                      <td colSpan={7} style={{ fontWeight: 800 }}>
+                        {g.cat ? addonCatName(g.cat) : "Без категории"}
+                        <span className="admin-meta" style={{ marginLeft: 8, fontWeight: 500 }}>
+                          {g.items.filter((a) => bound.has(a.id)).length}/{g.items.length} включено
+                        </span>
+                      </td>
+                    </tr>
+                    {g.items.map(bindingRow)}
+                  </Fragment>
+                ))}
+                {visible.length === 0 && (
+                  <tr><td colSpan={7} className="admin-meta" style={{ padding: 16 }}>Ничего не найдено</td></tr>
+                )}
+              </tbody>
+            </table></div>
+            <div className="admin-panel-body">
+              <p className="admin-meta">
+                Лимиты: 0 ≤ мин ≤ дефолт ≤ макс (валидируется на бэке). Объём порции — грамм/мл
+                на одну порцию; КБЖУ на сайте пересчитывается на этот объём.
+              </p>
+            </div>
           </div>
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Доступна</th><th>Добавка</th><th>Цена в этом напитке, AED</th>
-                <th>Мин</th><th>Дефолт</th><th>Макс</th><th>Объём порции</th>
-              </tr>
-            </thead>
-            <tbody>
-              {addons.filter((a) => a.isActive).map((a) => {
-                const b = bindings.find((x) => x.addonId === a.id);
-                return (
-                  <tr key={a.id}>
-                    <td>
-                      {/* отметка «доступно в этом напитке» (ADM-S-05 AC2) */}
-                      <Toggle defaultOn={bound.has(a.id)}
-                              onChange={(v) => setBindings((arr) => v
-                                ? [...arr, { addonId: a.id, priceOverride: null, minPortions: 0,
-                                             defaultPortions: 1, maxPortions: 3, portionAmount: 30,
-                                             selectionTypeOverride: null }]
-                                : arr.filter((x) => x.addonId !== a.id))} />
-                    </td>
-                    <td>
-                      <strong>{addonName(a.id)}</strong>
-                      <div className="admin-meta">базовая цена {addonBasePrice(a.id)} AED</div>
-                    </td>
-                    {b ? (
-                      <>
-                        <td>
-                          <input className="admin-input mono" style={{ width: 90 }}
-                                 placeholder="бесплатно"
-                                 value={b.priceOverride ?? ""}
-                                 onChange={(e) => setBindings((arr) => arr.map((x) => x.addonId === a.id
-                                   ? { ...x, priceOverride: e.target.value === "" ? null : +e.target.value }
-                                   : x))} />
-                        </td>
-                        {(["minPortions", "defaultPortions", "maxPortions", "portionAmount"] as const).map((k) => (
-                          <td key={k}>
-                            <input className="admin-input mono" style={{ width: 64 }} type="number"
-                                   value={b[k]}
-                                   onChange={(e) => setBindings((arr) => arr.map((x) => x.addonId === a.id
-                                     ? { ...x, [k]: +e.target.value || 0 } : x))} />
-                          </td>
-                        ))}
-                      </>
-                    ) : (
-                      <td colSpan={5} className="admin-meta">не доступна в этом напитке</td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div className="admin-panel-body">
-            <p className="admin-meta">
-              Лимиты: 0 ≤ мин ≤ дефолт ≤ макс (валидируется на бэке). Объём порции — грамм/мл
-              на одну порцию; КБЖУ на сайте пересчитывается на этот объём.
-            </p>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </>
   );
 }

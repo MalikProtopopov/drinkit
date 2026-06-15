@@ -107,7 +107,7 @@ export default function OutletDetailPage({ params }: { params: Promise<{ id: str
             <div className="admin-panel-title">Сотрудники на этой точке</div>
             <button className="admin-btn sm" onClick={() => setAssignOpen(true)}>+ Назначить</button>
           </div>
-          <table className="admin-table">
+          <div className="admin-tablewrap"><table className="admin-table">
             <thead><tr><th>Имя</th><th>Email</th><th>Роли</th><th>Доступ</th><th>Последний вход</th><th></th></tr></thead>
             <tbody>
               {outletStaff.map((u) => (
@@ -128,7 +128,7 @@ export default function OutletDetailPage({ params }: { params: Promise<{ id: str
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 
@@ -202,7 +202,7 @@ function MenuTab({ onDirty }: { onDirty: () => void }) {
             <button className="admin-btn sm" style={{ color: "#A12822", borderColor: "#E5C5C2" }} onClick={() => setConfirmStopAll(true)}>Массовый стоп</button>
           </div>
         </div>
-        <table className="admin-table">
+        <div className="admin-tablewrap"><table className="admin-table">
           <thead>
             <tr><th>Блюдо</th><th>Категория</th><th>В меню</th><th>В наличии</th><th>Кто менял</th><th>Когда</th></tr>
           </thead>
@@ -222,7 +222,7 @@ function MenuTab({ onDirty }: { onDirty: () => void }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
       <ConfirmDialog
         open={confirmStopAll}

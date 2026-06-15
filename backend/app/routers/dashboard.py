@@ -7,8 +7,10 @@ from sqlalchemy.orm import Session
 
 from ..core.db import get_db
 from ..core.security import require_super_admin
+from ..models.catalog import Drink
 from ..models.orders import Order, OrderItem
 from ..models.users import User
+from ..services.i18n import t
 
 router = APIRouter(prefix="/api/admin/dashboard", tags=["dashboard"],
                    dependencies=[Depends(require_super_admin)])
@@ -41,15 +43,22 @@ def dashboard(
         if created:
             by_hour[created.hour] += 1
 
-    # 8. top revenue by product (≥20 позиций)
+    # 8. top revenue by product — группируем по НАПИТКУ (drink_id), а не по снэпшот-
+    #    названию: иначе один напиток в разных локалях даёт разные строки. Имя берём
+    #    актуальное из каталога (en), снэпшот — фолбэк для удалённых напитков.
     top = db.execute(
-        select(OrderItem.drink_name,
+        select(OrderItem.drink_id,
+               func.max(OrderItem.drink_name).label("snap"),
                func.sum(OrderItem.unit_price * OrderItem.quantity).label("rev"),
                func.sum(OrderItem.quantity).label("qty"))
         .join(Order).where(*paid)
-        .group_by(OrderItem.drink_name).order_by(func.sum(OrderItem.unit_price * OrderItem.quantity).desc())
+        .group_by(OrderItem.drink_id)
+        .order_by(func.sum(OrderItem.unit_price * OrderItem.quantity).desc())
         .limit(20)
     ).all()
+    drink_ids = [r.drink_id for r in top]
+    drinks_by_id = {d.id: d for d in db.scalars(
+        select(Drink).where(Drink.id.in_(drink_ids)))} if drink_ids else {}
 
     # 9. сортировка клиентов по числу заказов и суммам
     top_customers = db.execute(
@@ -69,7 +78,10 @@ def dashboard(
         "avgOrderValue": round(revenue / orders_count, 2) if orders_count else 0,           # 5
         "ordersByHour": by_hour,                                        # 7
         "topProducts": [
-            {"name": r.drink_name, "revenue": round(r.rev, 2), "qty": int(r.qty)} for r in top
+            {"name": t(drinks_by_id[r.drink_id].name, "en") if r.drink_id in drinks_by_id else r.snap,
+             "slug": drinks_by_id[r.drink_id].slug if r.drink_id in drinks_by_id else None,
+             "revenue": round(r.rev, 2), "qty": int(r.qty)}
+            for r in top
         ],                                                              # 8
         "topCustomers": [
             {"userId": r.id, "phone": r.phone, "name": r.name, "orders": r.orders,

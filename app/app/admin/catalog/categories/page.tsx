@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { Modal, Toggle, useToast } from "@/components/admin/AdminUI";
+import { MediaUpload } from "@/components/admin/MediaUpload";
 import { catalogApi, type DrinkCat } from "@/lib/adminApi";
 
 /** ADM-S-01: категории напитков — фото, видео, активность, название. */
@@ -32,7 +33,7 @@ function Inner() {
   return (
     <>
       <div className="admin-panel">
-        <table className="admin-table">
+        <div className="admin-tablewrap"><table className="admin-table">
           <thead>
             <tr><th>Сорт.</th><th>Название (RU)</th><th>Название (AR)</th><th>Slug</th><th>Медиа</th>
                 <th>Активна / сохранить</th></tr>
@@ -42,7 +43,7 @@ function Inner() {
               <CategoryRow key={c.id} cat={c} onSaved={load} />
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
       <div style={{ marginTop: 12 }}>
         <button className="admin-btn primary" onClick={() => setOpen(true)}>+ Новая категория</button>
@@ -66,8 +67,8 @@ function Inner() {
                  onChange={(e) => setSlug(e.target.value)} />
         </div>
         <div className="admin-field">
-          <label className="admin-label">Фото (URL)</label>
-          <input className="admin-input mono" value={photo} onChange={(e) => setPhoto(e.target.value)} />
+          <label className="admin-label">Фото категории</label>
+          <MediaUpload accept="image" value={photo} onChange={(url) => setPhoto(url ?? "")} />
         </div>
       </Modal>
     </>
@@ -97,12 +98,13 @@ function CategoryRow({ cat, onSaved }: { cat: DrinkCat; onSaved: () => void }) {
         <input className="admin-input mono" value={c.slug ?? ""} placeholder="slug"
                onChange={(e) => setC({ ...c, slug: e.target.value })} />
       </td>
-      <td>
-        <input className="admin-input mono" value={c.photoUrl ?? ""} placeholder="фото URL"
-               onChange={(e) => setC({ ...c, photoUrl: e.target.value || null })} />
-        <input className="admin-input mono" value={c.videoUrl ?? ""} placeholder="видео URL"
-               style={{ marginTop: 4 }}
-               onChange={(e) => setC({ ...c, videoUrl: e.target.value || null })} />
+      <td style={{ minWidth: 200 }}>
+        <div className="admin-label" style={{ marginBottom: 4 }}>Фото</div>
+        <MediaUpload accept="image" height={90} value={c.photoUrl}
+                     onChange={(url) => setC({ ...c, photoUrl: url })} />
+        <div className="admin-label" style={{ margin: "8px 0 4px" }}>Видео</div>
+        <MediaUpload accept="video" value={c.videoUrl}
+                     onChange={(url) => setC({ ...c, videoUrl: url })} />
       </td>
       <td>
         <Toggle defaultOn={c.isActive}

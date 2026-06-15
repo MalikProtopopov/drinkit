@@ -10,6 +10,42 @@ import {
 } from "react";
 
 /* ============================================================
+   Pager — постраничная навигация (limit/offset)
+   ============================================================ */
+
+export function Pager({
+  total, limit, offset, loading, onOffset, onLimit,
+}: {
+  total: number; limit: number; offset: number; loading?: boolean;
+  onOffset: (o: number) => void; onLimit?: (l: number) => void;
+}) {
+  const from = total === 0 ? 0 : offset + 1;
+  const to = Math.min(offset + limit, total);
+  const pages = Math.max(1, Math.ceil(total / limit));
+  const page = Math.floor(offset / limit) + 1;
+  return (
+    <div className="admin-pager">
+      <span className="admin-meta">
+        {loading ? "Загрузка…" : <>Показано <strong>{from}–{to}</strong> из <strong>{total}</strong></>}
+      </span>
+      <div className="admin-pager-ctrls">
+        {onLimit && (
+          <select className="admin-select" style={{ width: "auto" }} value={limit}
+                  onChange={(e) => onLimit(+e.target.value)}>
+            {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n} / стр.</option>)}
+          </select>
+        )}
+        <button className="admin-btn sm" disabled={page <= 1}
+                onClick={() => onOffset(Math.max(0, offset - limit))}>← Назад</button>
+        <span className="admin-meta admin-mono">{page} / {pages}</span>
+        <button className="admin-btn sm" disabled={page >= pages}
+                onClick={() => onOffset(offset + limit)}>Вперёд →</button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    Toast
    ============================================================ */
 

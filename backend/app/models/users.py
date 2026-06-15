@@ -22,7 +22,8 @@ class User(Base):
 
 
 class StaffUser(Base):
-    """Персонал админки: super_admin | manager (ADM-S-06)."""
+    """Персонал админки: super_admin | manager | screen (ADM-S-06).
+    screen — учётка публичного табло выдачи (ТВ у стойки), доступ только к /admin/screen."""
 
     __tablename__ = "staff_users"
 
@@ -30,7 +31,9 @@ class StaffUser(Base):
     email: Mapped[str] = mapped_column(String(120), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(200))
     name: Mapped[str] = mapped_column(String(80))
-    role: Mapped[str] = mapped_column(String(20), default="manager")  # super_admin | manager
+    role: Mapped[str] = mapped_column(String(20), default="manager")  # super_admin | manager | screen
+    phone: Mapped[str | None] = mapped_column(String(30), nullable=True)  # контакт сотрудника
+    note: Mapped[str | None] = mapped_column(String(200), nullable=True)  # должность/заметка для опознания
     disabled: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

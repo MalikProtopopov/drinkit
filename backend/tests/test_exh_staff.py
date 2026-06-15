@@ -43,7 +43,7 @@ def test_login_happy_admin(client):
     assert staff["email"] == "admin@juicy.ae"
     assert staff["role"] == "super_admin"
     assert staff["disabled"] is False
-    assert set(staff.keys()) == {"id", "email", "name", "role", "disabled"}
+    assert set(staff.keys()) == {"id", "email", "name", "role", "phone", "note", "disabled"}
     # пароль/хэш не утекают наружу
     assert "password" not in staff and "password_hash" not in staff
 
@@ -140,7 +140,7 @@ def test_me_happy_admin(client, admin):
     data = r.json()
     assert data["email"] == "admin@juicy.ae"
     assert data["role"] == "super_admin"
-    assert set(data.keys()) == {"id", "email", "name", "role", "disabled"}
+    assert set(data.keys()) == {"id", "email", "name", "role", "phone", "note", "disabled"}
 
 
 def test_me_happy_manager(client, manager):
@@ -183,7 +183,7 @@ def test_list_managers_happy_admin(client, admin):
     assert "admin@juicy.ae" in emails and "manager@juicy.ae" in emails
     # payload-форма каждого элемента
     for row in rows:
-        assert set(row.keys()) == {"id", "email", "name", "role", "disabled"}
+        assert set(row.keys()) == {"id", "email", "name", "role", "phone", "note", "disabled"}
         assert "password_hash" not in row
 
 
@@ -343,19 +343,19 @@ def test_create_manager_empty_body_422(client, admin):
 
 @pytest.mark.parametrize("name", ["A", "x" * 80, "Имя С Пробелами", "  trimmed?  "])
 def test_create_manager_name_boundaries_accepted(client, admin, name):
-    """name: str без min/max в схеме — короткие/длинные/с пробелами принимаются."""
+    """name: непустые значения принимаются; имя ТРИМится на create."""
     r = client.post("/api/staff/managers", headers=admin["headers"],
                     json={"email": _uniq_email("nb"), "password": "secret12", "name": name})
     assert r.status_code == 200, r.text
-    assert r.json()["name"] == name
+    assert r.json()["name"] == name.strip()
 
 
-def test_create_manager_empty_name_accepted(client, admin):
-    """Пустое имя не запрещено схемой (нет min_length) — фиксируем фактическое поведение."""
+def test_create_manager_empty_name_rejected_422(client, admin):
+    """Пустое/пробельное имя теперь отклоняется на create → 422 NAME_REQUIRED."""
     r = client.post("/api/staff/managers", headers=admin["headers"],
                     json={"email": _uniq_email("en"), "password": "secret12", "name": ""})
-    assert r.status_code == 200
-    assert r.json()["name"] == ""
+    assert r.status_code == 422
+    assert r.json()["detail"] == "NAME_REQUIRED"
 
 
 # ════════════════════════════ DELETE /api/staff/managers/{id} ═══════════════
