@@ -12,7 +12,7 @@ const STEP_SHORT: Record<string, string> = {
   new: "New", in_progress: "In progress", ready: "Ready", completed: "Handed over",
 };
 
-// timestamps ÑÑÐ°Ð½ÑÑÑÑ ÐºÐ°Ðº Ð½Ð°Ð¸Ð²Ð½ÑÐ¹ UTC â ÑÑÐ°ÐºÑÑÐµÐ¼ ÐºÐ°Ðº UTC Ð´Ð»Ñ ÐºÐ¾ÑÑÐµÐºÑÐ½Ð¾Ð³Ð¾ Ð²ÑÐµÐ¼ÐµÐ½Ð¸/ÑÐ°Ð¹Ð¼ÐµÑÐ°
+// timestamps хранятся как наивный UTC — трактуем как UTC для корректного времени/таймера
 const parseTs = (s: string) => new Date(/[Z+]/.test(s) ? s : s + "Z");
 const fmtDateTime = (s: string) =>
   parseTs(s).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -30,7 +30,7 @@ function eventLabel(type: string, status?: string | null): string {
   }
 }
 
-// Â«Ð¶Ð´ÑÑ N Ð¼Ð¸Ð½Â» â Ð¶Ð¸Ð²Ð¾Ð¹ ÑÑÑÑÑÐ¸Ðº Ñ ÑÐ²ÐµÑÐ¾Ð²Ð¾Ð¹ ÑÑÐºÐ°Ð»Ð°ÑÐ¸ÐµÐ¹ (Ð·ÐµÐ»ÑÐ½ÑÐ¹ â ÑÐ½ÑÐ°ÑÑ â ÐºÑÐ°ÑÐ½ÑÐ¹)
+// «ждёт N мин» — живой счётчик с цветовой эскалацией (зелёный → янтарь → красный)
 function WaitBadge({ minutes }: { minutes: number }) {
   const c = minutes >= 15
     ? { bg: "#FCEAEA", fg: "#DC2626" }
@@ -76,10 +76,10 @@ function Detail({ id }: { id: number }) {
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 30_000); // Ð¶Ð¸Ð²Ð¾Ð¹ ÑÐ°Ð¹Ð¼ÐµÑ Ð¾Ð¶Ð¸Ð´Ð°Ð½Ð¸Ñ
+    const t = setInterval(() => setNow(Date.now()), 30_000); // живой таймер ожидания
     return () => clearInterval(t);
   }, []);
-  // realtime ÑÑÐ¾Ð³Ð¾ Ð·Ð°ÐºÐ°Ð·Ð°: ÑÐ¼ÐµÐ½Ñ ÑÑÐ°ÑÑÑÐ°/Ð¿ÑÐ¸Ð±ÑÑÐ¸Ðµ Ð¿ÑÐ¸ÑÐ¾Ð´ÑÑ ÑÑÐ°Ð·Ñ; Ð°Ð²ÑÐ¾-reconnect
+  // realtime этого заказа: смены статуса/прибытие приходят сразу; авто-reconnect
   useLiveReload({
     connect: adminOrdersWs,
     onMessage: (m) => { if ((m as { orderId?: number }).orderId === id) load(); },
@@ -87,7 +87,7 @@ function Detail({ id }: { id: number }) {
     pollMs: 30000,
   });
 
-  if (!order) return <div className="admin-meta">Loadingâ¦</div>;
+  if (!order) return <div className="admin-meta">Loading…</div>;
 
   const act = async (fn: () => Promise<unknown>, ok: string) => {
     try { await fn(); load(); toast(ok); }
@@ -101,14 +101,14 @@ function Detail({ id }: { id: number }) {
   const unit = (u: string) => (u === "ml" ? " ml" : u === "pcs" ? " pcs" : " g");
 
   const nextAction =
-    order.status === "new" ? { label: "Take â", run: () => adminApi.take(order.id), ok: "Taken" }
-    : order.status === "in_progress" ? { label: "Ready, awaiting pickup â", run: () => adminApi.setStatus(order.id, "ready"), ok: "Ready â waiting for customer" }
-    : order.status === "ready" ? { label: "Handed over to customer â", run: () => adminApi.setStatus(order.id, "completed"), ok: "Handed over to customer" }
+    order.status === "new" ? { label: "Take →", run: () => adminApi.take(order.id), ok: "Taken" }
+    : order.status === "in_progress" ? { label: "Ready, awaiting pickup →", run: () => adminApi.setStatus(order.id, "ready"), ok: "Ready — waiting for customer" }
+    : order.status === "ready" ? { label: "Handed over to customer ✓", run: () => adminApi.setStatus(order.id, "completed"), ok: "Handed over to customer" }
     : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* summary-Ð±Ð°Ñ: Ð½Ð¾Ð¼ÐµÑ, Ð²ÑÐµÐ¼Ñ Ð¾ÑÐ¾ÑÐ¼Ð»ÐµÐ½Ð¸Ñ, ÐÐÐÐÐ ÑÐ°Ð¹Ð¼ÐµÑ Ð¾Ð¶Ð¸Ð´Ð°Ð½Ð¸Ñ, ÑÑÐ°ÑÑÑ */}
+      {/* summary-бар: номер, время оформления, ЖИВОЙ таймер ожидания, статус */}
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
         <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>Order #{order.number}</div>
         {order.createdAt && <span className="admin-meta">placed {fmtDateTime(order.createdAt)}</span>}
@@ -117,23 +117,23 @@ function Detail({ id }: { id: number }) {
         <span className={`admin-badge ${order.status}`}>{ADMIN_STATUS_LABEL[order.status]}</span>
       </div>
 
-      {/* Ð¿ÑÐ¸Ð¾ÑÐ¸ÑÐµÑÐ½ÑÐ¹ Ð±Ð°Ð½Ð½ÐµÑ: ÐºÐ»Ð¸ÐµÐ½Ñ ÑÐ¶Ðµ Ð½Ð° Ð¼ÐµÑÑÐµ */}
+      {/* приоритетный баннер: клиент уже на месте */}
       {order.arrived && isActive && (
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderRadius: 14,
                       background: "#FFF7E5", border: "1.5px solid #F0C36B", fontWeight: 600 }}>
-          <span style={{ fontSize: 22 }}>ð</span>
+          <span style={{ fontSize: 22 }}>🚗</span>
           <div>
-            Customer has arrived â car <strong>{order.emirate} {order.carPlate}</strong>.
-            {order.status !== "ready" && <span style={{ color: "#B45309" }}> Order is still being prepared â priority!</span>}
+            Customer has arrived — car <strong>{order.emirate} {order.carPlate}</strong>.
+            {order.status !== "ready" && <span style={{ color: "#B45309" }}> Order is still being prepared — priority!</span>}
           </div>
         </div>
       )}
 
       <div className="admin-split" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16, alignItems: "start" }}>
-        {/* ÐÐÐÐ: ÑÑÐ¾ Ð³Ð¾ÑÐ¾Ð²Ð¸ÑÑ */}
+        {/* ЛЕВО: что готовить */}
         <div className="admin-panel">
           <div className="admin-panel-head">
-            <div className="admin-panel-title">To prepare Â· {order.items.length} items / {drinksTotal} pcs</div>
+            <div className="admin-panel-title">To prepare · {order.items.length} items / {drinksTotal} pcs</div>
           </div>
 
           {order.items.map((it) => (
@@ -144,18 +144,18 @@ function Detail({ id }: { id: number }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <strong style={{ fontSize: 16 }}>{it.customName || it.drinkNameEn}</strong>
                   {it.sizeLabel && <span className="admin-pill">{it.sizeLabel}</span>}
-                  <span className="admin-pill" style={{ background: "#EFE6F0", color: "#4A56E2", fontWeight: 700 }}>Ã{it.quantity}</span>
+                  <span className="admin-pill" style={{ background: "#EFE6F0", color: "#4A56E2", fontWeight: 700 }}>×{it.quantity}</span>
                   {it.paidByCoupon && <span className="admin-pill accent">via coupon</span>}
                 </div>
                 {it.customName && (
                   <div className="admin-meta" style={{ marginTop: 2 }}>
-                    Name from customer Â· base drink: <strong>{it.drinkNameEn}</strong>
+                    Name from customer · base drink: <strong>{it.drinkNameEn}</strong>
                   </div>
                 )}
 
                 <div style={{ marginTop: 10 }}>
                   {it.addons.length === 0 ? (
-                    <span className="admin-meta">No add-ons â base recipe</span>
+                    <span className="admin-meta">No add-ons — base recipe</span>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                       <div className="admin-meta" style={{ fontWeight: 700, marginBottom: 2 }}>Add-ons:</div>
@@ -163,8 +163,8 @@ function Detail({ id }: { id: number }) {
                         <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 13.5 }}>
                           <span>
                             <strong style={{ fontWeight: 600 }}>{a.nameEn}</strong>
-                            {a.portions > 1 && <span> Ã{a.portions}</span>}
-                            <span className="admin-meta"> Â· {a.amount}{unit(a.unit)}</span>
+                            {a.portions > 1 && <span> ×{a.portions}</span>}
+                            <span className="admin-meta"> · {a.amount}{unit(a.unit)}</span>
                           </span>
                           <span className="admin-meta" style={{ whiteSpace: "nowrap" }}>
                             {a.price > 0 ? `+${(a.price * a.portions).toFixed(0)} AED` : "included"}
@@ -184,15 +184,15 @@ function Detail({ id }: { id: number }) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
                         padding: "16px 20px", borderTop: "1px solid var(--a-rule)", background: "#FAF6F0" }}>
             <div style={{ fontWeight: 700 }}>
-              Total {order.couponDiscount > 0 && <span className="admin-meta">(coupon â{order.couponDiscount.toFixed(0)})</span>}
+              Total {order.couponDiscount > 0 && <span className="admin-meta">(coupon −{order.couponDiscount.toFixed(0)})</span>}
             </div>
             <div className="admin-num" style={{ fontWeight: 800, fontSize: 18 }}>{order.total.toFixed(2)} AED</div>
           </div>
 
-          {/* ÑÐ½Ð¸Ð¼Ð¾Ðº Ð·Ð°ÐºÐ°Ð·Ð° (Ð¾ÑÐ¸Ð³Ð¸Ð½Ð°Ð», Ð² Ð»Ð¾ÐºÐ°Ð»Ð¸ ÐºÐ»Ð¸ÐµÐ½ÑÐ°) â Ð´Ð»Ñ Ð¿ÑÐ¾Ð²ÐµÑÐºÐ¸ ÑÑÐ¿ÐµÑÐ°Ð´Ð¼Ð¸Ð½Ð¾Ð¼ */}
+          {/* снимок заказа (оригинал, в локали клиента) — для проверки суперадмином */}
           <details style={{ borderTop: "1px solid var(--a-rule)" }}>
             <summary style={{ cursor: "pointer", padding: "12px 20px", fontWeight: 600, fontSize: 13, color: "var(--a-ink-soft)" }}>
-              Order snapshot (original, as the customer saw it) â for review
+              Order snapshot (original, as the customer saw it) — for review
             </summary>
             <div style={{ padding: "0 20px 16px" }}>
               <div className="admin-meta" style={{ marginBottom: 8 }}>
@@ -202,15 +202,15 @@ function Detail({ id }: { id: number }) {
                 <div key={it.id} style={{ padding: "8px 0", borderTop: "1px dashed var(--a-rule)", fontSize: 13 }}>
                   <div>
                     <strong>{it.name}</strong>
-                    {it.sizeLabel && <span className="admin-meta"> Â· {it.sizeLabel}</span>}
-                    <span className="admin-meta"> Â· Ã{it.quantity}</span>
-                    {it.customName && <span className="admin-meta"> Â· base: {it.drinkName}</span>}
+                    {it.sizeLabel && <span className="admin-meta"> · {it.sizeLabel}</span>}
+                    <span className="admin-meta"> · ×{it.quantity}</span>
+                    {it.customName && <span className="admin-meta"> · base: {it.drinkName}</span>}
                   </div>
                   {it.addons.length > 0 && (
                     <div className="admin-meta" style={{ marginTop: 2 }} dir="auto">
                       {it.addons.map((a) =>
-                        `${a.name}${a.portions > 1 ? ` Ã${a.portions}` : ""} (${a.amount}${unit(a.unit)})`
-                      ).join(" Â· ")}
+                        `${a.name}${a.portions > 1 ? ` ×${a.portions}` : ""} (${a.amount}${unit(a.unit)})`
+                      ).join(" · ")}
                     </div>
                   )}
                 </div>
@@ -219,7 +219,7 @@ function Detail({ id }: { id: number }) {
           </details>
         </div>
 
-        {/* ÐÐ ÐÐÐ: Ð´ÐµÐ¹ÑÑÐ²Ð¸Ðµ + ÐºÐ»Ð¸ÐµÐ½Ñ + Ð¾Ð¿Ð»Ð°ÑÐ° */}
+        {/* ПРАВО: действие + клиент + оплата */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="admin-panel">
             <div className="admin-panel-head"><div className="admin-panel-title">Order processing</div></div>
@@ -228,8 +228,8 @@ function Detail({ id }: { id: number }) {
                 {CHAIN.map((s, i) => {
                   const done = order.status !== "refund" && i < idx;
                   const cur = i === idx;
-                  // ÐºÐ¾Ð½Ð½ÐµÐºÑÐ¾Ñ: Ð¿ÑÐ¾Ð¹Ð´ÐµÐ½Ð½ÑÐµ ÑÐµÐ³Ð¼ÐµÐ½ÑÑ â ÑÐ²ÐµÑÐ»Ð¾-ÑÐ¸Ð½Ð¸Ðµ; Ð¿ÐµÑÐµÑÐ¾Ð´ Ðº ÑÐµÐºÑÑÐµÐ¼Ñ ÑÑÐ°ÑÑÑÑ â
-                  // Ð³ÑÐ°Ð´Ð¸ÐµÐ½Ñ ÑÐ²ÐµÑÐ»Ð¾-ÑÐ¸Ð½Ð¸Ð¹ â ÑÑÐºÐ¾-ÑÐ¸Ð½Ð¸Ð¹ (Ð¿Ð»Ð°Ð²Ð½ÑÐ¹); Ð±ÑÐ´ÑÑÐ¸Ðµ â ÑÐµÑÑÐµ
+                  // коннектор: пройденные сегменты — светло-синие; переход к текущему статусу —
+                  // градиент светло-синий → ярко-синий (плавный); будущие — серые
                   const lineBg = i < idx - 1 ? "#C7CCF7"
                     : i === idx - 1 ? "linear-gradient(90deg, #C7CCF7, #4A56E2)"
                     : "#E8E2D5";
@@ -245,7 +245,7 @@ function Detail({ id }: { id: number }) {
                                     background: cur ? "#4A56E2" : done ? "#E5E8FB" : "#F1F1F3",
                                     color: cur ? "#FFF" : done ? "#4A56E2" : "#9CA3AF",
                                     boxShadow: cur ? "0 0 0 4px rgba(74,86,226,0.15)" : "none" }}>
-                        {done ? "â" : i + 1}
+                        {done ? "✓" : i + 1}
                       </div>
                       <div style={{ fontSize: 11, marginTop: 5, color: cur ? "#0E0E10" : "#9CA3AF",
                                     fontWeight: cur ? 700 : 500, whiteSpace: "nowrap" }}>{STEP_SHORT[s]}</div>
@@ -278,11 +278,11 @@ function Detail({ id }: { id: number }) {
             </div>
           </div>
 
-          {/* ÐºÐ»Ð¸ÐµÐ½Ñ Ð¸ Ð²ÑÐ´Ð°ÑÐ° */}
+          {/* клиент и выдача */}
           <div className="admin-panel">
             <div className="admin-panel-head"><div className="admin-panel-title">Customer & pickup</div></div>
             <div className="admin-panel-body">
-              {/* Ð½Ð¾Ð¼ÐµÑ Ð¼Ð°ÑÐ¸Ð½Ñ â ÐºÑÑÐ¿Ð½Ð¾, ÑÑÐ¾ ÐºÐ»ÑÑ Ðº Ð²ÑÐ´Ð°ÑÐµ */}
+              {/* номер машины — крупно, это ключ к выдаче */}
               <label className="admin-label">Car for pickup</label>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 12, marginTop: 4, marginBottom: 14,
                             background: "#fcfcfa", border: "2.5px solid #15171c", borderRadius: 12, padding: "8px 16px" }}>
@@ -295,20 +295,20 @@ function Detail({ id }: { id: number }) {
               </div>
 
               <div className="admin-field"><label className="admin-label">Name</label>
-                <div style={{ fontWeight: 600 }}>{order.customerName ?? "â"}</div></div>
+                <div style={{ fontWeight: 600 }}>{order.customerName ?? "—"}</div></div>
               <div className="admin-field"><label className="admin-label">Phone</label>
                 <a href={`tel:${order.phone}`} className="admin-mono"
                    style={{ color: "var(--a-accent)", textDecoration: "none", fontWeight: 600 }}>
-                  {order.phone} <span style={{ fontSize: 12 }}>Â· call</span>
+                  {order.phone} <span style={{ fontSize: 12 }}>· call</span>
                 </a></div>
               {order.rating && (
                 <div className="admin-field"><label className="admin-label">Customer rating</label>
-                  <div style={{ fontSize: 22 }}>{order.rating === "like" ? "ð" : "ð"}</div></div>
+                  <div style={{ fontSize: 22 }}>{order.rating === "like" ? "👍" : "👎"}</div></div>
               )}
             </div>
           </div>
 
-          {/* Ð¾Ð¿Ð»Ð°ÑÐ° */}
+          {/* оплата */}
           <div className="admin-panel">
             <div className="admin-panel-head"><div className="admin-panel-title">Payment</div></div>
             <div className="admin-panel-body" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -327,7 +327,7 @@ function Detail({ id }: { id: number }) {
             </div>
           </div>
 
-          {/* Ð¸ÑÑÐ¾ÑÐ¸Ñ ÑÑÐ°ÑÑÑÐ¾Ð² â Ð²ÐµÑÑÐ¸ÐºÐ°Ð»ÑÐ½Ð°Ñ Ð»ÐµÐ½ÑÐ° Ñ ÐºÑÑÐ¶ÐºÐ°Ð¼Ð¸ Ð¸ Ð¿Ð¾Ð´Ð¿Ð¸ÑÑÐ¼Ð¸ */}
+          {/* история статусов — вертикальная лента с кружками и подписями */}
           <div className="admin-panel">
             <div className="admin-panel-head"><div className="admin-panel-title">Status history</div></div>
             <div className="admin-panel-body">
@@ -338,14 +338,14 @@ function Detail({ id }: { id: number }) {
                     <div>
                       <div className="admin-timeline-text">
                         <strong>{eventLabel(h.type, h.status)}</strong>
-                        {h.note && <span className="admin-meta"> Â· {h.note}</span>}
+                        {h.note && <span className="admin-meta"> · {h.note}</span>}
                       </div>
                       <div className="admin-timeline-meta">
-                        {h.at ? fmtDateTime(h.at) : "â"} Â·{" "}
+                        {h.at ? fmtDateTime(h.at) : "—"} ·{" "}
                         {h.byStaffId ? (
                           <Link href={`/admin/staff/${h.byStaffId}`}
                                 style={{ color: "var(--a-accent)", fontWeight: 600, textDecoration: "none" }}>
-                            {h.byStaffName ?? `staff member #${h.byStaffId}`} â
+                            {h.byStaffName ?? `staff member #${h.byStaffId}`} →
                           </Link>
                         ) : h.byUserId ? "customer" : "system"}
                       </div>
@@ -361,7 +361,7 @@ function Detail({ id }: { id: number }) {
       <ConfirmDialog
         open={confirmRefund}
         title={`Refund order #${order.number}?`}
-        message="The status will change to ârefundâ and the payment will be marked refunded. The customer will see the refund on the order page."
+        message="The status will change to “refund” and the payment will be marked refunded. The customer will see the refund on the order page."
         confirmLabel="Issue refund"
         danger
         onCancel={() => setConfirmRefund(false)}

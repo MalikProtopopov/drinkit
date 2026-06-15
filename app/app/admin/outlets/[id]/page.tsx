@@ -18,25 +18,25 @@ const TAB_LABEL: Record<Tab, string> = {
   main: "General", hours: "Schedule", staff: "Staff", menu: "Outlet menu", audit: "History",
 };
 
-// keys "0".."6" = ÐÐ½..ÐÑ
+// keys "0".."6" = Пн..Вс
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DAYS_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const ROLE_LABEL: Record<string, string> = { super_admin: "Super admin", manager: "Manager", screen: "Pickup screen" };
-const oName = (n: I18n) => n.en ?? n.ru ?? n.ar ?? "â";
+const oName = (n: I18n) => n.en ?? n.ru ?? n.ar ?? "—";
 const fmt = (s?: string | null) =>
   s ? new Date(/[Z+]/.test(s) ? s : s + "Z").toLocaleString("en-GB",
-    { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "â";
-// Ð²ÑÐµÐ¼Ñ Ð² ÑÐ°Ð¹Ð¼Ð·Ð¾Ð½Ðµ ÑÐ¾ÑÐºÐ¸ (Ð° Ð½Ðµ Ð±ÑÐ°ÑÐ·ÐµÑÐ°) â Ð´Ð»Ñ Â«Ð¾ÑÐºÑÐ¾ÐµÑÑÑ/ÑÐ±ÑÐ¾ÑÐ¸ÑÑÑÂ»
+    { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+// время в таймзоне точки (а не браузера) — для «откроется/сбросится»
 const fmtTz = (iso: string | null | undefined, tz: string, withDay = false) =>
   iso ? new Date(iso).toLocaleString("en-GB", {
     timeZone: tz, hour: "2-digit", minute: "2-digit", ...(withDay ? { weekday: "short" } : {}) }) : "";
 
-// ÑÐ°ÑÑÑÐµ ÑÐ°Ð¹Ð¼Ð·Ð¾Ð½Ñ (Ð²Ð¼ÐµÑÑÐ¾ ÑÐ²Ð¾Ð±Ð¾Ð´Ð½Ð¾Ð³Ð¾ Ð²Ð²Ð¾Ð´Ð° â Ð·Ð°ÑÐ¸ÑÐ° Ð¾Ñ Ð¾Ð¿ÐµÑÐ°ÑÐ¾Ðº, Ð»Ð¾Ð¼Ð°ÑÑÐ¸Ñ ÑÐ°ÑÑÑÑ ÑÑÐ°ÑÑÑÐ°)
+// частые таймзоны (вместо свободного ввода — защита от опечаток, ломающих расчёт статуса)
 const TIMEZONES = ["Asia/Dubai", "Asia/Riyadh", "Asia/Qatar", "Asia/Kuwait", "Asia/Muscat",
   "Asia/Bahrain", "Europe/Moscow", "UTC"];
 
-// ÑÐµÐ»Ð¾Ð²ÐµÐºÐ¾ÑÐ¸ÑÐ°ÐµÐ¼ÑÐµ Ð½Ð°Ð·Ð²Ð°Ð½Ð¸Ñ ÑÐ¾Ð±ÑÑÐ¸Ð¹ Ð°ÑÐ´Ð¸ÑÐ°
+// человекочитаемые названия событий аудита
 const EVENT_LABEL: Record<string, string> = {
   activated: "Outlet enabled", deactivated: "Outlet disabled",
   paused: "Paused", resumed: "Resumed",
@@ -46,17 +46,17 @@ const EVENT_LABEL: Record<string, string> = {
   stop_added: "Added to stop list", stop_removed: "Removed from stop list",
 };
 
-// Ð¾Ð¿Ð¸ÑÐ°Ð½Ð¸Ðµ Ð´Ð½Ñ ÑÐ°ÑÐ¿Ð¸ÑÐ°Ð½Ð¸Ñ
+// описание дня расписания
 const describeDay = (iv?: { open: string; close: string }[]) =>
   !iv || iv.length === 0 ? "day off"
   : iv.length === 1 && iv[0].open === "00:00" && iv[0].close === "24:00" ? "24/7"
-  : iv.map((x) => `${x.open}â${x.close}`).join(", ");
+  : iv.map((x) => `${x.open}–${x.close}`).join(", ");
 
 const ERR_HUMAN: Record<string, string> = {
   OUTLET_HOURS_INVALID: "Invalid hours: closing time must be later than opening time",
   LAST_ACTIVE_OUTLET: "Can't disable the last active outlet",
-  MULTIPLE_ACTIVE_NOT_SUPPORTED: "An active outlet already exists â multiple active outlets aren't supported",
-  STAFF_NEEDS_OUTLET: "The staff member would have 0 outlets â attach them to another one first",
+  MULTIPLE_ACTIVE_NOT_SUPPORTED: "An active outlet already exists — multiple active outlets aren't supported",
+  STAFF_NEEDS_OUTLET: "The staff member would have 0 outlets — attach them to another one first",
 };
 
 function Inner({ id }: { id: number }) {
@@ -70,8 +70,8 @@ function Inner({ id }: { id: number }) {
   }, [id]);
   useEffect(() => { reload(); }, [reload]);
 
-  // realtime: ÑÑÑÑÑÐ¸Ðº Â«Ð½Ð°Ð¿Ð¸ÑÐºÐ¾Ð² ÑÐµÐ³Ð¾Ð´Ð½ÑÂ», ÑÑÐ°ÑÑÑ Ð¸ Ð°Ð²ÑÐ¾-Ð¿Ð°ÑÐ·Ð° Ð¾Ð±Ð½Ð¾Ð²Ð»ÑÑÑÑÑ Ð¿Ð¾ ÑÐ¾Ð±ÑÑÐ¸ÑÐ¼ Ð·Ð°ÐºÐ°Ð·Ð¾Ð²
-  // ÑÑÐ¾Ð¹ ÑÐ¾ÑÐºÐ¸ (Ð¾Ð¿Ð»Ð°ÑÐ°/ÑÐ¼ÐµÐ½Ð° ÑÑÐ°ÑÑÑÐ°) â Ð±ÐµÐ· Ð¿Ð¾Ð»Ð»Ð¸Ð½Ð³Ð° Ð¸ ÐºÐ½Ð¾Ð¿ÐºÐ¸ Â«ÐÐ±Ð½Ð¾Ð²Ð¸ÑÑÂ»
+  // realtime: счётчик «напитков сегодня», статус и авто-пауза обновляются по событиям заказов
+  // этой точки (оплата/смена статуса) — без поллинга и кнопки «Обновить»
   useLiveReload({
     connect: adminOrdersWs,
     onMessage: (m) => {
@@ -85,7 +85,7 @@ function Inner({ id }: { id: number }) {
     return <div className="admin-panel"><div className="admin-panel-body admin-meta">
       This section is available to super admins only.</div></div>;
   if (notFound) return <div className="admin-meta">Outlet not found</div>;
-  if (!outlet) return <div className="admin-meta">Loadingâ¦</div>;
+  if (!outlet) return <div className="admin-meta">Loading…</div>;
 
   return (
     <>
@@ -108,12 +108,12 @@ function Inner({ id }: { id: number }) {
   );
 }
 
-/* ---------------- STATUS BANNER (ÐµÐ´Ð¸Ð½ÑÐ¹ Ð±Ð»Ð¾Ðº ÑÐ¾ÑÑÐ¾ÑÐ½Ð¸Ñ) ---------------- */
+/* ---------------- STATUS BANNER (единый блок состояния) ---------------- */
 const STATUS_TONE: Record<AdminOutlet["status"], { bg: string; fg: string; dot: string; label: string }> = {
-  open: { bg: "#EAF6EE", fg: "#15803D", dot: "ð¢", label: "Open" },
-  paused: { bg: "#FDF4E3", fg: "#B45309", dot: "ð¡", label: "Paused" },
-  closed: { bg: "#F1F2F5", fg: "#5A6172", dot: "âª", label: "Closed" },
-  inactive: { bg: "#FCEBEA", fg: "#A12822", dot: "ð´", label: "Disabled" },
+  open: { bg: "#EAF6EE", fg: "#15803D", dot: "🟢", label: "Open" },
+  paused: { bg: "#FDF4E3", fg: "#B45309", dot: "🟡", label: "Paused" },
+  closed: { bg: "#F1F2F5", fg: "#5A6172", dot: "⚪", label: "Closed" },
+  inactive: { bg: "#FCEBEA", fg: "#A12822", dot: "🔴", label: "Disabled" },
 };
 
 function StatusBanner({ outlet, onSaved, onGotoTab }: {
@@ -139,26 +139,26 @@ function StatusBanner({ outlet, onSaved, onGotoTab }: {
   };
 
   const t = STATUS_TONE[outlet.status];
-  // Ð¿ÑÐ¸ÑÐ¸Ð½Ð° + Ð¿Ð¾Ð´ÑÐºÐ°Ð·ÐºÐ° + ÐºÐ½Ð¾Ð¿ÐºÐ°-Ð¸ÑÐ¿ÑÐ°Ð²Ð»ÐµÐ½Ð¸Ðµ Ð¿Ð¾ statusReason (ÐÐ¸Ð»ÑÑÐµÐ½ #1/#9)
+  // причина + подсказка + кнопка-исправление по statusReason (Нильсен #1/#9)
   let hint = "";
   let fix: { label: string; on: () => void } | null = null;
   if (outlet.statusReason === "open") {
-    hint = outlet.closesAt ? `accepting orders Â· today until ${fmtTz(outlet.closesAt, tz)}`
-      : Object.keys(outlet.hours ?? {}).length === 0 ? "accepting orders Â· 24/7 (no schedule set)"
-      : "accepting orders Â· 24/7 today";
+    hint = outlet.closesAt ? `accepting orders · today until ${fmtTz(outlet.closesAt, tz)}`
+      : Object.keys(outlet.hours ?? {}).length === 0 ? "accepting orders · 24/7 (no schedule set)"
+      : "accepting orders · 24/7 today";
   } else if (outlet.statusReason === "paused_manual") {
     hint = "orders paused manually";
     fix = { label: "Resume orders",
             on: () => run(() => outletApi.update(outlet.id, { acceptingOrders: true }), "Orders resumed") };
   } else if (outlet.statusReason === "paused_limit") {
     hint = `daily limit reached ${outlet.drinksToday}/${outlet.dailyDrinkLimit}`
-      + (outlet.resetsAt ? ` Â· resets at ${fmtTz(outlet.resetsAt, tz)}` : "");
+      + (outlet.resetsAt ? ` · resets at ${fmtTz(outlet.resetsAt, tz)}` : "");
     fix = { label: "Change limit", on: () => onGotoTab("main") };
   } else if (outlet.statusReason === "closed") {
-    hint = outlet.opensAt ? `outside working hours Â· opens ${fmtTz(outlet.opensAt, tz, true)}` : "outside working hours";
+    hint = outlet.opensAt ? `outside working hours · opens ${fmtTz(outlet.opensAt, tz, true)}` : "outside working hours";
     fix = { label: "Edit schedule", on: () => onGotoTab("hours") };
   } else {
-    hint = "outlet is disabled â hidden from the site and not accepting orders";
+    hint = "outlet is disabled — hidden from the site and not accepting orders";
     fix = { label: "Enable outlet", on: () => { setForceActivate(false); setConfirmAct(true); } };
   }
 
@@ -179,7 +179,7 @@ function StatusBanner({ outlet, onSaved, onGotoTab }: {
 
       <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap",
              marginTop: 14, paddingTop: 12, borderTop: "1px solid rgba(0,0,0,.08)" }}>
-        {/* Ð¼Ð°ÑÑÐµÑ-Ð²ÑÐºÐ»ÑÑÐ°ÑÐµÐ»Ñ: ÑÐ°Ð±Ð¾ÑÐ°ÐµÑ Ð»Ð¸ ÑÐ¾ÑÐºÐ° Ð²Ð¾Ð¾Ð±ÑÐµ */}
+        {/* мастер-выключатель: работает ли точка вообще */}
         {outlet.isActive ? (
           <button className="admin-btn danger sm" disabled={busy} onClick={() => setConfirmDeact(true)}>
             Disable outlet
@@ -190,7 +190,7 @@ function StatusBanner({ outlet, onSaved, onGotoTab }: {
             Enable outlet
           </button>
         )}
-        {/* ÑÑÑÐ½Ð°Ñ Ð¿Ð°ÑÐ·Ð°: Ð¿ÑÐ¸Ð½Ð¸Ð¼Ð°ÐµÑ Ð»Ð¸ Ð·Ð°ÐºÐ°Ð·Ñ Ð¿ÑÑÐ¼Ð¾ ÑÐµÐ¹ÑÐ°Ñ (ÑÐ¾Ð»ÑÐºÐ¾ Ñ Ð²ÐºÐ»ÑÑÑÐ½Ð½Ð¾Ð¹ ÑÐ¾ÑÐºÐ¸) */}
+        {/* ручная пауза: принимает ли заказы прямо сейчас (только у включённой точки) */}
         {outlet.isActive && (
           <Toggle on={outlet.acceptingOrders}
                   label={outlet.acceptingOrders ? "Accepting orders" : "Orders paused"}
@@ -211,7 +211,7 @@ function StatusBanner({ outlet, onSaved, onGotoTab }: {
       <ConfirmDialog open={confirmAct}
         title={forceActivate ? "Enable a second active outlet?" : "Enable outlet?"}
         message={forceActivate
-          ? "The public site doesn’t have an outlet switcher yet â customers will see the menu of only one outlet. Enable the second active outlet anyway?"
+          ? "The public site doesn’t have an outlet switcher yet — customers will see the menu of only one outlet. Enable the second active outlet anyway?"
           : "The outlet will become active and start accepting orders on schedule."}
         confirmLabel="Enable"
         onCancel={() => { setConfirmAct(false); setForceActivate(false); }}
@@ -242,11 +242,11 @@ function MainTab({ outlet, onSaved }: {
 
   const save = async () => {
     if (!nameEn.trim()) { toast("Enter the outlet name", "warn"); return; }
-    // Ð»Ð¸Ð¼Ð¸Ñ: Ð¿ÑÑÑÐ¾ = Ð±ÐµÐ· Ð»Ð¸Ð¼Ð¸ÑÐ°, Ð¸Ð½Ð°ÑÐµ ÑÐµÐ»Ð¾Ðµ â¥ 0 (Ð·Ð°ÑÐ¸ÑÐ° Ð¾Ñ Ð¼ÑÑÐ¾ÑÐ° â 422)
+    // лимит: пусто = без лимита, иначе целое ≥ 0 (защита от мусора → 422)
     let dailyDrinkLimit: number | null = null;
     if (limit.trim() !== "") {
       const n = Number(limit);
-      if (!Number.isInteger(n) || n < 0) { toast("Limit must be an integer â¥ 0, or empty", "warn"); return; }
+      if (!Number.isInteger(n) || n < 0) { toast("Limit must be an integer ≥ 0, or empty", "warn"); return; }
       dailyDrinkLimit = n;
     }
     const latN = lat.trim() === "" ? null : Number(lat);
@@ -321,7 +321,7 @@ function MainTab({ outlet, onSaved }: {
             </div>
           </div>
           {lat.trim() !== "" && lng.trim() !== "" && (
-            <a className="admin-btn sm" target="_blank" rel="noreferrer" href={`https://maps.google.com/?q=${lat},${lng}`}>Open on map â</a>
+            <a className="admin-btn sm" target="_blank" rel="noreferrer" href={`https://maps.google.com/?q=${lat},${lng}`}>Open on map ↗</a>
           )}
         </div>
       </div>
@@ -336,7 +336,7 @@ function MainTab({ outlet, onSaved }: {
                      placeholder="empty = no limit" inputMode="numeric" />
               <span className="admin-meta" style={{ marginTop: 4, display: "block" }}>
                 Processed today: <strong>{outlet.drinksToday}</strong>
-                {outlet.dailyDrinkLimit != null ? ` Â· ${outlet.limitRemaining} left` : " Â· no limit set"}
+                {outlet.dailyDrinkLimit != null ? ` · ${outlet.limitRemaining} left` : " · no limit set"}
               </span>
             </div>
             <div className="admin-field">
@@ -354,14 +354,14 @@ function MainTab({ outlet, onSaved }: {
       </div>
 
       <button className="admin-btn primary" onClick={save} disabled={saving} style={{ justifySelf: "start" }}>
-        {saving ? "Savingâ¦" : "Save"}
+        {saving ? "Saving…" : "Save"}
       </button>
     </div>
   );
 }
 
 /* ---------------- HOURS ---------------- */
-// ÑÐµÐ¶Ð¸Ð¼ Ð´Ð½Ñ: Ð·Ð°ÐºÑÑÑ / ÐºÑÑÐ³Ð»Ð¾ÑÑÑÐ¾ÑÐ½Ð¾ / Ð¿Ð¾ Ð²ÑÐµÐ¼ÐµÐ½Ð¸
+// режим дня: закрыт / круглосуточно / по времени
 type DayMode = "closed" | "24h" | "custom";
 type HoursRow = { mode: DayMode; open: string; close: string };
 const IS_24H = (iv?: { open: string; close: string }[]) =>
@@ -369,7 +369,7 @@ const IS_24H = (iv?: { open: string; close: string }[]) =>
 
 function HoursTab({ outlet, onSaved }: { outlet: AdminOutlet; onSaved: (o: AdminOutlet) => void }) {
   const toast = useToast();
-  // Ð¿ÑÑÑÐ¾Ðµ ÑÐ°ÑÐ¿Ð¸ÑÐ°Ð½Ð¸Ðµ ({}) = Ð½Ðµ Ð·Ð°Ð´Ð°Ð½Ð¾ = ÐºÑÑÐ³Ð»Ð¾ÑÑÑÐ¾ÑÐ½Ð¾ Ð¿Ð¾ ÑÐ¼Ð¾Ð»ÑÐ°Ð½Ð¸Ñ (ÐºÐ°Ðº Ð±ÑÐ»Ð¾)
+  // пустое расписание ({}) = не задано = круглосуточно по умолчанию (как было)
   const pristine = Object.keys(outlet.hours ?? {}).length === 0;
   const seed = (): HoursRow[] => DAYS.map((_, i) => {
     const iv = outlet.hours?.[String(i)];
@@ -390,8 +390,8 @@ function HoursTab({ outlet, onSaved }: { outlet: AdminOutlet; onSaved: (o: Admin
     : [{ open: r.open, close: r.close }];
 
   const save = async () => {
-    // Ð¾ÑÐ¿ÑÐ°Ð²Ð»ÑÐµÐ¼ Ð²ÑÐµ 7 Ð´Ð½ÐµÐ¹ ÑÐ²Ð½Ð¾ (Ð·Ð°ÐºÑÑÑÑÐµ â Ð¿ÑÑÑÑÐ¼ ÑÐ¿Ð¸ÑÐºÐ¾Ð¼), ÑÑÐ¾Ð±Ñ ÑÐ°ÑÐ¿Ð¸ÑÐ°Ð½Ð¸Ðµ Ð½Ðµ Ð¿ÑÑÐ°Ð»Ð¾ÑÑ
-    // Ñ Â«Ð½Ðµ Ð·Ð°Ð´Ð°Ð½Ð¾Â» ({} = ÐºÑÑÐ³Ð»Ð¾ÑÑÑÐ¾ÑÐ½Ð¾)
+    // отправляем все 7 дней явно (закрытые — пустым списком), чтобы расписание не путалось
+    // с «не задано» ({} = круглосуточно)
     const hours: OutletHours = {};
     rows.forEach((r, i) => { hours[String(i)] = toIntervals(r); });
     setSaving(true);
@@ -419,14 +419,14 @@ function HoursTab({ outlet, onSaved }: { outlet: AdminOutlet; onSaved: (o: Admin
       </div>
       <div className="admin-panel-body">
         <p className="admin-meta" style={{ marginBottom: 10 }}>
-          For each day: âClosedâ â the outlet doesn’t accept orders; â24/7â â open all day;
-          âCustom hoursâ â you set the hours. The whole outlet can be disabled on the âGeneralâ tab.
+          For each day: “Closed” — the outlet doesn’t accept orders; “24/7” — open all day;
+          “Custom hours” — you set the hours. The whole outlet can be disabled on the “General” tab.
         </p>
-        {/* ÑÐ²Ð¾Ð´ÐºÐ° ÑÐ¾ÑÑÐ°Ð½ÑÐ½Ð½Ð¾Ð³Ð¾ ÑÐ°ÑÐ¿Ð¸ÑÐ°Ð½Ð¸Ñ (F12/R8) */}
+        {/* сводка сохранённого расписания (F12/R8) */}
         <div className="admin-meta" style={{ marginBottom: 14, padding: "8px 12px", background: "#F4F3EC", borderRadius: 10 }}>
           {Object.keys(outlet.hours ?? {}).length === 0
-            ? "Now: no schedule set â the outlet is open 24/7."
-            : `Now: ${DAYS_SHORT.map((d, i) => `${d} ${describeDay(outlet.hours?.[String(i)])}`).join(" Â· ")}`}
+            ? "Now: no schedule set — the outlet is open 24/7."
+            : `Now: ${DAYS_SHORT.map((d, i) => `${d} ${describeDay(outlet.hours?.[String(i)])}`).join(" · ")}`}
         </div>
         {DAYS.map((d, i) => (
           <div key={d} style={{ display: "grid", gridTemplateColumns: "150px 1fr",
@@ -445,7 +445,7 @@ function HoursTab({ outlet, onSaved }: { outlet: AdminOutlet; onSaved: (o: Admin
                 <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
                   <input className="admin-input mono" type="time" value={rows[i].open} style={{ width: 124 }}
                          onChange={(e) => update(i, { open: e.target.value })} />
-                  <span className="admin-meta">â</span>
+                  <span className="admin-meta">–</span>
                   <input className="admin-input mono" type="time" value={rows[i].close} style={{ width: 124 }}
                          onChange={(e) => update(i, { close: e.target.value })} />
                 </span>
@@ -454,7 +454,7 @@ function HoursTab({ outlet, onSaved }: { outlet: AdminOutlet; onSaved: (o: Admin
           </div>
         ))}
         <button className="admin-btn primary" style={{ marginTop: 14 }} onClick={save} disabled={saving}>
-          {saving ? "Savingâ¦" : "Save schedule"}
+          {saving ? "Saving…" : "Save schedule"}
         </button>
       </div>
     </div>
@@ -472,8 +472,8 @@ function StaffTab({ outlet, onChanged }: { outlet: AdminOutlet; onChanged: (o: A
   const managers = outlet.managers ?? [];
   const attachedIds = new Set(managers.map((m) => m.id));
 
-  // Ð¿Ð¾Ð´Ð³ÑÑÐ¶Ð°ÐµÐ¼ ÑÐ¾ÑÑÑÐ´Ð½Ð¸ÐºÐ¾Ð² Ð¿ÑÐ¸ ÐºÐ°Ð¶Ð´Ð¾Ð¼ Ð¾ÑÐºÑÑÑÐ¸Ð¸ â ÑÑÐ¾Ð±Ñ Ð²Ð¸Ð´ÐµÑÑ Ð¸ ÑÐ¾Ð»ÑÐºÐ¾ ÑÑÐ¾ ÑÐ¾Ð·Ð´Ð°Ð½Ð½ÑÑ.
-  // loadingStaff Ð²ÐºÐ»ÑÑÐ°ÐµÐ¼ Ð² Ð¾Ð±ÑÐ°Ð±Ð¾ÑÑÐ¸ÐºÐµ Ð¾ÑÐºÑÑÑÐ¸Ñ (Ð½Ðµ ÑÐ¸Ð½ÑÑÐ¾Ð½Ð½Ð¾ Ð² ÑÑÑÐµÐºÑÐµ â Ð¸Ð½Ð°ÑÐµ ÐºÐ°ÑÐºÐ°Ð´Ð½ÑÐ¹ ÑÐµÑÐµÐ½Ð´ÐµÑ)
+  // подгружаем сотрудников при каждом открытии — чтобы видеть и только что созданных.
+  // loadingStaff включаем в обработчике открытия (не синхронно в эффекте — иначе каскадный ререндер)
   useEffect(() => {
     if (!attachOpen) return;
     adminApi.managers()
@@ -483,7 +483,7 @@ function StaffTab({ outlet, onChanged }: { outlet: AdminOutlet; onChanged: (o: A
   }, [attachOpen, toast]);
 
   const q = query.trim().toLowerCase();
-  // ÑÑÐ¿ÐµÑ-Ð°Ð´Ð¼Ð¸Ð½ Ð½Ðµ ÑÐºÐ¾ÑÐ¿Ð¸ÑÑÑ Ð¿Ð¾ ÑÐ¾ÑÐºÐ°Ð¼ â Ð² ÑÐ¿Ð¸ÑÐ¾Ðº Ð½Ðµ Ð¿Ð¾Ð¿Ð°Ð´Ð°ÐµÑ; ÑÐ¶Ðµ Ð¿ÑÐ¸Ð²ÑÐ·Ð°Ð½Ð½ÑÑ Ð½Ðµ Ð¿Ð¾ÐºÐ°Ð·ÑÐ²Ð°ÐµÐ¼
+  // супер-админ не скоупится по точкам → в список не попадает; уже привязанных не показываем
   const candidates = allStaff
     .filter((s) => s.role !== "super_admin" && !attachedIds.has(s.id))
     .filter((s) => !q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q))
@@ -527,7 +527,7 @@ function StaffTab({ outlet, onChanged }: { outlet: AdminOutlet; onChanged: (o: A
                 <td><strong>{m.name}</strong></td>
                 <td className="admin-mono admin-meta">{m.email}</td>
                 <td><span className="admin-pill accent">{ROLE_LABEL[m.role] ?? m.role}</span></td>
-                <td>{m.isPrimary ? <span className="admin-pill accent">yes</span> : <span className="admin-meta">â</span>}</td>
+                <td>{m.isPrimary ? <span className="admin-pill accent">yes</span> : <span className="admin-meta">—</span>}</td>
                 <td style={{ textAlign: "right" }}>
                   <button className="admin-btn ghost sm" onClick={() => router.push(`/admin/staff/${m.id}`)}>Staff card</button>
                   <button className="admin-btn ghost sm" style={{ color: "#A12822", marginLeft: 6 }}
@@ -543,10 +543,10 @@ function StaffTab({ outlet, onChanged }: { outlet: AdminOutlet; onChanged: (o: A
       </div>
 
       <Modal open={attachOpen} title="Attach staff"
-             subtitle="Start typing a name or email â pick from the list"
+             subtitle="Start typing a name or email — pick from the list"
              onClose={() => { setAttachOpen(false); setQuery(""); }}>
         <div className="admin-field">
-          <input className="admin-input" autoFocus placeholder="Name or emailâ¦"
+          <input className="admin-input" autoFocus placeholder="Name or email…"
                  value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 340, overflowY: "auto" }}>
@@ -563,10 +563,10 @@ function StaffTab({ outlet, onChanged }: { outlet: AdminOutlet; onChanged: (o: A
           ))}
           {candidates.length === 0 && (
             <span className="admin-meta" style={{ padding: "8px 2px" }}>
-              {loadingStaff ? "Loadingâ¦"
-                : allStaff.length === 0 ? "No staff yet â create one in the âStaffâ section."
+              {loadingStaff ? "Loading…"
+                : allStaff.length === 0 ? "No staff yet — create one in the “Staff” section."
                 : q ? "Nothing found."
-                : "All eligible staff are already attached. Super admins aren't attached â they see all outlets."}
+                : "All eligible staff are already attached. Super admins aren't attached — they see all outlets."}
             </span>
           )}
         </div>
@@ -602,7 +602,7 @@ function MenuTab({ outletId }: { outletId: number }) {
   }, [outletId]);
 
   const drinkName = (d: AdminDrink) => d.name.ru ?? d.name.en ?? d.slug;
-  const catName = (id: number) => { const c = cats.find((x) => x.id === id); return c ? oName(c.name) : "â"; };
+  const catName = (id: number) => { const c = cats.find((x) => x.id === id); return c ? oName(c.name) : "—"; };
   const addonName = (a: AdminAddon) => oName(a.name);
 
   const toggle = async (entityType: "drink" | "drink_category" | "addon", entityId: number) => {
@@ -648,20 +648,20 @@ function MenuTab({ outletId }: { outletId: number }) {
     } catch (e) { toast(e instanceof Error ? e.message : "Error", "warn"); }
   };
 
-  if (loading) return <div className="admin-meta">Loadingâ¦</div>;
+  if (loading) return <div className="admin-meta">Loading…</div>;
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <p className="admin-meta">
-        The stop list hides an item only at this outlet â the global catalog stays unchanged.
+        The stop list hides an item only at this outlet — the global catalog stays unchanged.
       </p>
 
       <div className="admin-panel">
         <div className="admin-panel-body" style={{ display: "flex", justifyContent: "space-between",
                alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <span className="admin-meta">
-            {totalStopped === 0 ? "Nothing hidden â all catalog items are shown."
-              : `Hidden at this outlet: ${stop.drinks.length} drinks Â· ${stop.categories.length} categories Â· ${stop.addons.length} add-ons`}
+            {totalStopped === 0 ? "Nothing hidden — all catalog items are shown."
+              : `Hidden at this outlet: ${stop.drinks.length} drinks · ${stop.categories.length} categories · ${stop.addons.length} add-ons`}
           </span>
           {totalStopped > 0 && (
             <button className="admin-btn sm" onClick={clearStopList}>Clear stop list</button>
@@ -687,9 +687,9 @@ function MenuTab({ outletId }: { outletId: number }) {
 
       <div className="admin-panel">
         <div className="admin-panel-head">
-          <div className="admin-panel-title">Drinks â stop list and priorities</div>
+          <div className="admin-panel-title">Drinks — stop list and priorities</div>
           <button className="admin-btn primary sm" onClick={savePriorities} disabled={savingPrio}>
-            {savingPrio ? "Savingâ¦" : "Save priorities"}
+            {savingPrio ? "Saving…" : "Save priorities"}
           </button>
         </div>
         <div className="admin-tablewrap"><table className="admin-table">
@@ -742,18 +742,18 @@ function MenuTab({ outletId }: { outletId: number }) {
 }
 
 /* ---------------- AUDIT ---------------- */
-// Â«Ð±ÑÐ»Ð¾ â ÑÑÐ°Ð»Ð¾Â» / ÑÑÑÑ ÑÐ¾Ð±ÑÑÐ¸Ñ Ð¸Ð· meta
+// «было → стало» / суть события из meta
 function eventDetail(ev: OutletEventRow): string {
   const m = (ev.meta ?? {}) as Record<string, unknown>;
-  if (ev.type === "limit_changed") return `${m.old ?? "no limit"} â ${m.new ?? "no limit"}`;
+  if (ev.type === "limit_changed") return `${m.old ?? "no limit"} → ${m.new ?? "no limit"}`;
   if (ev.type === "limit_reached") return `${m.counted ?? "?"} of ${m.limit ?? "?"}`;
   if (ev.type === "stop_added" || ev.type === "stop_removed") {
     const parts: string[] = [];
     const cnt = (k: string, label: string) => {
-      const v = m[k]; if (Array.isArray(v) && v.length) parts.push(`${label} Ã${v.length}`);
+      const v = m[k]; if (Array.isArray(v) && v.length) parts.push(`${label} ×${v.length}`);
     };
     cnt("drink", "drinks"); cnt("drink_category", "categories"); cnt("addon", "add-ons");
-    return parts.join(" Â· ") || (ev.note ?? "");
+    return parts.join(" · ") || (ev.note ?? "");
   }
   if (ev.type === "hours_changed") return "schedule updated";
   return ev.note ?? "";
@@ -770,13 +770,13 @@ function AuditTab({ outletId }: { outletId: number }) {
         <thead><tr><th>Event</th><th>Details</th><th>By</th><th>When</th></tr></thead>
         <tbody>
           {events === null ? (
-            <tr><td colSpan={4} className="admin-meta" style={{ padding: 16 }}>Loadingâ¦</td></tr>
+            <tr><td colSpan={4} className="admin-meta" style={{ padding: 16 }}>Loading…</td></tr>
           ) : events.length === 0 ? (
             <tr><td colSpan={4} className="admin-meta" style={{ padding: 16 }}>No events</td></tr>
           ) : events.map((ev) => (
             <tr key={ev.id}>
               <td><strong>{EVENT_LABEL[ev.type] ?? ev.type}</strong></td>
-              <td className="admin-meta">{eventDetail(ev) || "â"}</td>
+              <td className="admin-meta">{eventDetail(ev) || "—"}</td>
               <td className="admin-meta">{ev.byStaffName ?? "system"}</td>
               <td className="admin-meta">{fmt(ev.at)}</td>
             </tr>
