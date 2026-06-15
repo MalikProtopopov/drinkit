@@ -47,6 +47,11 @@ const NAV_GROUPS: {
   },
 ];
 
+// AdminShell навешивается на каждую страницу и перемонтируется при переходах.
+// Кэшируем staff между перемонтированиями: иначе на каждом переходе показывалась бы
+// «Загрузка…» пока me() перезапрашивается → мерцание сайдбара/контента.
+let cachedStaff: Staff | null = null;
+
 export function AdminShell({
   title,
   crumbs,
@@ -60,24 +65,27 @@ export function AdminShell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [staff, setStaff] = useState<Staff | null>(null);
+  const [staff, setStaff] = useState<Staff | null>(cachedStaff);
 
   useEffect(() => {
     if (!getStaffToken()) {
       router.replace("/admin/login");
       return;
     }
+    // revalidate в фоне; уже закэшированный staff не сбрасываем в null (без мерцания)
     adminApi.me().then((s) => {
       // учётка табло выдачи не ходит по админке — только полноэкранный экран
       if (s.role === "screen") { router.replace("/admin/screen"); return; }
-      setStaff(s);
+      cachedStaff = s; setStaff(s);
     }).catch(() => {
+      cachedStaff = null;
       setStaffToken(null);
       router.replace("/admin/login");
     });
   }, [router]);
 
   const logout = () => {
+    cachedStaff = null;
     setStaffToken(null);
     router.replace("/admin/login");
   };
