@@ -112,7 +112,8 @@ export default function CheckoutPage() {
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-32">
         {/* контакт: телефон по которому авторизованы; можно изменить (re-auth) */}
         <Section title={t("Phone", "الهاتف")} required>
-          <div className="w-full h-14 rounded-2xl bg-[#F4F4F7] px-4 flex items-center justify-between">
+          {/* dir=ltr: телефон (иконка · +971 · номер) всегда слева-направо — и в EN, и в AR */}
+          <div dir="ltr" className="w-full h-14 rounded-2xl bg-[#F4F4F7] px-4 flex items-center justify-between">
             <div className="flex items-center gap-3 min-w-0">
               <IconPhone size={18} className="flex-none" style={{ color: "var(--color-text-muted)" }} />
               <span className="text-body font-semibold truncate">{me?.phone ? maskPhoneUAE(me.phone) : "…"}</span>
