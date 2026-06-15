@@ -51,7 +51,7 @@ function Editor({ slug }: { slug: string }) {
   }, [slug, router, descLocale]);
   useEffect(() => { load().catch(() => {}); }, [load]);
 
-  if (!drink) return <div className="admin-meta">Загрузка…</div>;
+  if (!drink) return <div className="admin-meta">Loading…</div>;
 
   const set = (patch: Partial<AdminDrink>) => setDrink({ ...drink, ...patch });
   const dirtyMain = mainSig(drink) !== baselineRef.current;
@@ -60,8 +60,8 @@ function Editor({ slug }: { slug: string }) {
     try {
       const d = await catalogApi.updateDrink(drink.id, drink);
       setDrink(d); baselineRef.current = mainSig(d);
-      toast("Напиток сохранён");
-    } catch (e) { toast(e instanceof Error ? e.message : "Ошибка", "warn"); }
+      toast("Drink saved");
+    } catch (e) { toast(e instanceof Error ? e.message : "Error", "warn"); }
   };
 
   const saveBindings = async () => {
@@ -69,30 +69,30 @@ function Editor({ slug }: { slug: string }) {
     const bad = bindings.find((b) => !(0 <= b.minPortions && b.minPortions <= b.defaultPortions
       && b.defaultPortions <= b.maxPortions && b.portionAmount > 0));
     if (bad) {
-      toast(`«${addonName(bad.addonId)}»: нужно 0 ≤ мин ≤ дефолт ≤ макс и объём порции > 0`, "warn");
+      toast(`“${addonName(bad.addonId)}”: requires 0 ≤ min ≤ default ≤ max and portion size > 0`, "warn");
       return;
     }
     try {
       const d = await catalogApi.setBindings(drink.id, bindings);
       setDrink(d); setBindings(d.bindings);
-      toast("Доступные добавки сохранены");
-    } catch (e) { toast(e instanceof Error ? e.message : "Ошибка", "warn"); }
+      toast("Available add-ons saved");
+    } catch (e) { toast(e instanceof Error ? e.message : "Error", "warn"); }
   };
 
   const saveSizes = async () => {
     const active = sizes.filter((s) => s.isActive);
-    if (active.length === 0) { toast("Нужен хотя бы один активный размер", "warn"); return; }
+    if (active.length === 0) { toast("At least one active size is required", "warn"); return; }
     if (sizes.some((s) => s.volume <= 0 || s.price < 0)) {
-      toast("Объём должен быть > 0, цена — ≥ 0", "warn"); return;
+      toast("Volume must be > 0, price ≥ 0", "warn"); return;
     }
     if (active.filter((s) => s.isDefault).length > 1) {
-      toast("Размер по умолчанию может быть только один", "warn"); return;
+      toast("There can be only one default size", "warn"); return;
     }
     try {
       const d = await catalogApi.setSizes(drink.id, sizes);
       setDrink(d); setSizes(d.sizes); set({ basePrice: d.basePrice });
-      toast("Размеры сохранены");
-    } catch (e) { toast(e instanceof Error ? e.message : "Ошибка", "warn"); }
+      toast("Sizes saved");
+    } catch (e) { toast(e instanceof Error ? e.message : "Error", "warn"); }
   };
 
   // единственный дефолт: выбор одного размера снимает флаг с остальных
@@ -122,15 +122,15 @@ function Editor({ slug }: { slug: string }) {
       const kept = d.descriptions.some((x) => x.locale === descLocale);
       setDescDraft(d.descriptions.find((x) => x.locale === descLocale)?.body ?? "");
       setDescRev((r) => r + 1);
-      toast(kept ? "Описание сохранено" : "Пустое описание — запись удалена");
-    } catch (e) { toast(e instanceof Error ? e.message : "Ошибка", "warn"); }
+      toast(kept ? "Description saved" : "Empty description — entry deleted");
+    } catch (e) { toast(e instanceof Error ? e.message : "Error", "warn"); }
   };
   const deleteDesc = async () => {
     try {
       const d = await catalogApi.deleteDescription(drink.id, descLocale);
       setDrink(d); setDescDraft(""); setDescRev((r) => r + 1);
-      toast("Описание удалено");
-    } catch (e) { toast(e instanceof Error ? e.message : "Ошибка", "warn"); }
+      toast("Description deleted");
+    } catch (e) { toast(e instanceof Error ? e.message : "Error", "warn"); }
   };
   const descLocalesFilled = new Set(drink.descriptions.map((x) => x.locale));
 
@@ -158,12 +158,12 @@ function Editor({ slug }: { slug: string }) {
         </td>
         <td>
           <strong>{addonName(a.id)}</strong>
-          <div className="admin-meta">базовая цена {addonBasePrice(a.id)} AED</div>
+          <div className="admin-meta">base price {addonBasePrice(a.id)} AED</div>
         </td>
         {b ? (
           <>
             <td>
-              <input className="admin-input mono" style={{ width: 90 }} placeholder="бесплатно"
+              <input className="admin-input mono" style={{ width: 90 }} placeholder="free"
                      value={b.priceOverride ?? ""}
                      onChange={(e) => setBindings((arr) => arr.map((x) => x.addonId === a.id
                        ? { ...x, priceOverride: e.target.value === "" ? null : +e.target.value } : x))} />
@@ -185,7 +185,7 @@ function Editor({ slug }: { slug: string }) {
             </td>
           </>
         ) : (
-          <td colSpan={5} className="admin-meta">не доступна в этом напитке</td>
+          <td colSpan={5} className="admin-meta">not available in this drink</td>
         )}
       </tr>
     );
@@ -200,7 +200,7 @@ function Editor({ slug }: { slug: string }) {
         <span className="admin-meta">·</span>
         {/* статус: черновик / опубликован / скрыт (видимость на сайте) */}
         <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F5EFE7", borderRadius: 999 }}>
-          {([["draft", "черновик"], ["published", "опубликован"], ["hidden", "скрыт"]] as const).map(([v, l]) => (
+          {([["draft", "draft"], ["published", "published"], ["hidden", "hidden"]] as const).map(([v, l]) => (
             <button key={v} className="admin-btn sm" onClick={() => set({ status: v })}
                     style={drink.status === v ? { background: "#4A56E2", color: "#FFF" } : { background: "transparent" }}>
               {l}
@@ -209,48 +209,48 @@ function Editor({ slug }: { slug: string }) {
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
           {tab === "main" && dirtyMain && (
-            <span className="admin-meta" style={{ color: "#B45309", fontWeight: 600 }}>● есть несохранённые изменения</span>
+            <span className="admin-meta" style={{ color: "#B45309", fontWeight: 600 }}>● unsaved changes</span>
           )}
-          {tab === "desc" && <span className="admin-meta">описание сохраняется кнопкой во вкладке</span>}
+          {tab === "desc" && <span className="admin-meta">description is saved with the button on this tab</span>}
           {tab !== "desc" && (
             <button className="admin-btn primary"
                     onClick={tab === "main" ? saveMain : tab === "sizes" ? saveSizes : saveBindings}>
-              {tab === "main" ? "Сохранить основное" : tab === "sizes" ? "Сохранить размеры" : "Сохранить добавки"}
+              {tab === "main" ? "Save main" : tab === "sizes" ? "Save sizes" : "Save add-ons"}
             </button>
           )}
         </div>
       </div>
 
       <div className="admin-tabs">
-        <button className="admin-tab" data-active={tab === "main"} onClick={() => setTab("main")}>Основное</button>
+        <button className="admin-tab" data-active={tab === "main"} onClick={() => setTab("main")}>Main</button>
         <button className="admin-tab" data-active={tab === "sizes"} onClick={() => setTab("sizes")}>
-          Размеры ({sizes.length})
+          Sizes ({sizes.length})
         </button>
         <button className="admin-tab" data-active={tab === "desc"} onClick={() => setTab("desc")}>
-          Описание ({drink.descriptions.filter((d) => d.locale !== "ru").length})
+          Description ({drink.descriptions.filter((d) => d.locale !== "ru").length})
         </button>
         <button className="admin-tab" data-active={tab === "bindings"} onClick={() => setTab("bindings")}>
-          Доступные добавки ({bindings.length})
+          Available add-ons ({bindings.length})
         </button>
       </div>
 
       {tab === "main" && (
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+        <div className="admin-split" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
           <div className="admin-panel">
             <div className="admin-panel-head">
-              <div className="admin-panel-title">Тексты и медиа</div>
-              <span className="admin-meta">на сайте: английский и арабский</span>
+              <div className="admin-panel-title">Texts and media</div>
+              <span className="admin-meta">on the site: English and Arabic</span>
             </div>
             <div className="admin-panel-body">
               <div className="admin-grid-2">
                 <div className="admin-field">
-                  <label className="admin-label">Название (EN) — основное на сайте</label>
-                  <input className="admin-input" value={drink.name.en ?? ""} placeholder="нет перевода"
+                  <label className="admin-label">Name (EN) — primary on the site</label>
+                  <input className="admin-input" value={drink.name.en ?? ""} placeholder="no translation"
                          style={!drink.name.en ? warn : undefined}
                          onChange={(e) => set({ name: { ...drink.name, en: e.target.value } })} />
                 </div>
                 <div className="admin-field">
-                  <label className="admin-label">Название (AR)</label>
+                  <label className="admin-label">Name (AR)</label>
                   <input className="admin-input" dir="rtl" value={drink.name.ar ?? ""} placeholder="نص عربي"
                          style={!drink.name.ar ? warn : undefined}
                          onChange={(e) => set({ name: { ...drink.name, ar: e.target.value } })} />
@@ -258,38 +258,38 @@ function Editor({ slug }: { slug: string }) {
               </div>
               <div className="admin-grid-2">
                 <div className="admin-field">
-                  <label className="admin-label">Краткое описание (EN)</label>
+                  <label className="admin-label">Short description (EN)</label>
                   <textarea className="admin-textarea" value={drink.description.en ?? ""}
                             onChange={(e) => set({ description: { ...drink.description, en: e.target.value } })} />
                 </div>
                 <div className="admin-field">
-                  <label className="admin-label">Краткое описание (AR)</label>
+                  <label className="admin-label">Short description (AR)</label>
                   <textarea className="admin-textarea" dir="rtl" value={drink.description.ar ?? ""}
                             onChange={(e) => set({ description: { ...drink.description, ar: e.target.value } })} />
                 </div>
               </div>
               <div className="admin-grid-2">
                 <div className="admin-field">
-                  <label className="admin-label">Категория</label>
+                  <label className="admin-label">Category</label>
                   <select className="admin-select" value={drink.categoryId}
                           onChange={(e) => set({ categoryId: +e.target.value })}>
                     {cats.map((c) => <option key={c.id} value={c.id}>{c.name.en ?? c.name.ru}</option>)}
                   </select>
                 </div>
                 <div className="admin-field">
-                  <label className="admin-label">Цена базы (= размер по умолчанию), AED</label>
+                  <label className="admin-label">Base price (= default size), AED</label>
                   <NumInput value={drink.basePrice} min={0} onChange={(n) => set({ basePrice: n })} />
-                  <span className="admin-meta">синхронизируется с ценой размера «по умолчанию» во вкладке «Размеры»</span>
+                  <span className="admin-meta">synced with the “default” size price on the “Sizes” tab</span>
                 </div>
               </div>
               <div className="admin-grid-2">
                 <div className="admin-field">
-                  <label className="admin-label">Превью (картинка)</label>
+                  <label className="admin-label">Preview (image)</label>
                   <MediaUpload accept="image" value={drink.previewUrl}
                                onChange={(url) => set({ previewUrl: url })} />
                 </div>
                 <div className="admin-field">
-                  <label className="admin-label">Видео для сайта</label>
+                  <label className="admin-label">Video for the site</label>
                   <MediaUpload accept="video" value={drink.videoUrl}
                                onChange={(url) => set({ videoUrl: url })} />
                 </div>
@@ -299,12 +299,12 @@ function Editor({ slug }: { slug: string }) {
 
           <div className="admin-panel">
             <div className="admin-panel-head">
-              <div className="admin-panel-title">КБЖУ базового напитка</div>
+              <div className="admin-panel-title">Nutrition of the base drink</div>
             </div>
             <div className="admin-panel-body">
               <div className="admin-grid-2">
-                {([["kcal", "Ккал", "ккал"], ["protein", "Белки", "г"],
-                   ["fat", "Жиры", "г"], ["carbs", "Углеводы", "г"]] as const).map(([k, l, u]) => (
+                {([["kcal", "Kcal", "kcal"], ["protein", "Protein", "g"],
+                   ["fat", "Fat", "g"], ["carbs", "Carbs", "g"]] as const).map(([k, l, u]) => (
                   <div className="admin-field" key={k}>
                     <label className="admin-label">{l}, {u}</label>
                     <NumInput value={drink[k]} min={0}
@@ -313,7 +313,7 @@ function Editor({ slug }: { slug: string }) {
                 ))}
               </div>
               <p className="admin-meta" style={{ marginTop: 8 }}>
-                На 1 порцию (размер по умолчанию). С добавками пересчитывается на сайте.
+                Per 1 serving (default size). Recalculated on the site when add-ons are selected.
               </p>
             </div>
           </div>
@@ -323,13 +323,13 @@ function Editor({ slug }: { slug: string }) {
       {tab === "sizes" && (
         <div className="admin-panel">
           <div className="admin-panel-head">
-            <div className="admin-panel-title">Размеры напитка</div>
-            <span className="admin-meta">объём и своя цена; цена «по умолчанию» идёт в карточку витрины</span>
+            <div className="admin-panel-title">Drink sizes</div>
+            <span className="admin-meta">volume and own price; the “default” price goes to the storefront card</span>
           </div>
           <div className="admin-tablewrap"><table className="admin-table">
             <thead>
               <tr>
-                <th>По умолч.</th><th>Объём</th><th>Ед.</th><th>Цена, AED</th><th>Активен</th><th></th>
+                <th>Default</th><th>Volume</th><th>Unit</th><th>Price, AED</th><th>Active</th><th></th>
               </tr>
             </thead>
             <tbody>
@@ -370,33 +370,33 @@ function Editor({ slug }: { slug: string }) {
                             })} />
                   </td>
                   <td>
-                    <button className="admin-btn sm" onClick={() => removeSize(i)}>Удалить</button>
+                    <button className="admin-btn sm" onClick={() => removeSize(i)}>Delete</button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table></div>
           <div className="admin-panel-body">
-            <button className="admin-btn" onClick={addSize}>+ Добавить размер</button>
+            <button className="admin-btn" onClick={addSize}>+ Add size</button>
             <p className="admin-meta" style={{ marginTop: 8 }}>
-              Цена размера — это стоимость напитка БЕЗ добавок; добавки считаются сверху.
-              Должен быть хотя бы один активный размер и ровно один «по умолчанию».
+              The size price is the drink cost WITHOUT add-ons; add-ons are charged on top.
+              There must be at least one active size and exactly one “default”.
             </p>
           </div>
         </div>
       )}
 
       {tab === "desc" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16 }}>
+        <div className="admin-split" style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 16 }}>
           <div className="admin-panel">
             <div className="admin-panel-head">
-              <div className="admin-panel-title">Дополнительное описание</div>
-              <span className="admin-meta">шторка «Подробнее»; своё для каждой локали</span>
+              <div className="admin-panel-title">Extended description</div>
+              <span className="admin-meta">the “More” sheet; separate for each locale</span>
             </div>
             <div className="admin-panel-body">
               {/* выбор языка описания — галочка у языков, где описание уже есть */}
               <div className="admin-field">
-                <label className="admin-label">Язык описания</label>
+                <label className="admin-label">Description language</label>
                 <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F5EFE7", borderRadius: 999 }}>
                   {DESC_LOCALES.map((l) => (
                     <button key={l.code} className="admin-btn sm" onClick={() => switchDescLocale(l.code)}
@@ -408,8 +408,8 @@ function Editor({ slug }: { slug: string }) {
                 {/* понятный статус именно выбранного языка + что это значит для сайта */}
                 <span className="admin-meta">
                   {descLocalesFilled.has(descLocale)
-                    ? "✓ Для этого языка описание добавлено — на сайте показывается кнопка «Подробнее»."
-                    : "Для этого языка описания пока нет — кнопка «Подробнее» на сайте скрыта, пока вы его не добавите и не сохраните."}
+                    ? "✓ A description has been added for this language — the “More” button is shown on the site."
+                    : "There is no description for this language yet — the “More” button stays hidden on the site until you add and save one."}
                 </span>
               </div>
 
@@ -418,13 +418,13 @@ function Editor({ slug }: { slug: string }) {
                               onChange={setDescDraft} />
 
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <button className="admin-btn primary" onClick={saveDesc}>Сохранить описание</button>
+                <button className="admin-btn primary" onClick={saveDesc}>Save description</button>
                 {descLocalesFilled.has(descLocale) && (
-                  <button className="admin-btn" onClick={deleteDesc}>Удалить</button>
+                  <button className="admin-btn" onClick={deleteDesc}>Delete</button>
                 )}
               </div>
               <p className="admin-meta" style={{ marginTop: 8 }}>
-                Если для локали нет описания, на сайте в этой локали кнопка «Подробнее» скрывается.
+                If there is no description for a locale, the “More” button is hidden on the site in that locale.
               </p>
             </div>
           </div>
@@ -432,7 +432,7 @@ function Editor({ slug }: { slug: string }) {
           {/* предпросмотр «как в шторке» */}
           <div className="admin-panel">
             <div className="admin-panel-head">
-              <div className="admin-panel-title">Предпросмотр шторки</div>
+              <div className="admin-panel-title">Sheet preview</div>
               <span className="admin-meta">{DESC_LOCALES.find((l) => l.code === descLocale)?.label}</span>
             </div>
             <div className="admin-panel-body">
@@ -442,7 +442,7 @@ function Editor({ slug }: { slug: string }) {
                   <div className="rich-desc" dir={descLocale === "ar" ? "rtl" : "ltr"}
                        dangerouslySetInnerHTML={{ __html: descDraft }} />
                 ) : (
-                  <div className="admin-meta">Пусто — кнопка «Подробнее» на сайте скрыта для этой локали.</div>
+                  <div className="admin-meta">Empty — the “More” button is hidden on the site for this locale.</div>
                 )}
               </div>
             </div>
@@ -464,18 +464,18 @@ function Editor({ slug }: { slug: string }) {
         return (
           <div className="admin-panel">
             <div className="admin-panel-head">
-              <div className="admin-panel-title">Доступные добавки</div>
-              <span className="admin-meta">включено {bound.size} из {active.length} · пустая цена = бесплатно</span>
+              <div className="admin-panel-title">Available add-ons</div>
+              <span className="admin-meta">{bound.size} of {active.length} enabled · empty price = free</span>
             </div>
             <div className="admin-panel-body" style={{ paddingBottom: 8 }}>
-              <input className="admin-input" placeholder="Поиск добавки…" value={addonQuery}
+              <input className="admin-input" placeholder="Search add-on…" value={addonQuery}
                      onChange={(e) => setAddonQuery(e.target.value)} style={{ maxWidth: 280 }} />
             </div>
             <div className="admin-tablewrap"><table className="admin-table">
               <thead>
                 <tr>
-                  <th>Доступна</th><th>Добавка</th><th>Цена в этом напитке, AED</th>
-                  <th>Мин</th><th>Дефолт</th><th>Макс</th><th>Объём порции</th>
+                  <th>Available</th><th>Add-on</th><th>Price in this drink, AED</th>
+                  <th>Min</th><th>Default</th><th>Max</th><th>Portion size</th>
                 </tr>
               </thead>
               <tbody>
@@ -483,9 +483,9 @@ function Editor({ slug }: { slug: string }) {
                   <Fragment key={g.cat ? g.cat.id : "orphan"}>
                     <tr style={{ background: "#F2ECE2" }}>
                       <td colSpan={7} style={{ fontWeight: 800 }}>
-                        {g.cat ? addonCatName(g.cat) : "Без категории"}
+                        {g.cat ? addonCatName(g.cat) : "No category"}
                         <span className="admin-meta" style={{ marginLeft: 8, fontWeight: 500 }}>
-                          {g.items.filter((a) => bound.has(a.id)).length}/{g.items.length} включено
+                          {g.items.filter((a) => bound.has(a.id)).length}/{g.items.length} enabled
                         </span>
                       </td>
                     </tr>
@@ -493,14 +493,14 @@ function Editor({ slug }: { slug: string }) {
                   </Fragment>
                 ))}
                 {visible.length === 0 && (
-                  <tr><td colSpan={7} className="admin-meta" style={{ padding: 16 }}>Ничего не найдено</td></tr>
+                  <tr><td colSpan={7} className="admin-meta" style={{ padding: 16 }}>Nothing found</td></tr>
                 )}
               </tbody>
             </table></div>
             <div className="admin-panel-body">
               <p className="admin-meta">
-                Лимиты: 0 ≤ мин ≤ дефолт ≤ макс (валидируется на бэке). Объём порции — грамм/мл
-                на одну порцию; КБЖУ на сайте пересчитывается на этот объём.
+                Limits: 0 ≤ min ≤ default ≤ max (validated on the backend). Portion size is grams/ml
+                per portion; nutrition on the site is recalculated to this amount.
               </p>
             </div>
           </div>
@@ -513,8 +513,8 @@ function Editor({ slug }: { slug: string }) {
 export default function ProductEditorPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   return (
-    <AdminShell title="Редактор напитка"
-                crumbs={[{ label: "Каталог" }, { label: "Напитки", href: "/admin/catalog/products" },
+    <AdminShell title="Drink editor"
+                crumbs={[{ label: "Catalog" }, { label: "Drinks", href: "/admin/catalog/products" },
                          { label: slug }]}>
       <Editor slug={slug} />
     </AdminShell>

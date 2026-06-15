@@ -36,6 +36,9 @@ def _order_row(o: Order, drink_map: dict[int, Drink] | None = None,
         "subtotal": o.subtotal, "couponDiscount": o.coupon_discount, "total": o.total,
         "managerId": o.manager_id, "rating": o.rating,
         "arrived": o.arrived_at is not None,
+        "outletId": o.outlet_id,
+        "outlet": ({"id": o.outlet.id, "name": t(o.outlet.name, "en"), "address": o.outlet.address}
+                   if o.outlet else None),
         "createdAt": o.created_at.isoformat() if o.created_at else None,
         "items": [
             {

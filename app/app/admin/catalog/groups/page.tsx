@@ -6,7 +6,7 @@ import { Modal, Toggle, useToast } from "@/components/admin/AdminUI";
 import { MediaUpload } from "@/components/admin/MediaUpload";
 import { catalogApi, type AddonCat, type Unit } from "@/lib/adminApi";
 
-const SEL_LABEL = { single: "один", multi: "несколько", counter: "счётчик" } as const;
+const SEL_LABEL = { single: "single", multi: "multiple", counter: "counter" } as const;
 
 /** ADM-S-02: категории добавок (тип выбора на уровне категории) + ADM-S-04: единицы. */
 function Inner() {
@@ -15,7 +15,7 @@ function Inner() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [catOpen, setCatOpen] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
-  const [nameRu, setNameRu] = useState("");
+  const [nameEn, setNameEn] = useState("");
   const [iconUrl, setIconUrl] = useState("");
   const [selType, setSelType] = useState<AddonCat["selectionType"]>("counter");
   const [unitCode, setUnitCode] = useState("");
@@ -31,16 +31,16 @@ function Inner() {
     <>
       <div className="admin-panel">
         <div className="admin-panel-head">
-          <div className="admin-panel-title">Категории добавок</div>
-          <button className="admin-btn sm" onClick={() => setCatOpen(true)}>+ Категория</button>
+          <div className="admin-panel-title">Add-on categories</div>
+          <button className="admin-btn sm" onClick={() => setCatOpen(true)}>+ Category</button>
         </div>
         <p className="admin-meta" style={{ padding: "0 16px 8px" }}>
-          Тип выбора задаётся здесь (дефолт для всех напитков) и может быть переопределён
-          в связке с конкретным напитком — вкладка «Добавки» в редакторе напитка.
+          The selection type is set here (default for all drinks) and can be overridden
+          per drink — the “Add-ons” tab in the drink editor.
         </p>
         <div className="admin-tablewrap"><table className="admin-table">
           <thead>
-            <tr><th>Название</th><th>Тип выбора</th><th>Активна</th></tr>
+            <tr><th>Name</th><th>Selection type</th><th>Active</th></tr>
           </thead>
           <tbody>
             {cats.map((c) => (
@@ -51,7 +51,7 @@ function Inner() {
                     {(["single", "multi", "counter"] as const).map((s) => (
                       <button key={s} className="admin-btn sm"
                         onClick={() => catalogApi.updateAddonCategory(c.id, { ...c, selectionType: s })
-                          .then(() => { load(); toast(`Тип выбора → ${SEL_LABEL[s]}`, "info"); })}
+                          .then(() => { load(); toast(`Selection type → ${SEL_LABEL[s]}`, "info"); })}
                         style={c.selectionType === s ? { background: "#4A56E2", color: "#FFF" } : { background: "transparent" }}>
                         {SEL_LABEL[s]}
                       </button>
@@ -61,7 +61,7 @@ function Inner() {
                 <td>
                   <Toggle defaultOn={c.isActive}
                           onChange={(v) => catalogApi.updateAddonCategory(c.id, { ...c, isActive: v })
-                            .then(() => toast(v ? "Категория активна" : "Скрыта с деталки напитка", "info"))} />
+                            .then(() => toast(v ? "Category active" : "Hidden from drink page", "info"))} />
                 </td>
               </tr>
             ))}
@@ -71,11 +71,11 @@ function Inner() {
 
       <div className="admin-panel" style={{ marginTop: 16 }}>
         <div className="admin-panel-head">
-          <div className="admin-panel-title">Единицы измерения</div>
-          <button className="admin-btn sm" onClick={() => setUnitOpen(true)}>+ Единица</button>
+          <div className="admin-panel-title">Units</div>
+          <button className="admin-btn sm" onClick={() => setUnitOpen(true)}>+ Unit</button>
         </div>
         <div className="admin-tablewrap"><table className="admin-table">
-          <thead><tr><th>Код</th><th>Название</th></tr></thead>
+          <thead><tr><th>Code</th><th>Name</th></tr></thead>
           <tbody>
             {units.map((u) => (
               <tr key={u.id}>
@@ -87,23 +87,23 @@ function Inner() {
         </table></div>
       </div>
 
-      <Modal open={catOpen} title="Новая категория добавок" onClose={() => setCatOpen(false)}
+      <Modal open={catOpen} title="New add-on category" onClose={() => setCatOpen(false)}
              onSubmit={async () => {
-               await catalogApi.createAddonCategory({ name: { ru: nameRu }, iconUrl: iconUrl || null,
+               await catalogApi.createAddonCategory({ name: { en: nameEn }, iconUrl: iconUrl || null,
                  isActive: true, selectionType: selType });
-               setCatOpen(false); setNameRu(""); load(); toast("Категория создана");
+               setCatOpen(false); setNameEn(""); load(); toast("Category created");
              }}
-             submitDisabled={!nameRu.trim()} submitLabel="Создать">
+             submitDisabled={!nameEn.trim()} submitLabel="Create">
         <div className="admin-field">
-          <label className="admin-label">Название (RU)</label>
-          <input className="admin-input" autoFocus value={nameRu} onChange={(e) => setNameRu(e.target.value)} />
+          <label className="admin-label">Name (EN)</label>
+          <input className="admin-input" autoFocus value={nameEn} onChange={(e) => setNameEn(e.target.value)} />
         </div>
         <div className="admin-field">
-          <label className="admin-label">Иконка категории</label>
+          <label className="admin-label">Category icon</label>
           <MediaUpload accept="image" value={iconUrl} onChange={(url) => setIconUrl(url ?? "")} />
         </div>
         <div className="admin-field">
-          <label className="admin-label">Тип выбора</label>
+          <label className="admin-label">Selection type</label>
           <div style={{ display: "flex", gap: 6 }}>
             {(["single", "multi", "counter"] as const).map((s) => (
               <button key={s} className={`admin-btn ${selType === s ? "primary" : ""}`}
@@ -115,22 +115,22 @@ function Inner() {
         </div>
       </Modal>
 
-      <Modal open={unitOpen} title="Новая единица измерения" onClose={() => setUnitOpen(false)}
+      <Modal open={unitOpen} title="New unit" onClose={() => setUnitOpen(false)}
              onSubmit={async () => {
-               await catalogApi.createUnit({ code: unitCode, name: { ru: unitName } });
-               setUnitOpen(false); setUnitCode(""); setUnitName(""); load(); toast("Единица добавлена");
+               await catalogApi.createUnit({ code: unitCode, name: { en: unitName } });
+               setUnitOpen(false); setUnitCode(""); setUnitName(""); load(); toast("Unit added");
              }}
-             submitDisabled={!unitCode.trim() || !unitName.trim()} submitLabel="Добавить">
+             submitDisabled={!unitCode.trim() || !unitName.trim()} submitLabel="Add">
         <div className="admin-grid-2">
           <div className="admin-field">
-            <label className="admin-label">Код (латиницей)</label>
+            <label className="admin-label">Code (Latin)</label>
             <input className="admin-input mono" autoFocus value={unitCode}
                    onChange={(e) => setUnitCode(e.target.value)} placeholder="g · ml · pcs" />
           </div>
           <div className="admin-field">
-            <label className="admin-label">Название</label>
+            <label className="admin-label">Name</label>
             <input className="admin-input" value={unitName}
-                   onChange={(e) => setUnitName(e.target.value)} placeholder="граммы" />
+                   onChange={(e) => setUnitName(e.target.value)} placeholder="grams" />
           </div>
         </div>
       </Modal>
@@ -140,8 +140,8 @@ function Inner() {
 
 export default function GroupsPage() {
   return (
-    <AdminShell title="Категории добавок и единицы"
-                crumbs={[{ label: "Каталог" }, { label: "Категории добавок" }]}>
+    <AdminShell title="Add-on categories & units"
+                crumbs={[{ label: "Catalog" }, { label: "Add-on categories" }]}>
       <Inner />
     </AdminShell>
   );

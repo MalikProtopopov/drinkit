@@ -8,9 +8,9 @@ import { Modal, Pager, useToast } from "@/components/admin/AdminUI";
 import { catalogApi, type AdminDrink, type DrinkCat } from "@/lib/adminApi";
 
 const STATUS_PILL: Record<string, { label: string; cls: string }> = {
-  draft: { label: "черновик", cls: "" },
-  published: { label: "опубликован", cls: "accent" },
-  hidden: { label: "скрыт", cls: "danger" },
+  draft: { label: "draft", cls: "" },
+  published: { label: "published", cls: "accent" },
+  hidden: { label: "hidden", cls: "danger" },
 };
 
 /** ADM-S-05: напитки — статус черновик/опубликован/скрыт, цена базы, привязанные добавки. */
@@ -48,21 +48,21 @@ function Inner() {
     <>
       <div className="admin-panel">
         <div className="admin-panel-head">
-          <div className="admin-panel-title">Все напитки</div>
+          <div className="admin-panel-title">All drinks</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span className="admin-meta">Всего {rows.length}, опубликовано {rows.filter((d) => d.status === "published").length}</span>
-            <button className="admin-btn primary sm" onClick={() => setOpen(true)}>+ Новый напиток</button>
+            <span className="admin-meta">Total {rows.length}, published {rows.filter((d) => d.status === "published").length}</span>
+            <button className="admin-btn primary sm" onClick={() => setOpen(true)}>+ New drink</button>
           </div>
         </div>
         <div className="admin-panel-body" style={{ paddingBottom: 8 }}>
-          <input className="admin-input" placeholder="Поиск по названию или slug…" value={q}
+          <input className="admin-input" placeholder="Search by name or slug…" value={q}
                  onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
         </div>
         <div className="admin-tablewrap"><table className="admin-table">
           <thead>
             <tr>
-              <th>Название</th><th>Slug</th><th>Категория</th><th>Цена базы</th>
-              <th>Ккал</th><th>Добавок</th><th>Статус</th><th></th>
+              <th>Name</th><th>Slug</th><th>Category</th><th>Base price</th>
+              <th>Kcal</th><th>Add-ons</th><th>Status</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -71,7 +71,7 @@ function Inner() {
                   style={{ cursor: "pointer" }} onClick={() => router.push(`/admin/catalog/products/${d.slug}`)}>
                 <td>
                   <strong>{drinkName(d)}</strong>
-                  {!d.name.ar && <span className="admin-pill warn" style={{ marginLeft: 6 }}>нет AR</span>}
+                  {!d.name.ar && <span className="admin-pill warn" style={{ marginLeft: 6 }}>no AR</span>}
                 </td>
                 <td><span className="admin-mono admin-meta">{d.slug}</span></td>
                 <td>{catName(d.categoryId)}</td>
@@ -84,12 +84,12 @@ function Inner() {
                   </span>
                 </td>
                 <td style={{ textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
-                  <Link href={`/admin/catalog/products/${d.slug}`} className="admin-btn sm">Открыть</Link>
+                  <Link href={`/admin/catalog/products/${d.slug}`} className="admin-btn sm">Open</Link>
                 </td>
               </tr>
             ))}
             {filtered.length === 0 && (
-              <tr><td colSpan={8} className="admin-meta" style={{ padding: 16 }}>Ничего не найдено</td></tr>
+              <tr><td colSpan={8} className="admin-meta" style={{ padding: 16 }}>Nothing found</td></tr>
             )}
           </tbody>
         </table></div>
@@ -97,8 +97,8 @@ function Inner() {
                onOffset={setOffset} onLimit={setLimit} />
       </div>
 
-      <Modal open={open} title="Новый напиток"
-             subtitle="Создаётся черновиком — публикация после заполнения"
+      <Modal open={open} title="New drink"
+             subtitle="Created as a draft — publish after filling it in"
              onClose={() => setOpen(false)}
              onSubmit={async () => {
                try {
@@ -108,14 +108,14 @@ function Inner() {
                    categoryId: catId!,
                  });
                  setOpen(false); setNameEn(""); setSlug(""); load();
-                 toast("Черновик создан — открой и заполни");
-               } catch (e) { toast(e instanceof Error ? e.message : "Ошибка", "warn"); }
+                 toast("Draft created — open it and fill it in");
+               } catch (e) { toast(e instanceof Error ? e.message : "Error", "warn"); }
              }}
              submitDisabled={!nameEn.trim() || !slug.trim() || !catId}
-             submitLabel="Создать черновик">
+             submitLabel="Create draft">
         <div className="admin-grid-2">
           <div className="admin-field">
-            <label className="admin-label">Название (EN)</label>
+            <label className="admin-label">Name (EN)</label>
             <input className="admin-input" autoFocus value={nameEn}
                    onChange={(e) => {
                      setNameEn(e.target.value);
@@ -124,13 +124,13 @@ function Inner() {
                    }} />
           </div>
           <div className="admin-field">
-            <label className="admin-label">Slug (латиницей)</label>
+            <label className="admin-label">Slug (Latin)</label>
             <input className="admin-input mono" value={slug}
                    onChange={(e) => setSlug(e.target.value.replace(/[^a-z0-9-]/g, ""))} />
           </div>
         </div>
         <div className="admin-field">
-          <label className="admin-label">Категория</label>
+          <label className="admin-label">Category</label>
           <select className="admin-select" value={catId ?? ""} onChange={(e) => setCatId(+e.target.value)}>
             {cats.map((c) => <option key={c.id} value={c.id}>{c.name.en ?? c.name.ru}</option>)}
           </select>
@@ -142,7 +142,7 @@ function Inner() {
 
 export default function ProductsListPage() {
   return (
-    <AdminShell title="Напитки" crumbs={[{ label: "Каталог" }, { label: "Напитки" }]}>
+    <AdminShell title="Drinks" crumbs={[{ label: "Catalog" }, { label: "Drinks" }]}>
       <Inner />
     </AdminShell>
   );

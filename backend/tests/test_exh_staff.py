@@ -43,7 +43,7 @@ def test_login_happy_admin(client):
     assert staff["email"] == "admin@juicy.ae"
     assert staff["role"] == "super_admin"
     assert staff["disabled"] is False
-    assert set(staff.keys()) == {"id", "email", "name", "role", "phone", "note", "disabled"}
+    assert set(staff.keys()) == {"id", "email", "name", "role", "phone", "note", "disabled", "outletIds"}
     # пароль/хэш не утекают наружу
     assert "password" not in staff and "password_hash" not in staff
 
@@ -140,7 +140,7 @@ def test_me_happy_admin(client, admin):
     data = r.json()
     assert data["email"] == "admin@juicy.ae"
     assert data["role"] == "super_admin"
-    assert set(data.keys()) == {"id", "email", "name", "role", "phone", "note", "disabled"}
+    assert set(data.keys()) == {"id", "email", "name", "role", "phone", "note", "disabled", "outletIds"}
 
 
 def test_me_happy_manager(client, manager):
@@ -183,7 +183,7 @@ def test_list_managers_happy_admin(client, admin):
     assert "admin@juicy.ae" in emails and "manager@juicy.ae" in emails
     # payload-форма каждого элемента
     for row in rows:
-        assert set(row.keys()) == {"id", "email", "name", "role", "phone", "note", "disabled"}
+        assert set(row.keys()) == {"id", "email", "name", "role", "phone", "note", "disabled", "outletIds"}
         assert "password_hash" not in row
 
 

@@ -10,6 +10,7 @@ from ..core.db import get_db
 from ..core.security import get_current_user
 from ..models.orders import Coupon, Order
 from ..models.users import User
+from ..services.i18n import t
 from ..services.order_flow import add_event, create_order
 
 router = APIRouter(prefix="/api/orders", tags=["orders"])
@@ -35,15 +36,26 @@ class OrderIn(BaseModel):
     emirate: str | None = None
     couponId: int | None = None
     couponItemIndex: int | None = None  # какой напиток списывает купон — выбор клиента (PUB-A-05)
+    outletId: int | None = None  # точка заказа (REQ-6): обязателен только при >1 активной точке
 
 
-def order_payload(o: Order, full: bool = True) -> dict:
+def _outlet_block(o: Order, locale: str) -> dict | None:
+    """Блок локации для клиента (REQ-6): к какой точке относится заказ + адрес."""
+    if o.outlet is None:
+        return None
+    return {"id": o.outlet.id, "slug": o.outlet.slug, "name": t(o.outlet.name, locale),
+            "address": o.outlet.address, "emirate": o.outlet.emirate}
+
+
+def order_payload(o: Order, full: bool = True, locale: str = "en") -> dict:
     data = {
         "id": o.id, "number": o.number, "status": o.status, "paymentStatus": o.payment_status,
         "arrived": o.arrived_at is not None,
         "subtotal": o.subtotal, "couponDiscount": o.coupon_discount, "total": o.total,
         "createdAt": o.created_at.isoformat() if o.created_at else None,
         "rating": o.rating,
+        "outletId": o.outlet_id,
+        "outlet": _outlet_block(o, locale),
         "items": [
             {
                 "id": i.id, "drinkId": i.drink_id, "name": i.custom_name or i.drink_name,
@@ -76,17 +88,17 @@ def order_payload(o: Order, full: bool = True) -> dict:
 def place_order(body: OrderIn, locale: str = Query("ru"),
                 user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     order = create_order(db, user, body, locale)
-    return order_payload(order)
+    return order_payload(order, locale=locale)
 
 
 @router.get("")
 def my_orders(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """PUB-A-07: список заказов клиента."""
     orders = db.scalars(
-        select(Order).options(selectinload(Order.items))
+        select(Order).options(selectinload(Order.items), selectinload(Order.outlet))
         .where(Order.user_id == user.id).order_by(Order.id.desc())
     ).all()
-    return [order_payload(o, full=False) for o in orders]
+    return [order_payload(o, full=False, locale=user.preferred_locale) for o in orders]
 
 
 def _own_order(order_id: int, user: User, db: Session) -> Order:
@@ -99,7 +111,7 @@ def _own_order(order_id: int, user: User, db: Session) -> Order:
 @router.get("/{order_id}")
 def order_detail(order_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     o = _own_order(order_id, user, db)
-    data = order_payload(o)
+    data = order_payload(o, locale=user.preferred_locale)
     # PUB-A-04 AC1: флаг «пора показать модалку оценки» — приехал, не завершён > N минут
     # модалка оценки: прибыл, заказ не выдан дольше N минут — независимо от статуса готовки
     data["ratingPromptDue"] = bool(
@@ -127,7 +139,7 @@ def mark_arrived(order_id: int, user: User = Depends(get_current_user), db: Sess
         add_event(db, o, "arrived", by_user_id=user.id)
         db.commit()
         notify(o)
-    return order_payload(o)
+    return order_payload(o, locale=user.preferred_locale)
 
 
 class RateIn(BaseModel):

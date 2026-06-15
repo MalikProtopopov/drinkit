@@ -1,13 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, EmailStr
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..core.db import get_db
 from ..core.pagination import PageLimit, PageOffset, paginate
 from ..core.security import (get_current_staff, hash_password, make_token,
                              require_super_admin, verify_password)
+from ..models.outlet import StaffOutlet
 from ..models.users import StaffUser
+from ..services.outlet_service import set_staff_outlets
 
 router = APIRouter(prefix="/api/staff", tags=["staff"])
 
@@ -21,9 +26,13 @@ class LoginIn(BaseModel):
     password: str
 
 
-def _payload(s: StaffUser) -> dict:
-    return {"id": s.id, "email": s.email, "name": s.name, "role": s.role,
-            "phone": s.phone, "note": s.note, "disabled": s.disabled}
+def _payload(s: StaffUser, db: Session | None = None) -> dict:
+    data = {"id": s.id, "email": s.email, "name": s.name, "role": s.role,
+            "phone": s.phone, "note": s.note, "disabled": s.disabled, "outletIds": []}
+    if db is not None:
+        data["outletIds"] = list(db.scalars(
+            select(StaffOutlet.outlet_id).where(StaffOutlet.staff_id == s.id)).all())
+    return data
 
 
 @router.post("/login")
@@ -32,12 +41,13 @@ def login(body: LoginIn, db: Session = Depends(get_db)):
     staff = db.scalar(select(StaffUser).where(StaffUser.email == body.email))
     if not staff or staff.disabled or not verify_password(body.password, staff.password_hash):
         raise HTTPException(401, "INVALID_CREDENTIALS")
-    return {"token": make_token(str(staff.id), "staff", role=staff.role), "staff": _payload(staff)}
+    return {"token": make_token(str(staff.id), "staff", role=staff.role),
+            "staff": _payload(staff, db)}
 
 
 @router.get("/me")
-def me(staff: StaffUser = Depends(get_current_staff)):
-    return _payload(staff)
+def me(staff: StaffUser = Depends(get_current_staff), db: Session = Depends(get_db)):
+    return _payload(staff, db)
 
 
 class ManagerIn(BaseModel):
@@ -47,19 +57,20 @@ class ManagerIn(BaseModel):
     role: str = "manager"
     phone: str | None = None
     note: str | None = None
+    outletIds: list[int] = []  # точки сотрудника (REQ-2): manager ≥1, screen ровно 1, super_admin 0
 
 
 @router.get("/managers")
 def list_managers(response: Response, limit: int | None = PageLimit, offset: int = PageOffset,
                   _: StaffUser = Depends(require_super_admin), db: Session = Depends(get_db)):
-    rows = [_payload(s) for s in db.scalars(select(StaffUser)).all()]
+    rows = [_payload(s, db) for s in db.scalars(select(StaffUser)).all()]
     return paginate(rows, response, limit, offset)
 
 
 @router.post("/managers")
 def create_manager(body: ManagerIn, _: StaffUser = Depends(require_super_admin),
                    db: Session = Depends(get_db)):
-    """ADM-S-06: добавление менеджеров."""
+    """ADM-S-06: добавление менеджеров + привязка к точкам (REQ-2)."""
     if body.role not in STAFF_ROLES:
         raise HTTPException(422, "VALIDATION_ERROR")
     if not body.name.strip():
@@ -73,8 +84,10 @@ def create_manager(body: ManagerIn, _: StaffUser = Depends(require_super_admin),
                   phone=(body.phone or "").strip() or None,
                   note=(body.note or "").strip() or None)
     db.add(s)
+    db.flush()
+    set_staff_outlets(db, s, body.outletIds)  # инварианты роль↔точки внутри
     db.commit()
-    return _payload(s)
+    return _payload(s, db)
 
 
 class ManagerPatch(BaseModel):
@@ -85,6 +98,7 @@ class ManagerPatch(BaseModel):
     note: str | None = None
     disabled: bool | None = None
     password: str | None = None  # необязательный сброс пароля
+    outletIds: list[int] | None = None  # перепривязка к точкам (REQ-2)
 
 
 @router.patch("/managers/{staff_id}")
@@ -123,8 +137,63 @@ def update_manager(staff_id: int, body: ManagerPatch,
             raise HTTPException(422, "PASSWORD_TOO_SHORT")
         s.password_hash = hash_password(body.password)
 
+    # привязка к точкам: явный outletIds или перепроверка текущих при смене роли (REQ-2/7)
+    new_ids = None
+    if body.outletIds is not None:
+        new_ids = body.outletIds
+    elif body.role is not None:
+        new_ids = list(db.scalars(
+            select(StaffOutlet.outlet_id).where(StaffOutlet.staff_id == s.id)).all())
+    if new_ids is not None:
+        set_staff_outlets(db, s, new_ids)
+
     db.commit()
-    return _payload(s)
+    return _payload(s, db)
+
+
+def _staff_activity(db: Session, staff_id: int, days: int) -> dict:
+    """Метрики сотрудника: сколько заказов обработал и в какие дни был активен.
+    «День активности» = есть хотя бы одно действие с заказом (взял в работу / сменил статус)
+    в этот локальный день (Asia/Dubai). Логин мы не трекаем — это честный прокси по событиям."""
+    from ..models.orders import Order, OrderEvent
+
+    tz = ZoneInfo("Asia/Dubai")
+    now_local = datetime.now(timezone.utc).astimezone(tz)
+    since = (now_local - timedelta(days=days)).astimezone(timezone.utc).replace(tzinfo=None)
+    events = db.scalars(select(OrderEvent).where(
+        OrderEvent.by_staff_id == staff_id, OrderEvent.created_at >= since)).all()
+    per_day: dict[str, set[int]] = {}
+    for e in events:
+        if not e.created_at:
+            continue
+        local = e.created_at.replace(tzinfo=timezone.utc).astimezone(tz)
+        per_day.setdefault(local.date().isoformat(), set()).add(e.order_id)
+    today = now_local.date().isoformat()
+    orders_handled = db.scalar(select(func.count(Order.id)).where(Order.manager_id == staff_id)) or 0
+    return {
+        "ordersHandled": int(orders_handled),
+        "ordersToday": len(per_day.get(today, set())),
+        "activeDays": len(per_day),
+        "windowDays": days,
+        "tz": "Asia/Dubai",
+        "perDay": {d: len(v) for d, v in per_day.items()},  # дата → обработано заказов
+    }
+
+
+@router.get("/managers/{staff_id}/stats")
+def manager_stats(staff_id: int, days: int = Query(62, ge=1, le=180),
+                  _: StaffUser = Depends(require_super_admin), db: Session = Depends(get_db)):
+    """Метрики любого сотрудника — для супер-админа (страница сотрудника)."""
+    if not db.get(StaffUser, staff_id):
+        raise HTTPException(404, "NOT_FOUND")
+    return _staff_activity(db, staff_id, days)
+
+
+@router.get("/me/stats")
+def my_stats(days: int = Query(62, ge=1, le=180),
+             staff: StaffUser = Depends(get_current_staff), db: Session = Depends(get_db)):
+    """Свои метрики — личный кабинет (доступно любому сотруднику для себя)."""
+    return _staff_activity(db, staff.id, days)
 
 
 @router.delete("/managers/{staff_id}")

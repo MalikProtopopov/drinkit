@@ -13,18 +13,18 @@ import { usePaged } from "@/lib/usePaged";
 const money = (n?: number | null, dec = false) => aed(n, { decimals: dec ? 2 : 0, suffix: false });
 
 const PERIODS = [
-  { key: "all", label: "Всё время" },
-  { key: "today", label: "Сегодня", from: () => new Date(new Date().setHours(0, 0, 0, 0)) },
-  { key: "7d", label: "7 дней", from: () => new Date(Date.now() - 7 * 864e5) },
-  { key: "30d", label: "30 дней", from: () => new Date(Date.now() - 30 * 864e5) },
+  { key: "all", label: "All time" },
+  { key: "today", label: "Today", from: () => new Date(new Date().setHours(0, 0, 0, 0)) },
+  { key: "7d", label: "7 days", from: () => new Date(Date.now() - 7 * 864e5) },
+  { key: "30d", label: "30 days", from: () => new Date(Date.now() - 30 * 864e5) },
 ] as const;
 
 const STATUS_FILTERS = [
-  { key: "", label: "Все" },
-  { key: "succeeded", label: "Успешные" },
-  { key: "refunded", label: "Возвраты" },
-  { key: "pending", label: "Ожидание" },
-  { key: "failed", label: "Ошибки" },
+  { key: "", label: "All" },
+  { key: "succeeded", label: "Succeeded" },
+  { key: "refunded", label: "Refunds" },
+  { key: "pending", label: "Pending" },
+  { key: "failed", label: "Failed" },
 ];
 
 function Bar({ label, value, sub, max, tone = "#4A56E2" }: {
@@ -51,9 +51,9 @@ function ConfigBanner({ cfg }: { cfg: any }) {
   const tone = mode === "live" ? { bg: "#E7F6EC", bd: "#16A34A", fg: "#15803D" }
     : mode === "test" ? { bg: "#EAEEFE", bd: "#4A56E2", fg: "#3A45C0" }
     : { bg: "#FFF7E5", bd: "#B45309", fg: "#92400E" };
-  const title = mode === "live" ? "Stripe подключён · боевой режим"
-    : mode === "test" ? "Stripe подключён · тестовый режим"
-    : "Stripe не подключён · режим mock";
+  const title = mode === "live" ? "Stripe connected · live mode"
+    : mode === "test" ? "Stripe connected · test mode"
+    : "Stripe not connected · mock mode";
   return (
     <div style={{ background: tone.bg, border: `1px solid ${tone.bd}33`, borderLeft: `3px solid ${tone.bd}`,
                   borderRadius: 12, padding: "12px 16px", display: "flex", gap: 16, alignItems: "center",
@@ -62,21 +62,21 @@ function ConfigBanner({ cfg }: { cfg: any }) {
         <div style={{ fontWeight: 800, color: tone.fg }}>{title}</div>
         <div className="admin-meta" style={{ marginTop: 2 }}>
           {mode === "mock"
-            ? "Платежи симулируются: суммы, карты и комиссии — синтетические. Подключите ключи, чтобы пошли реальные данные."
-            : "Реальные платежи Stripe. Карта, комиссия и чек подтягиваются из Stripe по webhook."}
+            ? "Payments are simulated: amounts, cards and fees are synthetic. Add keys to start receiving real data."
+            : "Real Stripe payments. Card, fee and receipt are pulled from Stripe via webhook."}
         </div>
       </div>
       <div style={{ display: "flex", gap: 18, fontSize: 12.5 }}>
         <span>Webhook <strong style={{ color: cfg.webhookConfigured ? "#15803D" : "#B45309" }}>
-          {cfg.webhookConfigured ? "настроен ✓" : "не настроен"}</strong></span>
-        <span>Комиссия <strong>{cfg.feePolicy}</strong></span>
-        <span>Валюта <strong>{cfg.currency}</strong></span>
+          {cfg.webhookConfigured ? "configured ✓" : "not configured"}</strong></span>
+        <span>Fee <strong>{cfg.feePolicy}</strong></span>
+        <span>Currency <strong>{cfg.currency}</strong></span>
       </div>
       {mode === "mock" && (
         <div className="admin-mono" style={{ fontSize: 11, color: tone.fg, width: "100%",
                                              background: "#FFFFFF99", borderRadius: 8, padding: "8px 10px" }}>
-          Подключение: задайте <strong>STRIPE_SECRET_KEY</strong> и <strong>STRIPE_WEBHOOK_SECRET</strong> в .env бэкенда,
-          установите пакет <strong>stripe</strong>, направьте webhook на <strong>/api/payments/webhook</strong>.
+          Setup: set <strong>STRIPE_SECRET_KEY</strong> and <strong>STRIPE_WEBHOOK_SECRET</strong> in the backend .env,
+          install the <strong>stripe</strong> package, point the webhook at <strong>/api/payments/webhook</strong>.
         </div>
       )}
     </div>
@@ -123,8 +123,8 @@ function PaymentsInner() {
   const s = summary;
   const statusMax = s ? Math.max(1, ...Object.values(s.byStatus ?? {}).map((x: any) => x.count)) : 1;
   const methodMax = s ? Math.max(1, ...Object.values(s.byMethod ?? {}).map((x: any) => x.count)) : 1;
-  const methodNames: Record<string, string> = { card: "Карта", apple_pay: "Apple Pay", google_pay: "Google Pay", link: "Link" };
-  const statusNames: Record<string, string> = { succeeded: "Успешные", refunded: "Возвраты", pending: "Ожидание", failed: "Ошибки" };
+  const methodNames: Record<string, string> = { card: "Card", apple_pay: "Apple Pay", google_pay: "Google Pay", link: "Link" };
+  const statusNames: Record<string, string> = { succeeded: "Succeeded", refunded: "Refunds", pending: "Pending", failed: "Failed" };
   const statusTone: Record<string, string> = { succeeded: "#16A34A", refunded: "#B45309", pending: "#8A8F9C", failed: "#DC2626" };
 
   return (
@@ -145,22 +145,22 @@ function PaymentsInner() {
       {s && (
         <>
           <div className="admin-grid-4">
-            <Kpi label="Оборот (списано)" value={`${money(s.gross)} AED`} sub={`${s.succeededCount + s.refundedCount} платеж.`} />
-            <Kpi label="Чистыми" value={`${money(s.net)} AED`} sub="за вычетом комиссий и возвратов" tone="#15803D" />
-            <Kpi label="Комиссии Stripe" value={`${money(s.fees, true)} AED`} sub={cfg?.feePolicy} tone="#B45309" />
-            <Kpi label="Возвраты" value={`${money(s.refunds)} AED`} sub={`${s.refundedCount} возврат(ов)`} tone={s.refunds ? "#DC2626" : undefined} />
+            <Kpi label="Gross (charged)" value={`${money(s.gross)} AED`} sub={`${s.succeededCount + s.refundedCount} payments`} />
+            <Kpi label="Net" value={`${money(s.net)} AED`} sub="after fees and refunds" tone="#15803D" />
+            <Kpi label="Stripe fees" value={`${money(s.fees, true)} AED`} sub={cfg?.feePolicy} tone="#B45309" />
+            <Kpi label="Refunds" value={`${money(s.refunds)} AED`} sub={`${s.refundedCount} refund(s)`} tone={s.refunds ? "#DC2626" : undefined} />
           </div>
           <div className="admin-grid-4">
-            <Kpi label="Успешность" value={`${Math.round((s.successRate ?? 0) * 100)}%`} sub={`${s.failedCount} ошибок · ${s.pendingCount} в ожидании`} />
-            <Kpi label="Средний чек" value={`${money(s.avg, true)} AED`} />
-            <Kpi label="Всего платежей" value={s.count} />
-            <Kpi label="Споры" value={s.disputedCount} sub="chargeback / dispute" tone={s.disputedCount ? "#DC2626" : undefined} />
+            <Kpi label="Success rate" value={`${Math.round((s.successRate ?? 0) * 100)}%`} sub={`${s.failedCount} failed · ${s.pendingCount} pending`} />
+            <Kpi label="Avg. order" value={`${money(s.avg, true)} AED`} />
+            <Kpi label="Total payments" value={s.count} />
+            <Kpi label="Disputes" value={s.disputedCount} sub="chargeback / dispute" tone={s.disputedCount ? "#DC2626" : undefined} />
           </div>
 
           {/* разбивки */}
           <div className="admin-grid-2">
             <div className="admin-panel">
-              <div className="admin-panel-head"><div className="admin-panel-title">По статусам</div></div>
+              <div className="admin-panel-head"><div className="admin-panel-title">By status</div></div>
               <div className="admin-panel-body">
                 {Object.entries(s.byStatus ?? {}).length === 0 ? <span className="admin-meta">—</span> :
                   Object.entries(s.byStatus ?? {}).map(([k, v]: any) => (
@@ -171,7 +171,7 @@ function PaymentsInner() {
             </div>
             <div className="admin-panel">
               <div className="admin-panel-head">
-                <div className="admin-panel-title">По способу оплаты</div>
+                <div className="admin-panel-title">By payment method</div>
                 <span className="admin-meta">
                   {Object.entries(s.byBrand ?? {}).map(([b, c]: any) => `${b} ${c}`).join(" · ")}
                 </span>
@@ -191,7 +191,7 @@ function PaymentsInner() {
       {/* таблица */}
       <div className="admin-panel">
         <div className="admin-panel-head" style={{ gap: 12, flexWrap: "wrap" }}>
-          <div className="admin-panel-title">Платежи</div>
+          <div className="admin-panel-title">Payments</div>
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginLeft: "auto" }}>
             <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F5EFE7", borderRadius: 999 }}>
               {STATUS_FILTERS.map((f) => (
@@ -203,24 +203,24 @@ function PaymentsInner() {
             </div>
             <select className="admin-select" style={{ width: "auto" }} value={method}
                     onChange={(e) => setMethod(e.target.value)}>
-              <option value="">Любой метод</option>
-              <option value="card">Карта</option>
+              <option value="">Any method</option>
+              <option value="card">Card</option>
               <option value="apple_pay">Apple Pay</option>
               <option value="google_pay">Google Pay</option>
               <option value="link">Link</option>
             </select>
-            <input className="admin-input" style={{ width: 230 }} value={qInput} placeholder="Поиск: № заказа, телефон, id, last4"
+            <input className="admin-input" style={{ width: 230 }} value={qInput} placeholder="Search: order #, phone, id, last4"
                    onChange={(e) => setQInput(e.target.value)} />
           </div>
         </div>
         <div className="admin-tablewrap"><table className="admin-table">
           <thead>
             <tr>
-              <th>ID</th><th>Дата</th><th>Заказ</th><th>Клиент</th><th>Способ</th>
-              <th style={{ textAlign: "right" }}>Сумма</th>
-              <th style={{ textAlign: "right" }}>Комиссия</th>
-              <th style={{ textAlign: "right" }}>Чистыми</th>
-              <th>Статус</th><th>Риск</th>
+              <th>ID</th><th>Date</th><th>Order</th><th>Customer</th><th>Method</th>
+              <th style={{ textAlign: "right" }}>Amount</th>
+              <th style={{ textAlign: "right" }}>Fee</th>
+              <th style={{ textAlign: "right" }}>Net</th>
+              <th>Status</th><th>Risk</th>
             </tr>
           </thead>
           <tbody>
@@ -242,12 +242,12 @@ function PaymentsInner() {
                   <td>
                     <span className={`admin-pill ${st.cls}`}>{st.label}</span>
                     {p.refunded > 0 && p.status !== "refunded" && (
-                      <div className="admin-meta" style={{ fontSize: 10 }}>−{money(p.refunded, true)} возвр.</div>
+                      <div className="admin-meta" style={{ fontSize: 10 }}>−{money(p.refunded, true)} refunded</div>
                     )}
                   </td>
                   <td>
                     {p.disputeStatus
-                      ? <span className="admin-pill danger" style={{ fontSize: 11 }}>спор</span>
+                      ? <span className="admin-pill danger" style={{ fontSize: 11 }}>dispute</span>
                       : p.riskLevel && p.riskLevel !== "normal"
                         ? <span className="admin-pill warn" style={{ fontSize: 11 }}>{p.riskLevel}</span>
                         : <span className="admin-meta">·</span>}
@@ -257,7 +257,7 @@ function PaymentsInner() {
             })}
             {rows.length === 0 && (
               <tr><td colSpan={10} style={{ textAlign: "center", padding: 40, color: "#5A6172" }}>
-                {loading ? "Загрузка…" : "Платежей нет"}</td></tr>
+                {loading ? "Loading…" : "No payments"}</td></tr>
             )}
           </tbody>
         </table></div>
@@ -271,7 +271,7 @@ function PaymentsInner() {
 
 export default function PaymentsPage() {
   return (
-    <AdminShell title="Платежи" crumbs={[{ label: "Платежи" }]}>
+    <AdminShell title="Payments" crumbs={[{ label: "Payments" }]}>
       <PaymentsInner />
     </AdminShell>
   );

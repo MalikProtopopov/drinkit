@@ -52,6 +52,9 @@ export default function OrdersPage() {
                     <div className="text-caption muted line-clamp-1">
                       {o.items.map((i) => i.name).join(", ")}
                     </div>
+                    {o.outlet?.name && (
+                      <div className="text-tiny muted line-clamp-1">{o.outlet.name}</div>
+                    )}
                     <div className="text-tiny font-semibold mt-1" style={{ color: st.color }}>
                       {o.paymentStatus !== "paid" ? statusLabel("unpaid", locale) : statusLabel(o.status, locale)}
                     </div>

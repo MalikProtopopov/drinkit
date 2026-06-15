@@ -30,7 +30,7 @@ export function SizeMixDonut({ data }: { data: SizeMixDatum[] }) {
           fontSize: 13,
         }}
       >
-        Нет данных
+        No data
       </div>
     );
   }

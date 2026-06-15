@@ -5,9 +5,20 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..core.db import get_db
 from ..models.catalog import Drink, DrinkCategory
+from ..models.outlet import Outlet, OutletDrinkPriority
 from ..services.i18n import pick_locale, t
+from ..services.outlet_service import load_stop_sets
 
 router = APIRouter(prefix="/api", tags=["catalog"])
+
+_BIG = 10 ** 9
+
+
+def _public_outlet_id(db: Session) -> int | None:
+    """Единственная активная точка для публичного каталога (D1: на паблике нет пикера).
+    >1 или 0 активных → None (фильтрация по точке отключается, отдаём глобальный каталог)."""
+    ids = db.scalars(select(Outlet.id).where(Outlet.is_active.is_(True)).limit(2)).all()
+    return ids[0] if len(ids) == 1 else None
 
 
 def _active_sizes(d: Drink):
@@ -72,6 +83,9 @@ def list_categories(locale: str = Query("ru"), db: Session = Depends(get_db)):
     cats = db.scalars(
         select(DrinkCategory).where(DrinkCategory.is_active.is_(True)).order_by(DrinkCategory.sort)
     ).all()
+    # стоп-лист точки (REQ-3): скрываем застопленные категории на публичном сайте
+    stop = load_stop_sets(db, _public_outlet_id(db))
+    cats = [c for c in cats if c.id not in stop["drink_category"]]
     return [
         {"id": c.id, "slug": c.slug, "name": t(c.name, locale),
          "photoUrl": c.photo_url, "videoUrl": c.video_url}
@@ -93,6 +107,18 @@ def list_drinks(
             return []  # неизвестный slug → пустой список
         q = q.where(Drink.category_id == cat.id)
     drinks = db.scalars(q).all()
+    # стоп-лист + приоритеты точки (REQ-3)
+    outlet_id = _public_outlet_id(db)
+    stop = load_stop_sets(db, outlet_id)
+    if stop["drink"] or stop["drink_category"]:
+        drinks = [d for d in drinks
+                  if d.id not in stop["drink"] and d.category_id not in stop["drink_category"]]
+    prio = {}
+    if outlet_id is not None:
+        prio = {p.drink_id: p for p in db.scalars(
+            select(OutletDrinkPriority).where(OutletDrinkPriority.outlet_id == outlet_id))}
+    drinks.sort(key=lambda d: (0 if (d.id in prio and prio[d.id].pinned) else 1,
+                               prio[d.id].sort if d.id in prio else _BIG, d.id))
     return [
         {
             "id": d.id, "slug": d.slug, "name": t(d.name, locale),
@@ -116,11 +142,16 @@ def drink_detail(slug: str, locale: str = Query("ru"), db: Session = Depends(get
     )
     if not d or d.status != "published":  # PUB-G-02 AC6
         raise HTTPException(404, "NOT_FOUND")
+    # стоп-лист точки (REQ-3): застопленный напиток/категория недоступны на публичном сайте
+    stop = load_stop_sets(db, _public_outlet_id(db))
+    if d.id in stop["drink"] or d.category_id in stop["drink_category"]:
+        raise HTTPException(404, "NOT_FOUND")
     # rich-описание строго в выбранной локали; нет — None (кнопка «Подробнее» скрывается)
     rich = next((x.body for x in d.descriptions if x.locale == locale and x.body), None)
     links = [
         link for link in d.addon_links
         if link.addon.is_active and link.addon.category.is_active  # PUB-G-02 AC5
+        and link.addon_id not in stop["addon"]
     ]
     return {
         "id": d.id, "slug": d.slug, "name": t(d.name, locale),
@@ -159,8 +190,10 @@ def drink_preview(slug: str, body: PreviewIn, locale: str = Query("ru"), db: Ses
                   .where(Drink.slug == slug))
     if not d or d.status != "published":
         raise HTTPException(404, "NOT_FOUND")
+    stop = load_stop_sets(db, _public_outlet_id(db))  # стоп-лист точки (REQ-3)
     links = {link.addon_id: link for link in d.addon_links
-             if link.addon.is_active and link.addon.category.is_active}
+             if link.addon.is_active and link.addon.category.is_active
+             and link.addon_id not in stop["addon"]}
 
     # цена старта = выбранный размер (если задан и валиден), иначе дефолтный/база
     sizes = _active_sizes(d)

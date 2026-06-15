@@ -18,13 +18,13 @@ function NewCustomerInner() {
     setSaving(true);
     try {
       const u = await adminApi.createCustomer(d);
-      toast("Клиент создан");
+      toast("Customer created");
       router.push(`/admin/customers/${u.id}`);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Ошибка";
+      const msg = e instanceof Error ? e.message : "Error";
       const human: Record<string, string> = {
-        PHONE_TAKEN: "Клиент с таким телефоном уже есть",
-        PHONE_REQUIRED: "Укажите телефон",
+        PHONE_TAKEN: "A customer with this phone already exists",
+        PHONE_REQUIRED: "Enter a phone number",
       };
       toast(human[msg] ?? msg, "warn");
       setSaving(false);
@@ -32,22 +32,22 @@ function NewCustomerInner() {
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16, alignItems: "start" }}>
+    <div className="admin-split" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16, alignItems: "start" }}>
       <CustomerForm initial={initial} mode="create" saving={saving}
                     onSubmit={create} onCancel={() => router.push("/admin/customers")} />
       <div className="admin-panel">
-        <div className="admin-panel-head"><div className="admin-panel-title">Памятка</div></div>
+        <div className="admin-panel-head"><div className="admin-panel-title">Quick note</div></div>
         <div className="admin-panel-body">
           <p className="admin-meta">
-            Обычно клиенты регистрируются сами при первом заказе (по телефону). Ручное создание —
-            для случаев, когда заказ оформляется за стойкой или по звонку.
+            Customers usually register themselves on their first order (by phone). Manual creation is
+            for cases where the order is taken at the counter or over the phone.
           </p>
           <p className="admin-meta" style={{ marginTop: 10 }}>
-            <strong>Телефон</strong> — основной идентификатор: по нему клиент входит и к нему
-            привязываются заказы. Должен быть уникальным.
+            <strong>Phone</strong> is the primary identifier: the customer logs in with it and orders
+            are tied to it. It must be unique.
           </p>
           <p className="admin-meta" style={{ marginTop: 10 }}>
-            Имя, номер машины и эмират можно дозаполнить позже — они подставляются в оформление заказа.
+            Name, car plate and emirate can be filled in later — they are prefilled at checkout.
           </p>
         </div>
       </div>
@@ -57,8 +57,8 @@ function NewCustomerInner() {
 
 export default function NewCustomerPage() {
   return (
-    <AdminShell title="Новый клиент"
-                crumbs={[{ label: "Клиенты", href: "/admin/customers" }, { label: "Новый" }]}>
+    <AdminShell title="New customer"
+                crumbs={[{ label: "Customers", href: "/admin/customers" }, { label: "New" }]}>
       <NewCustomerInner />
     </AdminShell>
   );

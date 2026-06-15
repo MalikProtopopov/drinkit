@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { OutletFilter } from "@/components/admin/OutletFilter";
 import { adminApi } from "@/lib/adminApi";
 import { aed as money, pct, recencyText as recency } from "@/lib/format";
 import { Stat } from "@/components/admin/Stat";
@@ -63,14 +64,14 @@ function SegmentRow({ seg }: { seg: any }) {
         <td className="admin-num">{pct(seg.share)}</td>
         <td className="admin-num">{money(seg.avgSpent ?? 0)}</td>
         <td className="admin-num">{recencyText(seg.avgRecency)}</td>
-        <td className="admin-num">{(seg.avgFrequency ?? 0).toFixed(2)}/мес</td>
+        <td className="admin-num">{(seg.avgFrequency ?? 0).toFixed(2)}/mo</td>
         <td>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
             {tags.length === 0 ? (
               <span className="admin-meta">—</span>
             ) : (
               tags.map((t) => (
-                <span key={t.tag} className="admin-badge" title={`${t.count} клиент(ов)`}>
+                <span key={t.tag} className="admin-badge" title={`${t.count} customer(s)`}>
                   {t.tag} · {t.count}
                 </span>
               ))
@@ -78,7 +79,7 @@ function SegmentRow({ seg }: { seg: any }) {
           </div>
         </td>
         <td className="admin-meta" style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-          {customers.length ? (open ? "Свернуть ▲" : "Клиенты ▼") : "—"}
+          {customers.length ? (open ? "Collapse ▲" : "Customers ▼") : "—"}
         </td>
       </tr>
       {open && customers.length > 0 && (
@@ -88,11 +89,11 @@ function SegmentRow({ seg }: { seg: any }) {
               <table className="admin-table" style={{ margin: 0 }}>
                 <thead>
                   <tr>
-                    <th>Клиент</th>
-                    <th>Телефон</th>
-                    <th>Потрачено</th>
-                    <th>Заказов</th>
-                    <th>Последний</th>
+                    <th>Customer</th>
+                    <th>Phone</th>
+                    <th>Spent</th>
+                    <th>Orders</th>
+                    <th>Last order</th>
                     <th>RFM</th>
                   </tr>
                 </thead>
@@ -130,12 +131,25 @@ function AudienceInner() {
   const [data, setData] = useState<any>(null);
   const [err, setErr] = useState(false);
 
+  const [outlet, setOutlet] = useState<number | "all">("all");
   useEffect(() => {
-    adminApi.audience().then(setData).catch(() => setErr(true));
-  }, []);
+    adminApi.audience(outlet === "all" ? undefined : outlet)
+      .then((d) => { setData(d); setErr(false); })
+      .catch(() => setErr(true));
+  }, [outlet]);
 
-  if (err) return <div className="admin-meta">Не удалось загрузить аудиторию</div>;
-  if (!data) return <div className="admin-meta">Загрузка…</div>;
+  const filter = (
+    <div className="admin-filter-row" style={{ marginBottom: 0 }}>
+      <OutletFilter value={outlet} onChange={setOutlet} />
+      <span className="admin-meta" style={{ alignSelf: "center" }}>
+        {outlet === "all" ? "Across all outlets" : "Audience for the selected outlet"}
+      </span>
+    </div>
+  );
+  if (err) return <div style={{ display: "grid", gap: 16 }}>{filter}
+    <div className="admin-meta">Could not load the audience</div></div>;
+  if (!data) return <div style={{ display: "grid", gap: 16 }}>{filter}
+    <div className="admin-meta">Loading…</div></div>;
 
   const k = data.kpis ?? {};
   const segments: any[] = data.segments ?? [];
@@ -149,23 +163,24 @@ function AudienceInner() {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      {filter}
       {/* KPI-строка */}
       <div className="admin-grid-3">
-        <Stat label="Клиентов всего" value={k.customers ?? data.total ?? 0} />
-        <Stat label="Активные (≤30 дн.)" value={k.active ?? 0}
-              sub={data.total ? `${Math.round(((k.active ?? 0) / data.total) * 100)}% базы` : undefined} />
-        <Stat label="В зоне риска" value={k.atRisk ?? 0} sub="высокий риск оттока" />
-        <Stat label="Отток (>60 дн.)" value={k.churned ?? 0} />
-        <Stat label="Новые в этом месяце" value={k.newThisMonth ?? 0} />
-        <Stat label="Средний CLV" value={money(k.avgCLV ?? 0)} sub="прогноз на 12 мес." />
+        <Stat label="Total customers" value={k.customers ?? data.total ?? 0} />
+        <Stat label="Active (≤30 d)" value={k.active ?? 0}
+              sub={data.total ? `${Math.round(((k.active ?? 0) / data.total) * 100)}% of base` : undefined} />
+        <Stat label="At risk" value={k.atRisk ?? 0} sub="high churn risk" />
+        <Stat label="Churn (>60 d)" value={k.churned ?? 0} />
+        <Stat label="New this month" value={k.newThisMonth ?? 0} />
+        <Stat label="Avg. CLV" value={money(k.avgCLV ?? 0)} sub="12-mo forecast" />
       </div>
 
       {/* распределение по сегментам + RFM-сетка */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, alignItems: "start" }}>
+      <div className="admin-split" style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 16, alignItems: "start" }}>
         <div className="admin-panel">
           <div className="admin-panel-head">
-            <div className="admin-panel-title">Сегменты RFM</div>
-            <span className="admin-meta">{data.total ?? 0} клиентов</span>
+            <div className="admin-panel-title">RFM segments</div>
+            <span className="admin-meta">{data.total ?? 0} customers</span>
           </div>
           <div className="admin-panel-body">
             <SegmentDonut data={donutData} />
@@ -174,7 +189,7 @@ function AudienceInner() {
 
         <div className="admin-panel">
           <div className="admin-panel-head">
-            <div className="admin-panel-title">RFM-матрица</div>
+            <div className="admin-panel-title">RFM matrix</div>
             <span className="admin-meta">Recency × Frequency</span>
           </div>
           <div className="admin-panel-body">
@@ -186,20 +201,20 @@ function AudienceInner() {
       {/* таблица сегментов */}
       <div className="admin-panel">
         <div className="admin-panel-head">
-          <div className="admin-panel-title">Сегменты: метрики и состав</div>
-          <span className="admin-meta">кликните строку, чтобы раскрыть клиентов</span>
+          <div className="admin-panel-title">Segments: metrics & members</div>
+          <span className="admin-meta">click a row to expand its customers</span>
         </div>
         <div className="admin-tablewrap">
           <table className="admin-table">
             <thead>
               <tr>
-                <th>Сегмент</th>
-                <th>Клиентов</th>
-                <th>Доля</th>
-                <th>Ср. чек·сумма</th>
-                <th>Ср. давность</th>
-                <th>Частота</th>
-                <th>Персоны</th>
+                <th>Segment</th>
+                <th>Customers</th>
+                <th>Share</th>
+                <th>Avg. spent</th>
+                <th>Avg. recency</th>
+                <th>Frequency</th>
+                <th>Personas</th>
                 <th></th>
               </tr>
             </thead>
@@ -215,13 +230,13 @@ function AudienceInner() {
       {/* распределение персон */}
       <div className="admin-panel">
         <div className="admin-panel-head">
-          <div className="admin-panel-title">Персоны (поведенческие теги)</div>
-          <span className="admin-meta">{personas.length} тегов</span>
+          <div className="admin-panel-title">Personas (behavioural tags)</div>
+          <span className="admin-meta">{personas.length} tags</span>
         </div>
         <div className="admin-panel-body">
           <HorizontalBars
             data={personaBars}
-            suffix=" чел."
+            suffix=" ppl"
             height={Math.max(160, personaBars.length * 30 + 24)}
           />
         </div>
@@ -232,7 +247,7 @@ function AudienceInner() {
 
 export default function AudiencePage() {
   return (
-    <AdminShell title="Аудитория" crumbs={[{ label: "Аудитория" }]}>
+    <AdminShell title="Audience" crumbs={[{ label: "Audience" }]}>
       <AudienceInner />
     </AdminShell>
   );

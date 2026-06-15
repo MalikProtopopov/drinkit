@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/admin/dashboard", tags=["dashboard"],
 def dashboard(
     date_from: datetime | None = Query(None, alias="from"),
     date_to: datetime | None = Query(None, alias="to"),
+    outlet_id: int | None = Query(None, description="фильтр по точке (пусто = все точки)"),
     db: Session = Depends(get_db),
 ):
     paid = [Order.payment_status == "paid"]
@@ -27,6 +28,8 @@ def dashboard(
         paid.append(Order.created_at >= date_from)
     if date_to:
         paid.append(Order.created_at <= date_to)
+    if outlet_id is not None:
+        paid.append(Order.outlet_id == outlet_id)
 
     revenue = db.scalar(select(func.coalesce(func.sum(Order.total), 0)).where(*paid)) or 0
     orders_count = db.scalar(select(func.count(Order.id)).where(*paid)) or 0

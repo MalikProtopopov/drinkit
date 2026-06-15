@@ -14,20 +14,20 @@ export default function CustomersPage() {
     usePaged<any>(fetcher, [], 20);
 
   return (
-    <AdminShell title="Клиенты" crumbs={[{ label: "Клиенты" }]}>
+    <AdminShell title="Customers" crumbs={[{ label: "Customers" }]}>
       <div className="admin-panel">
         <div className="admin-panel-head">
-          <div className="admin-panel-title">Все клиенты</div>
+          <div className="admin-panel-title">All customers</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span className="admin-meta">Всего {total}</span>
+            <span className="admin-meta">Total {total}</span>
             <button className="admin-btn primary sm" onClick={() => router.push("/admin/customers/new")}>
-              + Новый клиент
+              + New customer
             </button>
           </div>
         </div>
         <div className="admin-tablewrap"><table className="admin-table">
           <thead>
-            <tr><th>ID</th><th>Имя</th><th>Телефон</th><th>Машина</th><th>Язык</th><th>Регистрация</th></tr>
+            <tr><th>ID</th><th>Name</th><th>Phone</th><th>Car</th><th>Language</th><th>Registered</th></tr>
           </thead>
           <tbody>
             {rows.map((u) => (
@@ -38,12 +38,12 @@ export default function CustomersPage() {
                 <td className="admin-mono">{u.phone}</td>
                 <td className="admin-mono">{u.carPlate ?? "—"}</td>
                 <td><span className="admin-pill">{u.locale}</span></td>
-                <td className="admin-meta">{u.createdAt ? new Date(u.createdAt).toLocaleDateString("ru-RU") : "—"}</td>
+                <td className="admin-meta">{u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-GB") : "—"}</td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr><td colSpan={6} className="admin-meta" style={{ padding: 16 }}>
-                {loading ? "Загрузка…" : "Клиентов нет"}</td></tr>
+                {loading ? "Loading…" : "No customers"}</td></tr>
             )}
           </tbody>
         </table></div>

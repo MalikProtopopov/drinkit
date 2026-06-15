@@ -106,7 +106,7 @@
 .admin-nav-link {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 11px;
   padding: 9px 12px;
   color: var(--a-ink);
   text-decoration: none;
@@ -116,6 +116,37 @@
   margin: 1px 0;
   transition: background 120ms, color 120ms;
 }
+.admin-nav-icon { width: 18px; height: 18px; flex: none; }
+.admin-nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-collapse-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 9px; flex: none;
+  border: 1px solid var(--a-rule); background: var(--a-panel);
+  color: var(--a-ink-soft); cursor: pointer;
+}
+.admin-collapse-btn:hover { color: var(--a-ink); border-color: var(--a-ink); }
+
+/* идентити в топбаре — кликабельно, ведёт в личный кабинет */
+.admin-topbar-me {
+  display: flex; align-items: center; gap: 10px;
+  text-decoration: none; color: var(--a-ink-soft);
+  padding: 5px 10px 5px 6px; border-radius: 999px;
+  transition: background 120ms;
+}
+.admin-topbar-me:hover { background: var(--a-panel-soft); }
+.admin-topbar-me .admin-topbar-who { font-size: 12px; }
+/* компактная марка показывается только в свёрнутом сайдбаре */
+.admin-brand-mark-collapsed { display: none; }
+
+/* кнопка «Назад» у заголовка детальных страниц */
+.admin-back {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; flex: none; border-radius: 11px;
+  border: 1.5px solid var(--a-rule); background: var(--a-panel);
+  color: var(--a-ink); text-decoration: none;
+  transition: background 120ms, border-color 120ms;
+}
+.admin-back:hover { background: var(--a-panel-soft); border-color: var(--a-ink); }
 .admin-nav-link:hover { background: var(--a-panel-soft); }
 .admin-nav-link[data-active="true"] {
   color: var(--a-accent);
@@ -649,3 +680,107 @@
 
 /* кликабельная строка таблицы (переход на деталку) */
 .admin-row-link:hover td { background: var(--a-panel-soft); }
+
+/* ================================================================
+   АДАПТИВ — удобство на узких экранах (планшет/телефон).
+   Десктоп (>860px) без изменений. Таблицы и так скроллятся по X.
+   ================================================================ */
+/* гамбургер и затемнение под меню — только на мобайле */
+.admin-burger { display: none; }
+.admin-nav-backdrop { display: none; }
+
+@media (max-width: 860px) {
+  /* шелл в одну колонку, сайдбар уезжает в off-canvas */
+  .admin-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56px 1fr;
+    grid-template-areas: "topbar" "content";
+  }
+  .admin-sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    width: min(82vw, 300px); z-index: 80;
+    transform: translateX(-100%);
+    transition: transform 220ms ease;
+    box-shadow: var(--a-shadow-lg);
+  }
+  .admin-sidebar[data-open="true"] { transform: translateX(0); }
+  .admin-nav-backdrop {
+    display: block; position: fixed; inset: 0; z-index: 70;
+    background: rgba(14,14,16,0.42);
+    opacity: 0; pointer-events: none; transition: opacity 200ms;
+  }
+  .admin-nav-backdrop[data-open="true"] { opacity: 1; pointer-events: auto; }
+
+  .admin-burger {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 40px; height: 40px; flex: none;
+    border: 1.5px solid var(--a-rule); border-radius: 12px;
+    background: var(--a-panel); color: var(--a-ink); cursor: pointer;
+  }
+  .admin-burger:hover { border-color: var(--a-ink); }
+
+  .admin-topbar { padding: 0 14px; }
+  .admin-crumbs { font-size: 12.5px; min-width: 0; }
+  .admin-content { padding: 18px 14px 88px; }
+  .admin-page-title { font-size: 22px; }
+
+  /* многоколоночные сетки сжимаются */
+  .admin-grid-3, .admin-grid-4 { grid-template-columns: 1fr 1fr; }
+  /* двухколоночные страницы (инлайн grid-template-columns) — в стопку */
+  .admin-split { grid-template-columns: 1fr !important; }
+
+  /* форм-дровер на весь экран */
+  .admin-drawer { width: 100%; max-width: 100%; }
+
+  .admin-stat-value { font-size: 24px; }
+  .admin-stat { padding: 14px 16px; }
+  .admin-panel-body { padding: 16px; }
+}
+
+/* свёрнутый сайдбар — только на десктопе (на мобайле сайдбар и так off-canvas с подписями) */
+@media (min-width: 861px) {
+  .admin-shell[data-collapsed="true"] { grid-template-columns: 72px 1fr; }
+  .admin-shell[data-collapsed="true"] .admin-nav-label,
+  .admin-shell[data-collapsed="true"] .admin-nav-group,
+  .admin-shell[data-collapsed="true"] .admin-brand-sub { display: none; }
+  .admin-shell[data-collapsed="true"] .admin-nav-link { justify-content: center; gap: 0; padding: 10px; position: relative; }
+  .admin-shell[data-collapsed="true"] .admin-brand { align-items: center !important; padding: 16px 10px !important; }
+  .admin-shell[data-collapsed="true"] .admin-sidebar-foot { justify-content: center; }
+  /* свёрнутый бренд: прячем wordmark, показываем компактную марку «J» с отступами */
+  .admin-shell[data-collapsed="true"] .admin-brand-logo { display: none; }
+  .admin-shell[data-collapsed="true"] .admin-brand-mark-collapsed { display: grid; }
+  /* визуальный разделитель между группами, когда подписи групп скрыты */
+  .admin-shell[data-collapsed="true"] .admin-nav > div + div {
+    margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--a-rule);
+  }
+  /* аккуратная подсказка справа при наведении на свёрнутый пункт (label всплывает чипом) */
+  .admin-shell[data-collapsed="true"] .admin-nav-link:hover .admin-nav-label {
+    display: block;
+    position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
+    background: var(--a-ink); color: #fff; padding: 6px 11px; border-radius: 9px;
+    font-size: 12.5px; font-weight: 600; white-space: nowrap; letter-spacing: -0.01em;
+    z-index: 95; box-shadow: var(--a-shadow-md); pointer-events: none;
+    animation: admin-tip-in 120ms ease;
+  }
+  /* хвостик-стрелка слева у подсказки */
+  .admin-shell[data-collapsed="true"] .admin-nav-link:hover::after {
+    content: ""; position: absolute; left: calc(100% + 6px); top: 50%; transform: translateY(-50%);
+    border: 6px solid transparent; border-right-color: var(--a-ink); z-index: 95; pointer-events: none;
+  }
+}
+@keyframes admin-tip-in {
+  from { opacity: 0; transform: translate(-4px, -50%); }
+  to   { opacity: 1; transform: translate(0, -50%); }
+}
+
+@media (max-width: 560px) {
+  .admin-grid-2, .admin-grid-3, .admin-grid-4 { grid-template-columns: 1fr; }
+  .kbju-grid { grid-template-columns: repeat(2, 1fr); }  /* КБЖУ: 4 → 2 в ряд */
+  .admin-content { padding: 14px 10px 84px; }
+  .admin-topbar { gap: 8px; }
+  .admin-topbar-tools { gap: 8px; }
+  /* кто залогинен — прячем подпись на узком, оставляем кнопку «Выйти» */
+  .admin-topbar-who { display: none; }
+  .admin-page-title { font-size: 20px; }
+  .admin-page-head { margin-bottom: 16px; }
+}

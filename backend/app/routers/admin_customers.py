@@ -2,7 +2,7 @@
 from collections import Counter
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -193,14 +193,19 @@ def customer_detail(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/audience", dependencies=[Depends(require_super_admin)])
-def audience(db: Session = Depends(get_db)):
+def audience(outlet_id: int | None = Query(None, description="фильтр по точке (пусто = все)"),
+             db: Session = Depends(get_db)):
     """CRM-аудитория: RFM-сегментация всей базы, KPI, сетка RFM и персоны.
 
     Когорта мала (клиенты единичной точки) — считаем всё в памяти за один проход.
+    outlet_id != None — считаем аудиторию по заказам конкретной точки.
     """
     now = datetime.utcnow()
     users = db.scalars(select(User)).all()
-    orders = db.scalars(select(Order).options(selectinload(Order.items))).all()
+    orders_q = select(Order).options(selectinload(Order.items))
+    if outlet_id is not None:
+        orders_q = orders_q.where(Order.outlet_id == outlet_id)
+    orders = db.scalars(orders_q).all()
     coupons = db.scalars(select(Coupon)).all()
     dm, am = _drink_map(db, orders), _addon_map(db, orders)
 

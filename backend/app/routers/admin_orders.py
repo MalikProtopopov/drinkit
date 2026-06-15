@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..core.db import get_db
 from ..core.pagination import PageLimit, PageOffset, paginate
-from ..core.security import get_current_staff
+from ..core.security import (get_current_staff, get_staff_outlet_ids, require_manager_or_admin)
 from ..models.orders import Order
 from ..models.users import StaffUser
 from ..services.order_flow import ACTIVE_STATUSES, add_event, transition
@@ -15,18 +15,33 @@ from ._serializers import _addon_map, _drink_map, _order_row
 router = APIRouter(prefix="/api/admin", tags=["admin-orders"])
 
 
+def _scoped_or_404(o: Order, staff: StaffUser, db: Session) -> None:
+    """REQ-7: manager/screen видят только заказы своих точек; чужие → 404 (не 403)."""
+    scope = get_staff_outlet_ids(staff, db)
+    if scope is not None and o.outlet_id not in scope:
+        raise HTTPException(404, "NOT_FOUND")
+
+
 @router.get("/orders")
 def admin_orders(
     response: Response,
     active: bool | None = Query(None, description="фильтр по активности (ADM-M-01 AC2)"),
     manager_id: int | None = Query(None),
+    outlet_id: int | None = Query(None, description="фильтр по точке (только super_admin)"),
     unassigned: bool = Query(False, description="заказы без менеджера"),
     limit: int | None = PageLimit,
     offset: int = PageOffset,
     staff: StaffUser = Depends(get_current_staff),
     db: Session = Depends(get_db),
 ):
-    q = select(Order).options(selectinload(Order.items)).where(Order.payment_status == "paid")
+    q = (select(Order).options(selectinload(Order.items), selectinload(Order.outlet))
+         .where(Order.payment_status == "paid"))
+    # REQ-7: manager/screen жёстко скоупятся по своим точкам; super_admin видит всё или фильтрует
+    scope = get_staff_outlet_ids(staff, db)
+    if scope is not None:
+        q = q.where(Order.outlet_id.in_(scope))
+    elif outlet_id is not None:
+        q = q.where(Order.outlet_id == outlet_id)
     if active is True:
         q = q.where(Order.status.in_(ACTIVE_STATUSES))
     elif active is False:
@@ -46,6 +61,7 @@ def admin_order_detail(order_id: int, staff: StaffUser = Depends(get_current_sta
     o = db.get(Order, order_id)
     if not o:
         raise HTTPException(404, "NOT_FOUND")
+    _scoped_or_404(o, staff, db)
     data = _order_row(o, _drink_map(db, [o]), _addon_map(db, [o]))
     # имена сотрудников для истории статусов (кликабельны на странице сотрудника)
     staff_ids = {e.by_staff_id for e in o.events if e.by_staff_id}
@@ -62,12 +78,13 @@ def admin_order_detail(order_id: int, staff: StaffUser = Depends(get_current_sta
 
 
 @router.post("/orders/{order_id}/take")
-def take_order(order_id: int, staff: StaffUser = Depends(get_current_staff),
+def take_order(order_id: int, staff: StaffUser = Depends(require_manager_or_admin),
                db: Session = Depends(get_db)):
     """ADM-M-02: «Взять в работу» — статус + закрепление менеджера + история."""
     o = db.get(Order, order_id)
     if not o:
         raise HTTPException(404, "NOT_FOUND")
+    _scoped_or_404(o, staff, db)
     if o.payment_status != "paid":
         raise HTTPException(409, "ORDER_NOT_PAID")
     transition(db, o, "in_progress", by_staff_id=staff.id)
@@ -84,12 +101,13 @@ class RefundIn(BaseModel):
 
 
 @router.post("/orders/{order_id}/status")
-def set_status(order_id: int, body: StatusIn, staff: StaffUser = Depends(get_current_staff),
+def set_status(order_id: int, body: StatusIn, staff: StaffUser = Depends(require_manager_or_admin),
                db: Session = Depends(get_db)):
     """ADM-M-03: готов к выдаче / передан клиенту."""
     o = db.get(Order, order_id)
     if not o:
         raise HTTPException(404, "NOT_FOUND")
+    _scoped_or_404(o, staff, db)
     if body.status not in ("ready", "completed"):
         raise HTTPException(422, "VALIDATION_ERROR")
     transition(db, o, body.status, by_staff_id=staff.id, note=body.note)
@@ -98,13 +116,14 @@ def set_status(order_id: int, body: StatusIn, staff: StaffUser = Depends(get_cur
 
 @router.post("/orders/{order_id}/refund")
 def refund_order(order_id: int, body: RefundIn | None = None,
-                 staff: StaffUser = Depends(get_current_staff), db: Session = Depends(get_db)):
+                 staff: StaffUser = Depends(require_manager_or_admin), db: Session = Depends(get_db)):
     """ADM-M-06 (опциональный модуль): возврат. Полный возврат заказа;
     DECISION: Stripe Refund вызывается при наличии ключа, в mock-режиме помечается локально.
     Применённый купон аннулируется не возвращаясь (открытый вопрос Q18 — зафиксировано так)."""
     o = db.get(Order, order_id)
     if not o:
         raise HTTPException(404, "NOT_FOUND")
+    _scoped_or_404(o, staff, db)
     transition(db, o, "refund", by_staff_id=staff.id, note=(body.note if body else None))
     o.payment_status = "refunded"
     for p in o.payments:

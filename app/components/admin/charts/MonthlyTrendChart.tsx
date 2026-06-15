@@ -37,7 +37,7 @@ function fmtMonth(m: string): string {
 
 function fmtAed(v: number): string {
   const r = Math.round(Number(v) || 0);
-  return `${r.toLocaleString("ru-RU")} AED`;
+  return `${r.toLocaleString("en-GB")} AED`;
 }
 
 function TrendTooltip(props: any) {
@@ -58,10 +58,10 @@ function TrendTooltip(props: any) {
     >
       <div style={{ fontWeight: 600, color: "#1F2330", marginBottom: 4 }}>{fmtMonth(label)}</div>
       <div style={{ color: AXIS }}>
-        Заказы: <span style={{ color: "#1F2330", fontWeight: 600 }}>{Math.round(row.orders || 0)}</span>
+        Orders: <span style={{ color: "#1F2330", fontWeight: 600 }}>{Math.round(row.orders || 0)}</span>
       </div>
       <div style={{ color: AXIS }}>
-        Выручка: <span style={{ color: ACCENT, fontWeight: 600 }}>{fmtAed(row.revenue || 0)}</span>
+        Revenue: <span style={{ color: ACCENT, fontWeight: 600 }}>{fmtAed(row.revenue || 0)}</span>
       </div>
     </div>
   );
@@ -84,7 +84,7 @@ export function MonthlyTrendChart(props: MonthlyTrendChartProps) {
           fontSize: 13,
         }}
       >
-        нет данных
+        No data
       </div>
     );
   }
@@ -115,14 +115,14 @@ export function MonthlyTrendChart(props: MonthlyTrendChartProps) {
           axisLine={false}
           tickLine={false}
           tick={{ fill: AXIS, fontSize: 11 }}
-          tickFormatter={(v: number) => (Math.round(Number(v) || 0)).toLocaleString("ru-RU")}
+          tickFormatter={(v: number) => (Math.round(Number(v) || 0)).toLocaleString("en-GB")}
           width={48}
         />
         <Tooltip content={<TrendTooltip />} cursor={{ fill: "rgba(154,160,240,0.12)" }} />
         <Bar
           yAxisId="orders"
           dataKey="orders"
-          name="Заказы"
+          name="Orders"
           fill={BAR}
           radius={[3, 3, 0, 0]}
           maxBarSize={28}
@@ -132,7 +132,7 @@ export function MonthlyTrendChart(props: MonthlyTrendChartProps) {
           yAxisId="revenue"
           type="monotone"
           dataKey="revenue"
-          name="Выручка"
+          name="Revenue"
           stroke={ACCENT}
           strokeWidth={2}
           dot={{ r: 2.5, fill: ACCENT, strokeWidth: 0 }}

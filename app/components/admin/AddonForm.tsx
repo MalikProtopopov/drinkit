@@ -32,15 +32,15 @@ export function AddonForm({
   const valid = nameOk && !!d.categoryId && !!d.unitId && d.basePrice >= 0;
   const canSave = mode === "create" ? valid : (valid && dirty);
 
-  const unitCode = units.find((u) => u.id === d.unitId)?.code ?? "ед.";
+  const unitCode = units.find((u) => u.id === d.unitId)?.code ?? "unit";
   const cat = cats.find((c) => c.id === d.categoryId);
   const warn = { borderColor: "#B45309", background: "#FFF7E5" } as const;
 
   return (
     <div className="admin-panel">
       <div className="admin-panel-head">
-        <div className="admin-panel-title">{mode === "create" ? "Новая добавка" : "Карточка добавки"}</div>
-        <span className="admin-meta">ингредиент конструктора напитка</span>
+        <div className="admin-panel-title">{mode === "create" ? "New add-on" : "Add-on card"}</div>
+        <span className="admin-meta">ingredient of the drink builder</span>
       </div>
       <div className="admin-panel-body">
         {/* живой предпросмотр «как в конструкторе» */}
@@ -52,23 +52,23 @@ export function AddonForm({
               : <span style={{ fontSize: 22 }}>🧃</span>}
           </div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>{d.name.en?.trim() || "Без названия"}</div>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{d.name.en?.trim() || "Untitled"}</div>
             <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>
               {cat && <span className="admin-pill accent" style={{ fontWeight: 700 }}>{catLabel(cat)}</span>}
-              <span className="admin-meta">{d.basePrice} AED · {d.kcalPer100} ккал/100 {unitCode}</span>
+              <span className="admin-meta">{d.basePrice} AED · {d.kcalPer100} kcal/100 {unitCode}</span>
             </div>
           </div>
         </div>
 
         <div className="admin-grid-2">
           <div className="admin-field">
-            <label className="admin-label">Название (EN) — основное на сайте *</label>
+            <label className="admin-label">Name (EN) — primary on the site *</label>
             <input className="admin-input" autoFocus value={d.name.en ?? ""}
                    onChange={(e) => set({ name: { ...d.name, en: e.target.value } })}
                    placeholder="Collagen" style={!nameOk ? warn : undefined} />
           </div>
           <div className="admin-field">
-            <label className="admin-label">Название (AR)</label>
+            <label className="admin-label">Name (AR)</label>
             <input className="admin-input" dir="rtl" value={d.name.ar ?? ""}
                    onChange={(e) => set({ name: { ...d.name, ar: e.target.value } })}
                    placeholder="نص عربي" />
@@ -76,23 +76,23 @@ export function AddonForm({
         </div>
 
         <div className="admin-field">
-          <label className="admin-label">Картинка (иконка в конструкторе)</label>
+          <label className="admin-label">Image (icon in the builder)</label>
           <MediaUpload accept="image" height={120} value={d.imageUrl ?? ""}
                        onChange={(url) => set({ imageUrl: url ?? "" })} />
         </div>
 
         <div className="admin-grid-2">
           <div className="admin-field">
-            <label className="admin-label">Категория</label>
+            <label className="admin-label">Category</label>
             <select className="admin-select" value={d.categoryId}
                     onChange={(e) => set({ categoryId: +e.target.value })}>
               {cats.map((c) => <option key={c.id} value={c.id}>{catLabel(c)}</option>)}
             </select>
             {cat && !cat.isActive && <span className="admin-meta" style={{ color: "#B45309" }}>
-              категория скрыта — добавка не появится в конструкторе</span>}
+              category is hidden — the add-on will not appear in the builder</span>}
           </div>
           <div className="admin-field">
-            <label className="admin-label">Единица измерения порции</label>
+            <label className="admin-label">Portion unit</label>
             <select className="admin-select" value={d.unitId}
                     onChange={(e) => set({ unitId: +e.target.value })}>
               {units.map((u) => <option key={u.id} value={u.id}>{unitLabel(u)}</option>)}
@@ -102,13 +102,13 @@ export function AddonForm({
 
         <div className="admin-panel" style={{ marginBottom: 14 }}>
           <div className="admin-panel-head">
-            <div className="admin-panel-title">Пищевая ценность на 100 {unitCode}</div>
-            <span className="admin-meta">на сайте пересчитывается на объём порции в напитке</span>
+            <div className="admin-panel-title">Nutrition per 100 {unitCode}</div>
+            <span className="admin-meta">recalculated on the site to the portion size in the drink</span>
           </div>
           <div className="admin-panel-body">
             <div className="kbju-grid">
-              {([["kcalPer100", "Ккал"], ["proteinPer100", "Белки, г"],
-                 ["fatPer100", "Жиры, г"], ["carbsPer100", "Углеводы, г"]] as const).map(([k, l]) => (
+              {([["kcalPer100", "Kcal"], ["proteinPer100", "Protein, g"],
+                 ["fatPer100", "Fat, g"], ["carbsPer100", "Carbs, g"]] as const).map(([k, l]) => (
                 <div className="kbju-cell" key={k}>
                   <div className="kbju-cell-label">{l}</div>
                   <NumInput value={d[k]} min={0} style={{ marginTop: 4 }}
@@ -121,15 +121,15 @@ export function AddonForm({
 
         <div className="admin-grid-2">
           <div className="admin-field">
-            <label className="admin-label">Цена за порцию, AED</label>
+            <label className="admin-label">Price per portion, AED</label>
             <NumInput value={d.basePrice} min={0} onChange={(n) => set({ basePrice: n })} />
-            <span className="admin-meta">базовая цена; в конкретном напитке её можно переопределить</span>
+            <span className="admin-meta">base price; it can be overridden in a specific drink</span>
           </div>
           <div className="admin-field">
-            <label className="admin-label">Доступность</label>
+            <label className="admin-label">Availability</label>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
               <Toggle on={d.isActive} onChange={(v) => set({ isActive: v })} />
-              <span className="admin-meta">{d.isActive ? "видна в конструкторе" : "скрыта из конструктора"}</span>
+              <span className="admin-meta">{d.isActive ? "visible in the builder" : "hidden from the builder"}</span>
             </div>
           </div>
         </div>
@@ -137,11 +137,11 @@ export function AddonForm({
         <div style={{ display: "flex", gap: 10, marginTop: 8, alignItems: "center" }}>
           <button className="admin-btn primary" disabled={!canSave || saving}
                   onClick={() => onSubmit(d)}>
-            {saving ? "Сохранение…" : mode === "create" ? "Создать добавку" : "Сохранить"}
+            {saving ? "Saving…" : mode === "create" ? "Create add-on" : "Save"}
           </button>
-          <button className="admin-btn" onClick={onCancel} disabled={saving}>Отмена</button>
+          <button className="admin-btn" onClick={onCancel} disabled={saving}>Cancel</button>
           {mode === "edit" && dirty && !saving &&
-            <span className="admin-meta">● есть несохранённые изменения</span>}
+            <span className="admin-meta">● unsaved changes</span>}
         </div>
       </div>
     </div>

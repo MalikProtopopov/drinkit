@@ -43,14 +43,14 @@ export function CustomerForm({
   return (
     <div className="admin-panel">
       <div className="admin-panel-head">
-        <div className="admin-panel-title">{mode === "create" ? "Новый клиент" : "Данные клиента"}</div>
-        <span className="admin-meta">профиль покупателя</span>
+        <div className="admin-panel-title">{mode === "create" ? "New customer" : "Customer details"}</div>
+        <span className="admin-meta">customer profile</span>
       </div>
       <div className="admin-panel-body">
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
           <div className="admin-user" style={{ width: 54, height: 54, fontSize: 18 }}>{initials || "👤"}</div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>{d.name.trim() || "Без имени"}</div>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{d.name.trim() || "No name"}</div>
             <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>
               <span className="admin-mono admin-meta">{d.phone || "—"}</span>
               {d.emirate && <span className="admin-pill accent" style={{ fontWeight: 700 }}>{d.emirate}</span>}
@@ -60,36 +60,36 @@ export function CustomerForm({
 
         <div className="admin-grid-2">
           <div className="admin-field">
-            <label className="admin-label">Телефон *</label>
+            <label className="admin-label">Phone *</label>
             <input className="admin-input mono" value={d.phone} placeholder="+971 50 000 0000"
                    onChange={(e) => set({ phone: maskPhoneUAE(e.target.value) })}
                    style={d.phone && !phoneOk ? warn : undefined} />
-            <span className="admin-meta">логин клиента; должен быть уникальным</span>
+            <span className="admin-meta">customer login; must be unique</span>
           </div>
           <div className="admin-field">
-            <label className="admin-label">Имя</label>
-            <input className="admin-input" value={d.name} placeholder="Иван Петров"
+            <label className="admin-label">Name</label>
+            <input className="admin-input" value={d.name} placeholder="John Smith"
                    onChange={(e) => set({ name: maskName(e.target.value) })} />
           </div>
         </div>
 
         <div className="admin-grid-2">
           <div className="admin-field">
-            <label className="admin-label">Номер машины</label>
+            <label className="admin-label">Car plate</label>
             <input className="admin-input mono" value={d.carPlate} placeholder="A 82741"
                    onChange={(e) => set({ carPlate: maskPlate(e.target.value) })} />
           </div>
           <div className="admin-field">
-            <label className="admin-label">Эмират</label>
+            <label className="admin-label">Emirate</label>
             <select className="admin-select" value={d.emirate} onChange={(e) => set({ emirate: e.target.value })}>
-              <option value="">— не указан —</option>
+              <option value="">— not set —</option>
               {emirates.map((em) => <option key={em} value={em}>{em}</option>)}
             </select>
           </div>
         </div>
 
         <div className="admin-field">
-          <label className="admin-label">Язык интерфейса</label>
+          <label className="admin-label">Interface language</label>
           <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F5EFE7", borderRadius: 999 }}>
             {LOCALES.map(([code, label]) => (
               <button key={code} className="admin-btn sm" onClick={() => set({ locale: code })}
@@ -103,11 +103,11 @@ export function CustomerForm({
         <div style={{ display: "flex", gap: 10, marginTop: 8, alignItems: "center" }}>
           <button className="admin-btn primary" disabled={!canSave || saving}
                   onClick={() => onSubmit({ ...d, phone: normalizePhoneUAE(d.phone) })}>
-            {saving ? "Сохранение…" : mode === "create" ? "Создать клиента" : "Сохранить"}
+            {saving ? "Saving…" : mode === "create" ? "Create customer" : "Save"}
           </button>
           <button className="admin-btn" disabled={saving || (mode === "edit" && !dirty)}
-                  onClick={mode === "edit" ? reset : onCancel}>Отмена</button>
-          {mode === "edit" && dirty && !saving && <span className="admin-meta">● есть несохранённые изменения</span>}
+                  onClick={mode === "edit" ? reset : onCancel}>Cancel</button>
+          {mode === "edit" && dirty && !saving && <span className="admin-meta">● unsaved changes</span>}
         </div>
       </div>
     </div>

@@ -60,7 +60,7 @@ function Inner() {
             <strong>{addonName(a)}</strong>{" "}
             {a.name.ar
               ? <span className="admin-meta">{a.name.ar}</span>
-              : <span className="admin-pill warn">нет AR</span>}
+              : <span className="admin-pill warn">no AR</span>}
           </div>
         </div>
       </td>
@@ -71,7 +71,7 @@ function Inner() {
       <td onClick={(e) => e.stopPropagation()}>
         <Toggle defaultOn={a.isActive}
                 onChange={(v) => catalogApi.updateAddon(a.id, { ...a, isActive: v })
-                  .then(() => toast(v ? "Добавка активна" : "Скрыта из конструктора", "info"))} />
+                  .then(() => toast(v ? "Add-on active" : "Hidden from the builder", "info"))} />
       </td>
     </tr>
   );
@@ -79,23 +79,23 @@ function Inner() {
   return (
     <div className="admin-panel">
       <div className="admin-panel-head">
-        <div className="admin-panel-title">Все добавки</div>
+        <div className="admin-panel-title">All add-ons</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <span className="admin-meta">Всего {rows.length}, активных {rows.filter((a) => a.isActive).length}</span>
+          <span className="admin-meta">Total {rows.length}, active {rows.filter((a) => a.isActive).length}</span>
           <button className="admin-btn primary sm" onClick={() => router.push("/admin/catalog/addons/new")}>
-            + Новая добавка
+            + New add-on
           </button>
         </div>
       </div>
       <div className="admin-panel-body" style={{ paddingBottom: 8 }}>
-        <input className="admin-input" placeholder="Поиск добавки…" value={q}
+        <input className="admin-input" placeholder="Search add-on…" value={q}
                onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 280 }} />
       </div>
       <div className="admin-tablewrap"><table className="admin-table">
         <thead>
           <tr>
-            <th>Название</th><th>Ед.</th><th>Ккал/100</th>
-            <th>Б / Ж / У на 100</th><th>Цена за порцию</th><th>Активна</th>
+            <th>Name</th><th>Unit</th><th>Kcal/100</th>
+            <th>P / F / C per 100</th><th>Price per portion</th><th>Active</th>
           </tr>
         </thead>
         <tbody>
@@ -103,7 +103,7 @@ function Inner() {
             <Fragment key={g.cat ? g.cat.id : "orphan"}>
               <tr style={{ background: "#F2ECE2" }}>
                 <td colSpan={6} style={{ fontWeight: 800 }}>
-                  {g.cat ? catLabel(g.cat) : "Без категории"}
+                  {g.cat ? catLabel(g.cat) : "No category"}
                   <span className="admin-meta" style={{ marginLeft: 8, fontWeight: 500 }}>{g.items.length}</span>
                 </td>
               </tr>
@@ -111,7 +111,7 @@ function Inner() {
             </Fragment>
           ))}
           {visible.length === 0 && (
-            <tr><td colSpan={6} className="admin-meta" style={{ padding: 16 }}>Ничего не найдено</td></tr>
+            <tr><td colSpan={6} className="admin-meta" style={{ padding: 16 }}>Nothing found</td></tr>
           )}
         </tbody>
       </table></div>
@@ -123,7 +123,7 @@ function Inner() {
 
 export default function AddonsPage() {
   return (
-    <AdminShell title="Добавки" crumbs={[{ label: "Каталог" }, { label: "Добавки" }]}>
+    <AdminShell title="Add-ons" crumbs={[{ label: "Catalog" }, { label: "Add-ons" }]}>
       <Inner />
     </AdminShell>
   );

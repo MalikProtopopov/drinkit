@@ -8,15 +8,15 @@ import "recharts";
 const ACCENT = "#4A56E2"; // primary-500
 const MUTED = "#EFEAE0"; // warm beige (zero value)
 
-const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"] as const;
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const WEEKDAYS_FULL = [
-  "Понедельник",
-  "Вторник",
-  "Среда",
-  "Четверг",
-  "Пятница",
-  "Суббота",
-  "Воскресенье",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
 ] as const;
 
 export interface WeekdayHourHeatmapProps {
@@ -146,7 +146,7 @@ export function WeekdayHourHeatmap(props: WeekdayHourHeatmapProps) {
           color: "#6B7280",
         }}
       >
-        <span>Меньше</span>
+        <span>Less</span>
         <div
           style={{
             flex: "0 0 120px",
@@ -155,7 +155,7 @@ export function WeekdayHourHeatmap(props: WeekdayHourHeatmapProps) {
             background: `linear-gradient(90deg, ${MUTED} 0%, ${ACCENT} 100%)`,
           }}
         />
-        <span>Больше</span>
+        <span>More</span>
         <span
           style={{
             marginLeft: "auto",
@@ -163,7 +163,7 @@ export function WeekdayHourHeatmap(props: WeekdayHourHeatmapProps) {
             color: "#0E0E10",
           }}
         >
-          макс {max}
+          max {max}
         </span>
       </div>
     </div>

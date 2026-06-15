@@ -26,20 +26,20 @@ export function Pager({
   return (
     <div className="admin-pager">
       <span className="admin-meta">
-        {loading ? "Загрузка…" : <>Показано <strong>{from}–{to}</strong> из <strong>{total}</strong></>}
+        {loading ? "Loading…" : <>Showing <strong>{from}–{to}</strong> of <strong>{total}</strong></>}
       </span>
       <div className="admin-pager-ctrls">
         {onLimit && (
           <select className="admin-select" style={{ width: "auto" }} value={limit}
                   onChange={(e) => onLimit(+e.target.value)}>
-            {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n} / стр.</option>)}
+            {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{n} / page</option>)}
           </select>
         )}
         <button className="admin-btn sm" disabled={page <= 1}
-                onClick={() => onOffset(Math.max(0, offset - limit))}>← Назад</button>
+                onClick={() => onOffset(Math.max(0, offset - limit))}>← Back</button>
         <span className="admin-meta admin-mono">{page} / {pages}</span>
         <button className="admin-btn sm" disabled={page >= pages}
-                onClick={() => onOffset(offset + limit)}>Вперёд →</button>
+                onClick={() => onOffset(offset + limit)}>Next →</button>
       </div>
     </div>
   );
@@ -160,7 +160,7 @@ export function Modal({
   subtitle,
   onClose,
   onSubmit,
-  submitLabel = "Сохранить",
+  submitLabel = "Save",
   submitDisabled,
   danger,
   children,
@@ -198,7 +198,7 @@ export function Modal({
         </div>
         <div className="admin-drawer-body">{children}</div>
         <div className="admin-drawer-foot">
-          <button className="admin-btn ghost" onClick={onClose}>Отмена</button>
+          <button className="admin-btn ghost" onClick={onClose}>Cancel</button>
           {onSubmit && (
             <button
               className={`admin-btn ${danger ? "danger" : "primary"}`}
@@ -222,7 +222,7 @@ export function ConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = "Подтвердить",
+  confirmLabel = "Confirm",
   danger,
   onConfirm,
   onCancel,
@@ -269,7 +269,7 @@ export function ConfirmDialog({
             gap: 8,
           }}
         >
-          <button className="admin-btn ghost" onClick={onCancel}>Отмена</button>
+          <button className="admin-btn ghost" onClick={onCancel}>Cancel</button>
           <button
             className={`admin-btn ${danger ? "danger" : "primary"}`}
             onClick={onConfirm}

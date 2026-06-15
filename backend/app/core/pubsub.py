@@ -17,8 +17,19 @@ class PubSub:
         self._subs[channel].add(q)
         return q
 
+    def subscribe_many(self, channels) -> asyncio.Queue:
+        """Одна очередь на несколько каналов (напр. менеджер нескольких точек, REQ-7)."""
+        q: asyncio.Queue = asyncio.Queue()
+        for ch in channels:
+            self._subs[ch].add(q)
+        return q
+
     def unsubscribe(self, channel: str, q: asyncio.Queue):
         self._subs[channel].discard(q)
+
+    def unsubscribe_many(self, channels, q: asyncio.Queue):
+        for ch in channels:
+            self._subs[ch].discard(q)
 
     def publish(self, channel: str, message: dict):
         for q in list(self._subs.get(channel, ())):

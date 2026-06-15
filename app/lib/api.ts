@@ -63,11 +63,25 @@ export type ApiDrink = ApiDrinkLite & {
   sizes: ApiSize[]; addons: ApiAddon[];
 };
 export type Selection = { addonId: number; portions: number };
+// Локация/точка (минимум для публичного сайта): адрес + рабочие часы + рантайм-статус
+export type OutletStatus = "open" | "paused" | "closed" | "inactive";
+export type ApiOutlet = {
+  id: number; slug: string; name: string;
+  address?: string | null; emirate?: string | null; phone?: string | null;
+  lat?: number | null; lng?: number | null; timezone: string;
+  status: OutletStatus; openNow: boolean; acceptingOrders: boolean;
+  todayHours: { open: string; close: string }[];
+  hours: Record<string, { open: string; close: string }[]>;
+};
+// блок локации в заказе (REQ-6): к какой точке относится заказ + адрес
+export type ApiOrderOutlet = { id: number; slug?: string; name: string;
+  address?: string | null; emirate?: string | null };
 export type ApiOrder = {
   id: number; number: number; status: string; paymentStatus: string;
   arrived: boolean;
   subtotal: number; couponDiscount: number; total: number; createdAt: string;
   rating: string | null; ratingPromptDue?: boolean;
+  outletId?: number | null; outlet?: ApiOrderOutlet | null;
   customerName?: string; phone?: string; carPlate?: string; emirate?: string;
   items: {
     id: number; drinkId: number; name: string; drinkName: string; sizeLabel?: string | null;
@@ -90,6 +104,10 @@ export const api = {
   drinks: (categorySlug?: string, locale = "en") =>
     req<ApiDrinkLite[]>(`/api/drinks?locale=${locale}${categorySlug ? `&category=${encodeURIComponent(categorySlug)}` : ""}`),
   drink: (slug: string, locale = "en") => req<ApiDrink>(`/api/drinks/${slug}?locale=${locale}`),
+
+  // ---------- локации (публичный минимум) ----------
+  outlets: (locale = "en") => req<ApiOutlet[]>(`/api/outlets?locale=${locale}`),
+  outlet: (id: number, locale = "en") => req<ApiOutlet>(`/api/outlets/${id}?locale=${locale}`),
   preview: (slug: string, selections: Selection[], locale = "en", sizeId?: number) =>
     req<{ price: number; sizeId: number | null; sizeLabel: string | null;
           kcal: number; protein: number; fat: number; carbs: number }>(
@@ -111,7 +129,7 @@ export const api = {
   placeOrder: (body: {
     items: { drinkId: number; quantity: number; customName?: string; sizeId?: number; addons: Selection[] }[];
     customerName?: string; carPlate?: string; emirate?: string;
-    couponId?: number; couponItemIndex?: number;
+    couponId?: number; couponItemIndex?: number; outletId?: number;
   }, locale = "en") => req<ApiOrder>(`/api/orders?locale=${locale}`,
     { method: "POST", body: JSON.stringify(body) }),
   myOrders: () => req<ApiOrder[]>("/api/orders"),

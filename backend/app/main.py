@@ -9,8 +9,9 @@ from fastapi.staticfiles import StaticFiles
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 
 from .core.db import Base, SessionLocal, engine
-from .services.migrate import (backfill_category_slugs, backfill_payments, backfill_sizes,
-                               ensure_schema, localize_catalog_en)
+from .models import outlet  # noqa: F401  — регистрация таблиц локаций ДО create_all (см. models/__init__.py)
+from .services.migrate import (backfill_category_slugs, backfill_outlets, backfill_payments,
+                               backfill_sizes, ensure_schema, localize_catalog_en)
 from .services.seed import seed
 
 
@@ -27,6 +28,7 @@ async def lifespan(app: FastAPI):
         backfill_sizes(db)
         localize_catalog_en(db)
         backfill_payments(db)
+        backfill_outlets(db)  # последним: зависит от наличия orders + staff
     yield
 
 
@@ -51,10 +53,11 @@ async def value_error_handler(request: Request, exc: ValueError):
 
 
 from .routers import (admin_catalog, admin_coupons, admin_customers, admin_orders,  # noqa: E402
-                      admin_payments, auth, catalog, coupons, dashboard, orders, payments,
-                      screen, staff, ws)
+                      admin_outlets, admin_payments, auth, catalog, coupons, dashboard, orders,
+                      outlets, payments, screen, staff, ws)
 
 app.include_router(catalog.router)
+app.include_router(outlets.router)
 app.include_router(auth.router)
 app.include_router(orders.router)
 app.include_router(payments.router)
@@ -62,6 +65,7 @@ app.include_router(coupons.router)
 app.include_router(staff.router)
 app.include_router(admin_catalog.router)
 app.include_router(admin_orders.router)
+app.include_router(admin_outlets.router)
 app.include_router(admin_customers.router)
 app.include_router(admin_payments.router)
 app.include_router(admin_coupons.router)

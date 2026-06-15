@@ -38,7 +38,7 @@ export default function AdminLoginPage() {
                       gap: 8, marginBottom: 22 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="JOOZ" style={{ height: 26, width: "auto" }} />
-          <div style={{ fontSize: 12, color: "#5A6172" }}>Админка · вход для персонала</div>
+          <div style={{ fontSize: 12, color: "#5A6172" }}>Admin · staff sign-in</div>
         </div>
         <div className="admin-field">
           <label className="admin-label">Email</label>
@@ -46,22 +46,22 @@ export default function AdminLoginPage() {
                  onChange={(e) => setEmail(e.target.value)} placeholder="admin@juicy.ae" />
         </div>
         <div className="admin-field">
-          <label className="admin-label">Пароль</label>
+          <label className="admin-label">Password</label>
           <input className="admin-input" type="password" value={password}
                  onChange={(e) => setPassword(e.target.value)} />
         </div>
         {error && (
           <div style={{ color: "#A12822", fontSize: 13, marginBottom: 10 }}>
-            Неверный email или пароль
+            Wrong email or password
           </div>
         )}
         <button className="admin-btn primary" type="submit" disabled={busy || !email || !password}
                 style={{ width: "100%", justifyContent: "center", padding: 10 }}>
-          {busy ? "Входим…" : "Войти"}
+          {busy ? "Signing in…" : "Sign in"}
         </button>
         {process.env.NODE_ENV !== "production" && (
           <div style={{ fontSize: 11, color: "#8A8F9C", marginTop: 14 }}>
-            dev-доступы: admin@juicy.ae / admin123 · manager@juicy.ae / manager123
+            dev logins: admin@juicy.ae / admin123 · manager@juicy.ae / manager123
           </div>
         )}
       </form>

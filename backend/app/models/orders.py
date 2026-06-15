@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, func
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..core.db import Base
@@ -20,6 +20,8 @@ STATUS_SETTER = {
 
 class Order(Base):
     __tablename__ = "orders"
+    # индекс под запрос дневного счётчика точки (services/outlet_service.drinks_processed_today)
+    __table_args__ = (Index("ix_orders_outlet_paid_created", "outlet_id", "payment_status", "created_at"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     number: Mapped[int] = mapped_column(Integer, unique=True, index=True)
@@ -38,6 +40,9 @@ class Order(Base):
 
     manager_id: Mapped[int | None] = mapped_column(ForeignKey("staff_users.id"), nullable=True)
     coupon_id: Mapped[int | None] = mapped_column(ForeignKey("coupons.id"), nullable=True)
+    # точка заказа (REQ-6): nullable — на старых SQLite-таблицах FK не навешивается ALTER'ом,
+    # наличие гарантируется на уровне приложения (resolve_outlet); легаси-строки бэкфиллятся.
+    outlet_id: Mapped[int | None] = mapped_column(ForeignKey("outlets.id"), nullable=True, index=True)
 
     rating: Mapped[str | None] = mapped_column(String(8), nullable=True)  # like | dislike
     rated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -48,6 +53,7 @@ class Order(Base):
     events = relationship("OrderEvent", back_populates="order", cascade="all, delete-orphan",
                           order_by="OrderEvent.id")
     payments = relationship("Payment", back_populates="order")
+    outlet = relationship("Outlet")  # точка заказа (REQ-6)
 
 
 class OrderItem(Base):

@@ -56,11 +56,13 @@ function pageQuery(p: { limit: number; offset: number } & Record<string, unknown
 }
 
 export type Staff = { id: number; email: string; name: string; role: string;
-  phone?: string | null; note?: string | null; disabled: boolean };
+  phone?: string | null; note?: string | null; disabled: boolean;
+  outletIds?: number[] };  // точки сотрудника (REQ-2/7)
 export type ScreenRow = { orderId: number; number: number; name: string };
 export type AdminOrder = {
   id: number; number: number; status: string; paymentStatus: string;
   arrived: boolean;
+  outletId?: number | null; outlet?: { id: number; name: string; address?: string | null } | null;
   customerName?: string; phone: string; carPlate: string; emirate?: string;
   subtotal: number; couponDiscount: number; total: number;
   managerId?: number; rating?: string | null; createdAt: string;
@@ -79,25 +81,29 @@ export const adminApi = {
   me: () => req<Staff>("/api/staff/me"),
   managers: () => req<Staff[]>("/api/staff/managers"),
   createManager: (b: { email: string; password: string; name: string; role?: string;
-    phone?: string | null; note?: string | null }) =>
+    phone?: string | null; note?: string | null; outletIds?: number[] }) =>
     req<Staff>("/api/staff/managers", { method: "POST", body: JSON.stringify(b) }),
   updateManager: (id: number, b: Partial<{ name: string; email: string; role: string;
-    phone: string | null; note: string | null; disabled: boolean; password: string }>) =>
+    phone: string | null; note: string | null; disabled: boolean; password: string;
+    outletIds: number[] }>) =>
     req<Staff>(`/api/staff/managers/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
   deleteManager: (id: number) => req(`/api/staff/managers/${id}`, { method: "DELETE" }),
 
-  orders: (q: { active?: boolean; managerId?: number; unassigned?: boolean } = {}) => {
+  orders: (q: { active?: boolean; managerId?: number; unassigned?: boolean; outletId?: number } = {}) => {
     const p = new URLSearchParams();
     if (q.active !== undefined) p.set("active", String(q.active));
     if (q.managerId !== undefined) p.set("manager_id", String(q.managerId));
     if (q.unassigned) p.set("unassigned", "true");
+    if (q.outletId !== undefined) p.set("outlet_id", String(q.outletId));
     return req<AdminOrder[]>(`/api/admin/orders?${p}`);
   },
   // пагинированные варианты списков (limit/offset + X-Total-Count)
-  ordersPaged: (p: { limit: number; offset: number; active?: boolean; managerId?: number; unassigned?: boolean }) =>
+  ordersPaged: (p: { limit: number; offset: number; active?: boolean; managerId?: number;
+    unassigned?: boolean; outletId?: number }) =>
     reqList<AdminOrder>(`/api/admin/orders?${pageQuery({
       limit: p.limit, offset: p.offset,
       active: p.active, manager_id: p.managerId, unassigned: p.unassigned ? "true" : undefined,
+      outlet_id: p.outletId,
     })}`),
   customersPaged: (p: { limit: number; offset: number }) =>
     reqList<any>(`/api/admin/customers?${pageQuery(p)}`),
@@ -120,7 +126,11 @@ export const adminApi = {
   updateCustomer: (id: number, b: { name?: string; carPlate?: string; emirate?: string; locale?: string; phone?: string }) =>
     req(`/api/admin/customers/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
   customer: (id: number) => req<any>(`/api/admin/customers/${id}`),
-  audience: () => req<any>("/api/admin/audience"),
+  audience: (outletId?: number) =>
+    req<any>(`/api/admin/audience${outletId ? `?outlet_id=${outletId}` : ""}`),
+  managerStats: (id: number, days = 62) =>
+    req<ManagerStats>(`/api/staff/managers/${id}/stats?days=${days}`),
+  meStats: (days = 62) => req<ManagerStats>(`/api/staff/me/stats?days=${days}`),
   payment: (id: number) => req<any>(`/api/admin/payments/${id}`),
   paymentsConfig: () => req<any>("/api/admin/payments/config"),
   paymentsSummary: (from?: string, to?: string) => {
@@ -132,12 +142,18 @@ export const adminApi = {
   refundPayment: (id: number, b: { amount?: number; reason?: string } = {}) =>
     req<any>(`/api/admin/payments/${id}/refund`, { method: "POST", body: JSON.stringify(b) }),
   screenBoard: () => req<{ ready: ScreenRow[]; preparing: ScreenRow[] }>("/api/screen/board"),
-  dashboard: (from?: string, to?: string) => {
+  dashboard: (from?: string, to?: string, outletId?: number) => {
     const p = new URLSearchParams();
     if (from) p.set("from", from);
     if (to) p.set("to", to);
+    if (outletId) p.set("outlet_id", String(outletId));
     return req<any>(`/api/admin/dashboard?${p}`);
   },
+};
+
+export type ManagerStats = {
+  ordersHandled: number; ordersToday: number; activeDays: number;
+  windowDays: number; tz: string; perDay: Record<string, number>;
 };
 
 // ---------- каталог (ADM-S-01..05) ----------
@@ -230,6 +246,62 @@ export const catalogApi = {
       { method: "DELETE" }),
 };
 
+// ---------- локации (REQ-1..5/7) ----------
+export type OutletHours = Record<string, { open: string; close: string }[]>;  // "0".."6" → интервалы
+export type OutletManager = { id: number; name: string; email: string; role: string;
+  isPrimary: boolean; disabled: boolean };
+export type OutletStatus = "open" | "paused" | "closed" | "inactive";
+export type OutletStatusReason = "open" | "closed" | "paused_manual" | "paused_limit" | "inactive";
+export type AdminOutlet = {
+  id: number; slug: string; name: I18n;
+  isActive: boolean; acceptingOrders: boolean; autoPaused: boolean;
+  address?: string | null; emirate?: string | null; phone?: string | null; email?: string | null;
+  lat?: number | null; lng?: number | null; timezone: string; hours: OutletHours;
+  dailyDrinkLimit: number | null; sort: number;
+  status: OutletStatus; statusReason: OutletStatusReason;
+  opensAt?: string | null; closesAt?: string | null; resetsAt?: string | null;
+  drinksToday: number; limitRemaining: number | null;
+  createdAt?: string | null; updatedAt?: string | null;
+  managers?: OutletManager[];
+};
+export type OutletEventRow = { id: number; type: string; byStaffId?: number | null;
+  byStaffName?: string | null; note?: string | null; meta: Record<string, unknown>; at?: string | null };
+export type OutletStopList = { drinks: number[]; categories: number[]; addons: number[] };
+export type OutletPriority = { drinkId: number; sort: number; pinned: boolean };
+
+export const outletApi = {
+  list: (active?: boolean) =>
+    req<AdminOutlet[]>(`/api/admin/outlets${active === undefined ? "" : `?active=${active}`}`),
+  listPaged: (p: { limit: number; offset: number; active?: boolean }) =>
+    reqList<AdminOutlet>(`/api/admin/outlets?${pageQuery(p)}`),
+  get: (id: number) => req<AdminOutlet>(`/api/admin/outlets/${id}`),
+  create: (b: Partial<AdminOutlet> & { name: I18n }, force = false) =>
+    req<AdminOutlet>(`/api/admin/outlets${force ? "?force=true" : ""}`,
+      { method: "POST", body: JSON.stringify(b) }),
+  update: (id: number, b: Partial<AdminOutlet>) =>
+    req<AdminOutlet>(`/api/admin/outlets/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
+  activate: (id: number, force = false) =>
+    req<AdminOutlet>(`/api/admin/outlets/${id}/activate${force ? "?force=true" : ""}`, { method: "POST" }),
+  deactivate: (id: number) =>
+    req<AdminOutlet>(`/api/admin/outlets/${id}/deactivate`, { method: "POST" }),
+  events: (id: number) => req<OutletEventRow[]>(`/api/admin/outlets/${id}/events`),
+  stopList: (id: number) => req<OutletStopList>(`/api/admin/outlets/${id}/stop-list`),
+  setStopList: (id: number, b: OutletStopList) =>
+    req<OutletStopList>(`/api/admin/outlets/${id}/stop-list`, { method: "PUT", body: JSON.stringify(b) }),
+  toggleStop: (id: number, entityType: "drink" | "drink_category" | "addon", entityId: number) =>
+    req<{ stopped: boolean }>(`/api/admin/outlets/${id}/stop-list/toggle`,
+      { method: "POST", body: JSON.stringify({ entityType, entityId }) }),
+  priorities: (id: number) => req<OutletPriority[]>(`/api/admin/outlets/${id}/drink-priorities`),
+  setPriorities: (id: number, rows: OutletPriority[]) =>
+    req<OutletPriority[]>(`/api/admin/outlets/${id}/drink-priorities`,
+      { method: "PUT", body: JSON.stringify(rows) }),
+  attachStaff: (id: number, staffId: number, isPrimary = false) =>
+    req<AdminOutlet>(`/api/admin/outlets/${id}/staff`,
+      { method: "POST", body: JSON.stringify({ staffId, isPrimary }) }),
+  detachStaff: (id: number, staffId: number) =>
+    req<AdminOutlet>(`/api/admin/outlets/${id}/staff/${staffId}`, { method: "DELETE" }),
+};
+
 export function adminOrdersWs(): WebSocket {
   const t = getStaffToken();
   const q = t ? `?token=${encodeURIComponent(t)}` : "";
@@ -237,6 +309,6 @@ export function adminOrdersWs(): WebSocket {
 }
 
 export const ADMIN_STATUS_LABEL: Record<string, string> = {
-  new: "новый", in_progress: "в работе", ready: "готов, ждёт клиента",
-  completed: "передан", refund: "возврат",
+  new: "new", in_progress: "in progress", ready: "ready, waiting",
+  completed: "completed", refund: "refund",
 };

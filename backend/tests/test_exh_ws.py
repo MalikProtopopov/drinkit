@@ -320,7 +320,7 @@ def test_admin_ws_message_schema(client, customer, manager):
     with client.websocket_connect(_aurl(manager)) as ws:
         _take(client, manager, order["id"])
         msg = ws.receive_json()
-    assert set(msg.keys()) == {"orderId", "status", "paymentStatus", "arrived", "number"}
+    assert set(msg.keys()) == {"orderId", "status", "paymentStatus", "arrived", "number", "outletId"}
 
 
 def test_admin_ws_receives_paid_event(client, manager):
@@ -407,7 +407,7 @@ def test_order_ws_unsubscribe_on_disconnect(client, customer):
 
 
 def test_admin_ws_unsubscribe_on_disconnect(client, manager):
-    channel = "admin:orders"
+    channel = "admin:orders:1"  # менеджер подписан на канал своей точки (REQ-7)
     base = len(pubsub._subs.get(channel, set()))
     with client.websocket_connect(_aurl(manager)) as ws:
         assert len(pubsub._subs.get(channel, set())) == base + 1

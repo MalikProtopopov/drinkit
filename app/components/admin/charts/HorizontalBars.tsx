@@ -31,7 +31,7 @@ const RULE = "#E8E2D5";
 
 function fmt(value: number, suffix?: string): string {
   const n = Number.isFinite(value) ? Math.round(value) : 0;
-  const s = n.toLocaleString("ru-RU");
+  const s = n.toLocaleString("en-GB");
   return suffix ? `${s}${suffix}` : s;
 }
 
@@ -80,7 +80,7 @@ export function HorizontalBars(props: HorizontalBarsProps) {
           fontSize: 13,
         }}
       >
-        Нет данных
+        No data
       </div>
     );
   }

@@ -213,7 +213,7 @@ export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => 
         <div className="font-black text-[19px] mt-6 mb-3 px-1" style={{ color: "var(--jooz-ink)" }}>{t("My car", "سيارتي")}</div>
         {user.defaultCarPlate ? (
           <button onClick={startEditCar} className="jooz-card w-full p-3.5 flex items-center gap-3 text-left">
-            <div className="flex-1 flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: "#fcfcfa", border: "2.5px solid #15171c" }}>
+            <div dir="ltr" className="flex-1 flex items-center gap-3 rounded-xl px-3 py-2" style={{ background: "#fcfcfa", border: "2.5px solid #15171c" }}>
               <div className="flex flex-col leading-[1.05]">
                 <div className="text-[10px] font-black tracking-wide" style={{ color: "#c0392b" }}>{user.defaultEmirate || "Dubai"}</div>
                 <div className="text-[8.5px] font-extrabold tracking-[1px] mt-0.5" style={{ color: "#15171c" }}>U.A.E</div>

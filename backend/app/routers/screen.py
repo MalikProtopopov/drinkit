@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..core.db import get_db
-from ..core.security import get_current_staff
+from ..core.security import get_current_staff, get_staff_outlet_ids
 from ..models.orders import Order
 from ..models.users import StaffUser
 
@@ -32,13 +32,15 @@ def _row(o: Order) -> dict:
 
 
 @router.get("/board")
-def screen_board(_: StaffUser = Depends(get_current_staff), db: Session = Depends(get_db)):
-    """Лента выдачи: оплаченные заказы Готово / Готовится, FIFO по номеру."""
-    orders = db.scalars(
-        select(Order)
-        .where(Order.payment_status == "paid", Order.status.in_(SHOWN))
-        .order_by(Order.number)
-    ).all()
+def screen_board(staff: StaffUser = Depends(get_current_staff), db: Session = Depends(get_db)):
+    """Лента выдачи: оплаченные заказы Готово / Готовится, FIFO по номеру.
+    REQ-7: screen привязан к своей точке — показываем только её заказы."""
+    q = (select(Order)
+         .where(Order.payment_status == "paid", Order.status.in_(SHOWN)))
+    scope = get_staff_outlet_ids(staff, db)
+    if scope is not None:
+        q = q.where(Order.outlet_id.in_(scope))
+    orders = db.scalars(q.order_by(Order.number)).all()
     return {
         "ready": [_row(o) for o in orders if o.status == "ready"],
         "preparing": [_row(o) for o in orders if o.status in PREPARING],

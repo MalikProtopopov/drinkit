@@ -47,13 +47,13 @@ export function RichTextEditor({
   return (
     <div className="admin-rte">
       <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
-        <Btn title="Заголовок H2" on={cmd("formatBlock", "<h2>")} label={<strong>H2</strong>} />
-        <Btn title="Заголовок H3" on={cmd("formatBlock", "<h3>")} label={<strong>H3</strong>} />
-        <Btn title="Обычный абзац" on={cmd("formatBlock", "<p>")} label="¶" />
+        <Btn title="Heading H2" on={cmd("formatBlock", "<h2>")} label={<strong>H2</strong>} />
+        <Btn title="Heading H3" on={cmd("formatBlock", "<h3>")} label={<strong>H3</strong>} />
+        <Btn title="Normal paragraph" on={cmd("formatBlock", "<p>")} label="¶" />
         <span style={{ width: 1, background: "#E5DED4", margin: "0 2px" }} />
-        <Btn title="Жирный" on={cmd("bold")} label={<b>Ж</b>} />
-        <Btn title="Курсив" on={cmd("italic")} label={<i>К</i>} />
-        <Btn title="Список" on={cmd("insertUnorderedList")} label="•—" />
+        <Btn title="Bold" on={cmd("bold")} label={<b>B</b>} />
+        <Btn title="Italic" on={cmd("italic")} label={<i>I</i>} />
+        <Btn title="List" on={cmd("insertUnorderedList")} label="•—" />
       </div>
       <div
         ref={ref}
@@ -61,7 +61,7 @@ export function RichTextEditor({
         dir={dir}
         contentEditable
         suppressContentEditableWarning
-        data-placeholder="Введите описание — оно появится в шторке «Подробнее»…"
+        data-placeholder="Enter a description — it will appear in the “More” drawer…"
         onInput={emit}
         onBlur={emit}
         style={{
@@ -72,7 +72,7 @@ export function RichTextEditor({
         }}
       />
       <p className="admin-meta" style={{ marginTop: 6 }}>
-        Поле — живой предпросмотр: так описание увидят на сайте. Доступны стили: H2, H3, жирный, курсив, список.
+        This field is a live preview: this is how the description will look on the site. Available styles: H2, H3, bold, italic, list.
       </p>
     </div>
   );

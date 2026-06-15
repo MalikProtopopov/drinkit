@@ -5,6 +5,7 @@ import { TopBar } from "@/components/TopBar";
 import { useStore, useCartTotal } from "@/lib/store";
 import { emirates } from "@/lib/data";
 import { api, type ApiCoupon, type ApiUser } from "@/lib/api";
+import { useOutlet } from "@/lib/useOutlet";
 import { maskName, maskPhoneUAE, maskPlate } from "@/lib/masks";
 import { IconPhone } from "@/components/icons";
 import { useT } from "@/lib/i18n";
@@ -54,11 +55,27 @@ export default function CheckoutPage() {
     api.coupons().then((cs) => setCoupons(cs.filter((c) => c.status === "active"))).catch(() => {});
   }, [router]);
 
+  // доступность точки (REQ-5): пока точка не открыта — заказ оформить нельзя
+  const { outlet } = useOutlet();
+  const outletOpen = !outlet || outlet.openNow;  // неизвестно → пускаем, бэкенд авторитетен
+
   const plateClean = plate.replace(/\s/g, "");
   const nameOk = name.trim().length >= 1;
   const plateOk = plateClean.length >= 2;
   const phoneOk = Boolean(me?.phone);
-  const canSubmit = nameOk && plateOk && phoneOk && cart.length > 0;
+  const canSubmit = nameOk && plateOk && phoneOk && cart.length > 0 && outletOpen;
+
+  // дружелюбные тексты для ошибок точки от бэкенда
+  const friendlyErr = (msg: string) => {
+    const map: Record<string, [string, string]> = {
+      OUTLET_CLOSED: ["The outlet isn’t accepting orders right now", "الفرع لا يستقبل الطلبات حاليًا"],
+      OUTLET_DAILY_LIMIT_REACHED: ["The outlet has reached today’s limit", "بلغ الفرع حدّ اليوم"],
+      OUTLET_REQUIRED: ["Please choose an outlet", "يرجى اختيار الفرع"],
+      OUTLET_INVALID: ["The outlet isn’t available", "الفرع غير متاح"],
+    };
+    const m = map[msg];
+    return m ? t(m[0], m[1]) : msg;
+  };
 
   const submit = async () => {
     if (!canSubmit || submitting) return;
@@ -74,6 +91,7 @@ export default function CheckoutPage() {
         customerName: name.trim(), carPlate: plate.trim(), emirate,
         couponId: couponId ?? undefined,
         couponItemIndex: couponId != null ? couponLine : undefined,
+        outletId: outlet?.id,
       }, locale);
       setUser({ name: name.trim(), defaultCarPlate: plate.trim(), defaultEmirate: emirate });
       clearCart();
@@ -82,7 +100,7 @@ export default function CheckoutPage() {
       if (pay.mock) router.replace(`/orders/${order.id}`);
       else window.location.href = pay.checkoutUrl;
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("Couldn’t place the order", "تعذّر إتمام الطلب"));
+      setError(e instanceof Error ? friendlyErr(e.message) : t("Couldn’t place the order", "تعذّر إتمام الطلب"));
       setSubmitting(false);
     }
   };
@@ -112,8 +130,8 @@ export default function CheckoutPage() {
         </Section>
 
         <Section title={t("Car plate", "لوحة السيارة")} required>
-          {/* превью номерного знака — как в профиле */}
-          <div className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 mb-3" style={{ background: "#fcfcfa", border: "2.5px solid #15171c" }}>
+          {/* превью номерного знака — формат не зависит от локали (всегда LTR, как реальный номер) */}
+          <div dir="ltr" className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 mb-3" style={{ background: "#fcfcfa", border: "2.5px solid #15171c" }}>
             <div className="flex flex-col leading-[1.05]">
               <div className="text-[10px] font-black" style={{ color: "#c0392b" }}>{emirate}</div>
               <div className="text-[8.5px] font-extrabold tracking-[1px] mt-0.5" style={{ color: "#15171c" }}>U.A.E</div>
@@ -190,10 +208,17 @@ export default function CheckoutPage() {
       </div>
 
       <div className="sticky bottom-0 left-0 right-0 px-4 pt-3 pb-safe bg-gradient-to-t from-white via-white to-transparent">
+        {!outletOpen && (
+          <div className="mb-2 text-center text-caption" style={{ color: "var(--color-error)" }}>
+            {t("The outlet is closed right now — try again during working hours",
+               "الفرع مغلق حاليًا — حاول مرة أخرى خلال ساعات العمل")}
+          </div>
+        )}
         <button onClick={submit} disabled={!canSubmit || submitting}
                 className="w-full h-14 rounded-full flex items-center justify-center gap-2 text-white text-h3 font-semibold active:scale-[0.99] transition disabled:opacity-50"
                 style={{ background: "#635BFF" }}>
-          {submitting ? t("Opening payment…", "جارٍ فتح الدفع…") : t(`Pay with Stripe · ${Math.max(0, totals.subtotal - (couponId !== null ? cart[couponLine]?.unitPriceAed ?? 0 : 0)).toFixed(0)} AED`, `الدفع عبر Stripe · ${Math.max(0, totals.subtotal - (couponId !== null ? cart[couponLine]?.unitPriceAed ?? 0 : 0)).toFixed(0)} AED`)}
+          {!outletOpen ? t("Outlet closed", "الفرع مغلق")
+            : submitting ? t("Opening payment…", "جارٍ فتح الدفع…") : t(`Pay with Stripe · ${Math.max(0, totals.subtotal - (couponId !== null ? cart[couponLine]?.unitPriceAed ?? 0 : 0)).toFixed(0)} AED`, `الدفع عبر Stripe · ${Math.max(0, totals.subtotal - (couponId !== null ? cart[couponLine]?.unitPriceAed ?? 0 : 0)).toFixed(0)} AED`)}
         </button>
         <div className="mt-2 text-tiny muted text-center">{t("Card · Apple Pay · Google Pay — on the secure Stripe page", "بطاقة · Apple Pay · Google Pay — على صفحة Stripe الآمنة")}</div>
       </div>

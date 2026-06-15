@@ -4,6 +4,7 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from passlib.context import CryptContext
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .config import settings
@@ -77,3 +78,21 @@ def require_super_admin(staff=Depends(get_current_staff)):
     if staff.role != "super_admin":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "FORBIDDEN")
     return staff
+
+
+def require_manager_or_admin(staff=Depends(get_current_staff)):
+    """Мутации заказов: super_admin и manager. screen (ТВ) — read-only (REQ-7/D5)."""
+    if staff.role not in ("super_admin", "manager"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "FORBIDDEN")
+    return staff
+
+
+def get_staff_outlet_ids(staff, db: Session) -> set[int] | None:
+    """Скоуп по точкам (REQ-7). None = без скоупа (super_admin видит всё);
+    иначе множество outlet_id привязанных точек (manager 1..N, screen ровно 1).
+    Читаем из БД, НЕ из токена — переназначение не должно обходиться стейл-JWT."""
+    if staff.role == "super_admin":
+        return None
+    from ..models.outlet import StaffOutlet
+    return set(db.scalars(select(StaffOutlet.outlet_id)
+                          .where(StaffOutlet.staff_id == staff.id)).all())

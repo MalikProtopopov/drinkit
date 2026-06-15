@@ -6,7 +6,7 @@
   2) бэкфилл размеров: каждому напитку без размеров заводим дефолтный 400 ml
      по текущей base_price (тестовое наполнение, как договорено).
 """
-from sqlalchemy import inspect, select, text
+from sqlalchemy import func, inspect, select, text, update
 from sqlalchemy.orm import Session
 
 from ..models.catalog import (Addon, AddonCategory, Drink, DrinkCategory, DrinkSize, Unit)
@@ -15,6 +15,9 @@ from ..models.catalog import (Addon, AddonCategory, Drink, DrinkCategory, DrinkS
 _ADD_COLUMNS = {
     "order_items": {
         "size_label": "VARCHAR(20)",
+    },
+    "orders": {
+        "outlet_id": "INTEGER",  # точка заказа (REQ-6); FK живёт только на свежем create_all
     },
     "drink_categories": {
         "slug": "VARCHAR(60) DEFAULT ''",
@@ -216,6 +219,58 @@ def backfill_payments(db: Session):
     for p in rows:
         apply_mock_stripe(p, orders.get(p.order_id))
     db.commit()
+
+
+def backfill_outlets(db: Session):
+    """Локации (REQ-6/2): гарантирует дефолтную точку, привязывает легаси-заказы и
+    сид/легаси-стафф (manager/screen) к ней. Идемпотентно; единый владелец создания точки
+    (НЕ в seed) — работает и на свежей, и на уже существующей БД.
+
+    hours={} = всегда открыта (расписание не задано), чтобы прежнее поведение «заказ можно
+    оформить в любое время» сохранилось до того, как админ задаст реальные часы."""
+    from ..models.orders import Order
+    from ..models.outlet import Outlet, StaffOutlet
+    from ..models.users import StaffUser
+
+    # 1) дефолтная точка (если нет ни одной)
+    outlet = db.scalar(select(Outlet).where(Outlet.is_active.is_(True)).order_by(Outlet.id))
+    if outlet is None:
+        outlet = db.scalar(select(Outlet).order_by(Outlet.id))
+    if outlet is None:
+        outlet = Outlet(slug="main",
+                        name={"ru": "JOOZ Главная", "en": "JOOZ Main", "ar": "جوز الرئيسي"},
+                        is_active=True, accepting_orders=True,
+                        address="Business Bay, Dubai", emirate="Dubai",
+                        timezone="Asia/Dubai", hours={})
+        db.add(outlet)
+        db.commit()
+    default_id = outlet.id
+
+    # 2) легаси-заказы без точки → дефолтная
+    missing = db.scalar(select(func.count()).select_from(Order).where(Order.outlet_id.is_(None)))
+    if missing:
+        db.execute(update(Order).where(Order.outlet_id.is_(None)).values(outlet_id=default_id))
+        db.commit()
+
+    # 3) стафф manager/screen без привязки → дефолтная. screen привязываем авто только если
+    #    активная точка одна (иначе требуем ручного назначения — ТВ не должен попасть на чужую стойку).
+    one_active = active_outlet_count(db) <= 1
+    attached = set(db.scalars(select(StaffOutlet.staff_id)).all())
+    changed = False
+    for s in db.scalars(select(StaffUser).where(StaffUser.role.in_(("manager", "screen")))):
+        if s.id in attached:
+            continue
+        if s.role == "screen" and not one_active:
+            continue
+        db.add(StaffOutlet(staff_id=s.id, outlet_id=default_id, is_primary=True))
+        changed = True
+    if changed:
+        db.commit()
+
+
+def active_outlet_count(db: Session) -> int:
+    from ..models.outlet import Outlet
+    return int(db.scalar(select(func.count()).select_from(Outlet).where(Outlet.is_active.is_(True))) or 0)
 
 
 def backfill_sizes(db: Session):

@@ -34,17 +34,17 @@ function EditAddonInner({ id }: { id: number }) {
   }, [id]);
   useEffect(() => { load().catch(() => setNotFound(true)); }, [load]);
 
-  if (notFound) return <div className="admin-meta">Добавка не найдена</div>;
-  if (!addon) return <div className="admin-meta">Загрузка…</div>;
+  if (notFound) return <div className="admin-meta">Add-on not found</div>;
+  if (!addon) return <div className="admin-meta">Loading…</div>;
 
   const save = async (d: AddonDraft) => {
     setSaving(true);
     try {
       const a = await catalogApi.updateAddon(addon.id, d);
       setAddon(a); setRev((r) => r + 1);
-      toast("Добавка сохранена");
+      toast("Add-on saved");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Ошибка", "warn");
+      toast(e instanceof Error ? e.message : "Error", "warn");
     } finally { setSaving(false); }
   };
 
@@ -54,28 +54,28 @@ function EditAddonInner({ id }: { id: number }) {
     .filter((x) => x.link);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, alignItems: "start" }}>
+    <div className="admin-split" style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, alignItems: "start" }}>
       <AddonForm key={rev} cats={cats} units={units} initial={draftOf(addon)} mode="edit" saving={saving}
                  onSubmit={save} onCancel={() => router.push("/admin/catalog/addons")} />
 
       <div className="admin-panel">
         <div className="admin-panel-head">
-          <div className="admin-panel-title">Используется в напитках</div>
+          <div className="admin-panel-title">Used in drinks</div>
           <span className="admin-meta">{usedIn.length}</span>
         </div>
         <div className="admin-panel-body" style={{ paddingBottom: 6 }}>
           <p className="admin-meta">
-            Здесь видно, на какие напитки повлияют правки цены/КБЖУ. Объём порции и переопределённая
-            цена настраиваются в карточке самого напитка.
+            Here you can see which drinks will be affected by price/nutrition edits. Portion size and the
+            overridden price are configured in the drink card itself.
           </p>
         </div>
         {usedIn.length === 0 ? (
           <div className="admin-panel-body"><span className="admin-meta">
-            Пока не подключена ни к одному напитку. Подключение — во вкладке «Доступные добавки» напитка.
+            Not connected to any drink yet. Connect it on the drink’s “Available add-ons” tab.
           </span></div>
         ) : (
           <div className="admin-tablewrap"><table className="admin-table">
-            <thead><tr><th>Напиток</th><th>Цена в напитке</th><th>Порций (деф.)</th><th>Объём</th></tr></thead>
+            <thead><tr><th>Drink</th><th>Price in drink</th><th>Portions (def.)</th><th>Amount</th></tr></thead>
             <tbody>
               {usedIn.map(({ dr, link }) => (
                 <tr key={dr.id} className="admin-row-link" style={{ cursor: "pointer" }}
@@ -83,7 +83,7 @@ function EditAddonInner({ id }: { id: number }) {
                   <td><strong>{dr.name.en ?? dr.name.ru ?? dr.slug}</strong></td>
                   <td className="admin-num">
                     {link!.priceOverride == null
-                      ? <span className="admin-meta">бесплатно</span>
+                      ? <span className="admin-meta">free</span>
                       : `${link!.priceOverride} AED`}
                   </td>
                   <td className="admin-num">{link!.defaultPortions}</td>
@@ -104,8 +104,8 @@ function EditAddonInner({ id }: { id: number }) {
 export default function EditAddonPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   return (
-    <AdminShell title="Добавка"
-                crumbs={[{ label: "Каталог" }, { label: "Добавки", href: "/admin/catalog/addons" },
+    <AdminShell title="Add-on"
+                crumbs={[{ label: "Catalog" }, { label: "Add-ons", href: "/admin/catalog/addons" },
                          { label: `#${id}` }]}>
       <EditAddonInner id={Number(id)} />
     </AdminShell>

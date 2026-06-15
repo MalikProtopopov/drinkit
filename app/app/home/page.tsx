@@ -8,6 +8,7 @@ import { ProfileSheet } from "@/components/ProfileSheet";
 import { IconBag, IconUser } from "@/components/icons";
 import { useCatalog } from "@/lib/useCatalog";
 import { useCartTotal } from "@/lib/store";
+import { useOutlet, todayHoursLabel } from "@/lib/useOutlet";
 import { useT } from "@/lib/i18n";
 import type { ApiDrinkLite } from "@/lib/api";
 
@@ -21,6 +22,10 @@ function HomeInner({ initialProfileOpen = false }: { initialProfileOpen?: boolea
   const setActiveCat = (slug: string | null) =>
     router.replace(slug === null ? "/home" : `/home?category=${encodeURIComponent(slug)}`, { scroll: false });
   const { categories, drinks, loading, error } = useCatalog(activeCat);
+
+  // локация под лого (REQ-5/6): адрес + сегодняшние часы из API точки
+  const { outlet } = useOutlet();
+  const outletHours = todayHoursLabel(outlet, t("Closed", "مغلق"));
 
   const cartCount = useCartTotal().count;
 
@@ -79,9 +84,18 @@ function HomeInner({ initialProfileOpen = false }: { initialProfileOpen?: boolea
 
           {/* лого + профиль */}
           <div className="absolute top-0 inset-x-0 z-20 flex items-start justify-between px-5 pt-safe pb-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.png" alt="JOOZ" className="h-[26px] w-auto mt-0.5"
-                 style={{ filter: "brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0,0,0,.6)) drop-shadow(0 3px 12px rgba(0,0,0,.45))" }} />
+            <div className="flex flex-col gap-1 min-w-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.png" alt="JOOZ" className="h-[26px] w-auto mt-0.5 self-start"
+                   style={{ filter: "brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0,0,0,.6)) drop-shadow(0 3px 12px rgba(0,0,0,.45))" }} />
+              {/* локация: адрес мелким шрифтом + часы работы (REQ-5/6) */}
+              {outlet?.address && (
+                <div className="text-[11px] font-semibold leading-tight max-w-[210px] truncate"
+                     style={{ color: "#fff", filter: "drop-shadow(0 1px 3px rgba(0,0,0,.7))" }}>
+                  {outlet.address}{outletHours ? ` · ${outletHours}` : ""}
+                </div>
+              )}
+            </div>
             <div className="flex items-center gap-2.5">
               {/* корзина: видно количество позиций и быстрый переход к оформлению */}
               <Link href="/cart" aria-label={t("Cart", "السلة")}

@@ -19,18 +19,18 @@ function NewAddonInner() {
     catalogApi.units().then(setUnits).catch(() => setUnits([]));
   }, []);
 
-  if (!cats || !units) return <div className="admin-meta">Загрузка…</div>;
+  if (!cats || !units) return <div className="admin-meta">Loading…</div>;
 
   if (!cats.length || !units.length) {
     return (
       <div className="admin-panel"><div className="admin-panel-body">
         <p className="admin-meta">
-          Сначала заведите хотя бы одну категорию добавок и единицу измерения —
-          без них добавку нельзя сохранить.
+          First create at least one add-on category and one unit —
+          an add-on cannot be saved without them.
         </p>
         <button className="admin-btn primary" style={{ marginTop: 10 }}
                 onClick={() => router.push("/admin/catalog/groups")}>
-          Перейти к категориям и единицам
+          Go to categories and units
         </button>
       </div></div>
     );
@@ -45,35 +45,35 @@ function NewAddonInner() {
     setSaving(true);
     try {
       const a = await catalogApi.createAddon(d);
-      toast("Добавка создана");
+      toast("Add-on created");
       router.push(`/admin/catalog/addons/${a.id}`);
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Ошибка", "warn");
+      toast(e instanceof Error ? e.message : "Error", "warn");
       setSaving(false);
     }
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, alignItems: "start" }}>
+    <div className="admin-split" style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 16, alignItems: "start" }}>
       <AddonForm cats={cats} units={units} initial={initial} mode="create" saving={saving}
                  onSubmit={create} onCancel={() => router.push("/admin/catalog/addons")} />
       <div className="admin-panel">
-        <div className="admin-panel-head"><div className="admin-panel-title">Как это работает</div></div>
+        <div className="admin-panel-head"><div className="admin-panel-title">How it works</div></div>
         <div className="admin-panel-body">
           <p className="admin-meta">
-            <strong>Категория</strong> задаёт, как добавку выбирают в конструкторе (один / несколько /
-            счётчик) — тип выбора настраивается в разделе «Категории добавок».
+            <strong>Category</strong> defines how the add-on is selected in the builder (single / multiple /
+            counter) — the selection type is configured in the “Add-on categories” section.
           </p>
           <p className="admin-meta" style={{ marginTop: 10 }}>
-            <strong>КБЖУ на 100</strong> единиц — эталон. На сайте калории пересчитываются под объём
-            порции, который вы задаёте уже в конкретном напитке (вкладка «Доступные добавки»).
+            <strong>Nutrition per 100</strong> units is the reference. On the site calories are recalculated
+            to the portion size you set in the specific drink (the “Available add-ons” tab).
           </p>
           <p className="admin-meta" style={{ marginTop: 10 }}>
-            <strong>Цена за порцию</strong> — базовая. Для отдельного напитка её можно переопределить
-            или сделать бесплатной.
+            <strong>Price per portion</strong> is the base. For an individual drink it can be overridden
+            or made free.
           </p>
           <p className="admin-meta" style={{ marginTop: 10 }}>
-            После создания добавка станет доступна для подключения к напиткам.
+            Once created, the add-on becomes available to connect to drinks.
           </p>
         </div>
       </div>
@@ -83,9 +83,9 @@ function NewAddonInner() {
 
 export default function NewAddonPage() {
   return (
-    <AdminShell title="Новая добавка"
-                crumbs={[{ label: "Каталог" }, { label: "Добавки", href: "/admin/catalog/addons" },
-                         { label: "Новая" }]}>
+    <AdminShell title="New add-on"
+                crumbs={[{ label: "Catalog" }, { label: "Add-ons", href: "/admin/catalog/addons" },
+                         { label: "New" }]}>
       <NewAddonInner />
     </AdminShell>
   );

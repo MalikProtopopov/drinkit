@@ -25,12 +25,21 @@ def _claims(token: str | None) -> dict | None:
         return None
 
 
-def _is_staff(token: str | None) -> bool:
+def _admin_channels(token: str | None) -> list[str] | None:
+    """Каналы realtime-ленты по роли (REQ-7). None — токен не staff (доступ запрещён).
+    super_admin → глобальный канал (видит все точки); manager/screen → каналы своих точек."""
     data = _claims(token)
     if not data or data.get("kind") != "staff":
-        return False
+        return None
+    from ..core.security import get_staff_outlet_ids
     with SessionLocal() as db:
-        return db.get(StaffUser, int(data["sub"])) is not None
+        staff = db.get(StaffUser, int(data["sub"]))
+        if staff is None:
+            return None
+        scope = get_staff_outlet_ids(staff, db)
+        if scope is None:
+            return ["admin:orders"]  # super_admin
+        return [f"admin:orders:{oid}" for oid in scope]
 
 
 def _can_watch_order(token: str | None, order_id: int) -> bool:
@@ -49,9 +58,9 @@ def _can_watch_order(token: str | None, order_id: int) -> bool:
     return False
 
 
-async def _pump(ws: WebSocket, channel: str):
+async def _pump(ws: WebSocket, channels: list[str]):
     await ws.accept()
-    q = pubsub.subscribe(channel)
+    q = pubsub.subscribe_many(channels)
     try:
         while True:
             # heartbeat каждые 25с, чтобы соединение не закрывали прокси
@@ -63,7 +72,7 @@ async def _pump(ws: WebSocket, channel: str):
     except (WebSocketDisconnect, RuntimeError):
         pass
     finally:
-        pubsub.unsubscribe(channel, q)
+        pubsub.unsubscribe_many(channels, q)
 
 
 @router.websocket("/ws/orders/{order_id}")
@@ -71,12 +80,13 @@ async def ws_order(ws: WebSocket, order_id: int, token: str | None = Query(None)
     if not _can_watch_order(token, order_id):
         await ws.close(code=1008)  # policy violation
         return
-    await _pump(ws, f"order:{order_id}")
+    await _pump(ws, [f"order:{order_id}"])
 
 
 @router.websocket("/ws/admin/orders")
 async def ws_admin(ws: WebSocket, token: str | None = Query(None)):
-    if not _is_staff(token):
+    channels = _admin_channels(token)
+    if channels is None:
         await ws.close(code=1008)
         return
-    await _pump(ws, "admin:orders")
+    await _pump(ws, channels)

@@ -16,7 +16,7 @@ export function HourlyOrdersChart({ byHour }: { byHour: Record<string, number> }
   if (total === 0) {
     return (
       <div className="admin-meta" style={{ height: 190, display: "grid", placeItems: "center" }}>
-        Нет заказов за период
+        No orders in this period
       </div>
     );
   }
@@ -33,7 +33,7 @@ export function HourlyOrdersChart({ byHour }: { byHour: Record<string, number> }
         <Tooltip
           cursor={{ fill: "rgba(74,86,226,0.07)" }}
           labelFormatter={(h) => `${String(h).padStart(2, "0")}:00`}
-          formatter={(v: unknown) => [`${v}`, "Заказов"] as [string, string]}
+          formatter={(v: unknown) => [`${v}`, "Orders"] as [string, string]}
           contentStyle={{ borderRadius: 10, border: "1px solid #E8E2D5", fontSize: 12, padding: "6px 10px" }}
         />
         <Bar dataKey="orders" radius={[4, 4, 0, 0]} maxBarSize={26}>

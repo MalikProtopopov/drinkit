@@ -41,7 +41,7 @@ const INK_SOFT = "#6B7280";
 const MUTED = "#EFEAE0";
 
 function fmtInt(n: number): string {
-  return new Intl.NumberFormat("ru-RU").format(Math.round(n || 0));
+  return new Intl.NumberFormat("en-GB").format(Math.round(n || 0));
 }
 
 function DonutTooltip({
@@ -111,7 +111,7 @@ export function SegmentDonut(props: SegmentDonutProps) {
           color: INK_SOFT,
           fontSize: 13,
         }}>
-        Нет данных
+        No data
       </div>
     );
   }
@@ -175,7 +175,7 @@ export function SegmentDonut(props: SegmentDonutProps) {
               textTransform: "uppercase",
               letterSpacing: 0.6,
             }}>
-            всего
+            total
           </div>
         </div>
       </div>

@@ -15,16 +15,16 @@ const AXIS = "#8A8F9C";
 function fmtMin(v: number | null | undefined): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
   const r = Math.round(v * 10) / 10;
-  return `${Number.isInteger(r) ? r : r.toFixed(1)} мин`;
+  return `${Number.isInteger(r) ? r : r.toFixed(1)} min`;
 }
 
 export function ServiceTimeChart(props: ServiceTimeChartProps) {
   const { prepMin, pickupMin, totalMin } = props;
 
   const rows = [
-    { key: "prep", label: "Готовка", value: prepMin, color: ACCENT },
-    { key: "pickup", label: "Выдача", value: pickupMin, color: "#8E97F0" },
-    { key: "total", label: "Всего", value: totalMin, color: "#C2C7F6" },
+    { key: "prep", label: "Prep", value: prepMin, color: ACCENT },
+    { key: "pickup", label: "Pickup", value: pickupMin, color: "#8E97F0" },
+    { key: "total", label: "Total", value: totalMin, color: "#C2C7F6" },
   ];
 
   const hasData = rows.some((r) => r.value !== null && r.value !== undefined && !Number.isNaN(r.value));
@@ -41,7 +41,7 @@ export function ServiceTimeChart(props: ServiceTimeChartProps) {
           fontSize: 13,
         }}
       >
-        нет данных
+        No data
       </div>
     );
   }

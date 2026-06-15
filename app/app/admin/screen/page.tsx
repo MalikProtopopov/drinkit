@@ -89,7 +89,7 @@ export default function ScreenBoardPage() {
 
     // подстраховка: периодический перезапрос на случай пропущенных событий
     const poll = setInterval(load, 20000);
-    const tick = () => setClock(new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }));
+    const tick = () => setClock(new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }));
     tick();
     const clk = setInterval(tick, 30000);
 
@@ -116,15 +116,15 @@ export default function ScreenBoardPage() {
         <div style={{ display: "flex", alignItems: "center", gap: "clamp(12px,1.2vw,24px)",
                       color: "#8893B6", fontWeight: 700, fontSize: "clamp(14px,1.5vw,26px)" }}>
           <span>{clock}</span>
-          <span title={live ? "В сети" : "Переподключение…"} style={{
+          <span title={live ? "Online" : "Reconnecting…"} style={{
             width: "clamp(9px,0.8vw,14px)", height: "clamp(9px,0.8vw,14px)", borderRadius: 999,
             background: live ? "#16A34A" : "#D08A00", display: "inline-block" }} />
         </div>
       </header>
 
-      <Section title="Ready" sub="جاهز · Готово" rows={board.ready} variant="ready" />
+      <Section title="Ready" sub="جاهز · Ready" rows={board.ready} variant="ready" />
       <div style={{ height: 2, background: "#D6DCEC", margin: "clamp(4px,0.6vw,12px) 0" }} />
-      <Section title="Preparing" sub="قيد التحضير · Готовится" rows={board.preparing} variant="preparing" />
+      <Section title="Preparing" sub="قيد التحضير · Preparing" rows={board.preparing} variant="preparing" />
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { Pager, useToast } from "@/components/admin/AdminUI";
 import { adminApi, type Staff } from "@/lib/adminApi";
 import { usePaged } from "@/lib/usePaged";
 
-const ROLE_LABEL: Record<string, string> = { super_admin: "Супер-админ", manager: "Менеджер заказов", screen: "Экран выдачи" };
+const ROLE_LABEL: Record<string, string> = { super_admin: "Super admin", manager: "Order manager", screen: "Pickup screen" };
 
 function StaffInner() {
   const router = useRouter();
@@ -20,17 +20,17 @@ function StaffInner() {
     <>
       <div className="admin-panel">
         <div className="admin-panel-head">
-          <div className="admin-panel-title">Все сотрудники</div>
+          <div className="admin-panel-title">All staff</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span className="admin-meta">Всего {total}, активных {rows.filter((u) => !u.disabled).length}</span>
+            <span className="admin-meta">Total {total}, active {rows.filter((u) => !u.disabled).length}</span>
             <button className="admin-btn primary sm" onClick={() => router.push("/admin/staff/new")}>
-              + Добавить сотрудника
+              + Add staff member
             </button>
           </div>
         </div>
         <div className="admin-tablewrap"><table className="admin-table">
           <thead>
-            <tr><th>Сотрудник</th><th>Email</th><th>Роль</th><th>Статус</th><th></th></tr>
+            <tr><th>Staff member</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
             {rows.map((u) => (
@@ -51,16 +51,16 @@ function StaffInner() {
                 <td><span className="admin-pill accent">{ROLE_LABEL[u.role] ?? u.role}</span></td>
                 <td>
                   {u.disabled
-                    ? <span className="admin-pill danger">отключён</span>
-                    : <span className="admin-pill accent">активен</span>}
+                    ? <span className="admin-pill danger">disabled</span>
+                    : <span className="admin-pill accent">active</span>}
                 </td>
                 <td style={{ textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
                   {!u.disabled && (
                     <button className="admin-btn ghost sm" style={{ color: "#A12822" }}
                             onClick={() => adminApi.deleteManager(u.id)
-                              .then(() => { reload(); toast("Учётка деактивирована", "warn"); })
+                              .then(() => { reload(); toast("Account deactivated", "warn"); })
                               .catch((e) => toast(e.message, "warn"))}>
-                      Деактивировать
+                      Deactivate
                     </button>
                   )}
                 </td>
@@ -68,7 +68,7 @@ function StaffInner() {
             ))}
             {rows.length === 0 && (
               <tr><td colSpan={5} className="admin-meta" style={{ padding: 16 }}>
-                {loading ? "Загрузка…" : "Сотрудников нет"}</td></tr>
+                {loading ? "Loading…" : "No staff"}</td></tr>
             )}
           </tbody>
         </table></div>
@@ -81,7 +81,7 @@ function StaffInner() {
 
 export default function StaffPage() {
   return (
-    <AdminShell title="Сотрудники" crumbs={[{ label: "Сотрудники" }]}>
+    <AdminShell title="Staff" crumbs={[{ label: "Staff" }]}>
       <StaffInner />
     </AdminShell>
   );

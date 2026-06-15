@@ -11,10 +11,10 @@ const money = (n?: number | null) => aed(n, { decimals: 2 });
 const fmtDateTime = (s?: string | null) => fmtDT(s, { year: true });
 
 export const PAYMENT_STATUS: Record<string, { label: string; cls: string }> = {
-  succeeded: { label: "успешно", cls: "accent" },
-  refunded: { label: "возврат", cls: "warn" },
-  pending: { label: "ожидание", cls: "" },
-  failed: { label: "ошибка", cls: "danger" },
+  succeeded: { label: "succeeded", cls: "accent" },
+  refunded: { label: "refunded", cls: "warn" },
+  pending: { label: "pending", cls: "" },
+  failed: { label: "failed", cls: "danger" },
 };
 
 const BRAND_LABEL: Record<string, string> = {
@@ -22,7 +22,7 @@ const BRAND_LABEL: Record<string, string> = {
   discover: "Discover", unionpay: "UnionPay",
 };
 const METHOD_LABEL: Record<string, string> = {
-  card: "Карта", apple_pay: "Apple Pay", google_pay: "Google Pay", link: "Link",
+  card: "Card", apple_pay: "Apple Pay", google_pay: "Google Pay", link: "Link",
 };
 
 export function methodLine(p: any): string {
@@ -32,11 +32,11 @@ export function methodLine(p: any): string {
     const w = METHOD_LABEL[p.method] ?? p.method;
     return [w, [brand, tail].filter(Boolean).join(" ")].filter(Boolean).join(" · ");
   }
-  return [brand, tail].filter(Boolean).join(" ") || "Карта";
+  return [brand, tail].filter(Boolean).join(" ") || "Card";
 }
 
 const TIMELINE_LABEL: Record<string, string> = {
-  created: "Платёж создан", paid: "Оплачен", refund: "Возврат", dispute: "Спор открыт",
+  created: "Payment created", paid: "Paid", refund: "Refund", dispute: "Dispute opened",
 };
 
 /* кликабельная ссылка в Stripe Dashboard для НЕ-mock идентификаторов */
@@ -60,8 +60,8 @@ function IdRow({ label, value, href }: { label: string; value?: string | null; h
         ) : (
           <span className="admin-mono" style={{ fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 190 }}>{value}</span>
         )}
-        <button className="admin-btn ghost sm" title="Копировать" style={{ padding: "2px 7px" }}
-                onClick={() => { navigator.clipboard?.writeText(value); toast("Скопировано"); }}>⧉</button>
+        <button className="admin-btn ghost sm" title="Copy" style={{ padding: "2px 7px" }}
+                onClick={() => { navigator.clipboard?.writeText(value); toast("Copied"); }}>⧉</button>
       </span>
     </div>
   );
@@ -117,15 +117,15 @@ export function PaymentDrawer({ id, onClose, onChanged }: {
   const doRefund = async () => {
     if (!p) return;
     const amt = refundAmt ? Number(refundAmt) : undefined;
-    if (amt != null && (!(amt > 0) || amt > remaining)) { toast("Некорректная сумма возврата", "warn"); return; }
+    if (amt != null && (!(amt > 0) || amt > remaining)) { toast("Invalid refund amount", "warn"); return; }
     setBusy(true);
     try {
       await adminApi.refundPayment(p.id, { amount: amt, reason: refundReason || undefined });
-      toast("Возврат оформлен");
+      toast("Refund issued");
       setRefundOpen(false); setRefundAmt(""); setRefundReason("");
       await load(); onChanged();
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Ошибка возврата", "danger");
+      toast(e instanceof Error ? e.message : "Refund failed", "danger");
     } finally { setBusy(false); }
   };
 
@@ -135,15 +135,15 @@ export function PaymentDrawer({ id, onClose, onChanged }: {
       <aside className="admin-drawer" style={{ width: 460, maxWidth: "94vw" }}>
         <div className="admin-drawer-head">
           <div>
-            <div className="admin-panel-title">Платёж #{id}</div>
-            <div className="admin-meta">{p ? `Заказ #${p.orderNumber ?? "—"} · ${p.provider}` : "Stripe"}</div>
+            <div className="admin-panel-title">Payment #{id}</div>
+            <div className="admin-meta">{p ? `Order #${p.orderNumber ?? "—"} · ${p.provider}` : "Stripe"}</div>
           </div>
           <button className="admin-btn ghost" onClick={onClose}>×</button>
         </div>
 
         <div className="admin-drawer-body" style={{ display: "grid", gap: 16 }}>
-          {loading && <div className="admin-meta">Загрузка…</div>}
-          {!loading && !p && <div className="admin-meta">Платёж не найден</div>}
+          {loading && <div className="admin-meta">Loading…</div>}
+          {!loading && !p && <div className="admin-meta">Payment not found</div>}
 
           {p && (
             <>
@@ -158,39 +158,39 @@ export function PaymentDrawer({ id, onClose, onChanged }: {
 
               {p.failureMessage && (
                 <div className="admin-pill danger" style={{ display: "block", padding: "8px 12px" }}>
-                  Отказ: {p.failureMessage}{p.failureCode ? ` (${p.failureCode})` : ""}
+                  Declined: {p.failureMessage}{p.failureCode ? ` (${p.failureCode})` : ""}
                 </div>
               )}
 
               {/* деньги */}
               <div className="admin-panel">
-                <div className="admin-panel-head"><div className="admin-panel-title">Деньги</div>
+                <div className="admin-panel-head"><div className="admin-panel-title">Money</div>
                   {p.livemode === false && <span className="admin-pill" style={{ fontSize: 11 }}>test/mock</span>}
                 </div>
                 <div className="admin-panel-body">
-                  <Line label="Сумма">{money(p.amount)}</Line>
-                  <Line label="Комиссия Stripe">− {money(p.fee)}</Line>
-                  {p.refunded > 0 && <Line label="Возвращено">− {money(p.refunded)}</Line>}
-                  <Line label="Чистыми" strong>{money((p.net ?? (p.amount - (p.fee || 0))) - (p.refunded || 0))}</Line>
+                  <Line label="Amount">{money(p.amount)}</Line>
+                  <Line label="Stripe fee">− {money(p.fee)}</Line>
+                  {p.refunded > 0 && <Line label="Refunded">− {money(p.refunded)}</Line>}
+                  <Line label="Net" strong>{money((p.net ?? (p.amount - (p.fee || 0))) - (p.refunded || 0))}</Line>
                 </div>
               </div>
 
               {/* способ оплаты */}
               <div className="admin-panel">
-                <div className="admin-panel-head"><div className="admin-panel-title">Способ оплаты</div></div>
+                <div className="admin-panel-head"><div className="admin-panel-title">Payment method</div></div>
                 <div className="admin-panel-body">
-                  <Line label="Метод">{methodLine(p)}</Line>
-                  {p.cardFunding && <Line label="Тип карты">{p.cardFunding === "credit" ? "кредитная" : p.cardFunding === "debit" ? "дебетовая" : p.cardFunding}</Line>}
-                  {p.cardCountry && <Line label="Страна карты">{p.cardCountry}</Line>}
-                  {p.cardExp && <Line label="Срок действия">{p.cardExp}</Line>}
+                  <Line label="Method">{methodLine(p)}</Line>
+                  {p.cardFunding && <Line label="Card type">{p.cardFunding === "credit" ? "credit" : p.cardFunding === "debit" ? "debit" : p.cardFunding}</Line>}
+                  {p.cardCountry && <Line label="Card country">{p.cardCountry}</Line>}
+                  {p.cardExp && <Line label="Expiry">{p.cardExp}</Line>}
                   {(p.riskLevel || p.riskScore != null) && (
-                    <Line label="Риск (Radar)">
+                    <Line label="Risk (Radar)">
                       <span className={`admin-pill ${p.riskLevel === "highest" ? "danger" : p.riskLevel === "elevated" ? "warn" : ""}`}>
                         {p.riskLevel ?? "—"}{p.riskScore != null ? ` · ${p.riskScore}` : ""}
                       </span>
                     </Line>
                   )}
-                  {p.disputeStatus && <Line label="Спор">
+                  {p.disputeStatus && <Line label="Dispute">
                     <span className="admin-pill danger">{p.disputeStatus}</span></Line>}
                 </div>
               </div>
@@ -199,14 +199,14 @@ export function PaymentDrawer({ id, onClose, onChanged }: {
               {p.order && (
                 <div className="admin-panel">
                   <div className="admin-panel-head">
-                    <div className="admin-panel-title">Заказ #{p.order.number}</div>
-                    <Link href={`/admin/orders/${p.orderId}`} className="admin-btn ghost sm">Открыть →</Link>
+                    <div className="admin-panel-title">Order #{p.order.number}</div>
+                    <Link href={`/admin/orders/${p.orderId}`} className="admin-btn ghost sm">Open →</Link>
                   </div>
                   <div className="admin-panel-body">
                     {p.customerPhone && (
                       <div style={{ marginBottom: 8 }}>
                         <Link href={`/admin/customers/${p.userId}`} style={{ fontWeight: 700, color: "#0E0E10", textDecoration: "none" }}>
-                          {p.customerName || "Клиент"} <span className="admin-mono admin-meta">{p.customerPhone}</span> →
+                          {p.customerName || "Customer"} <span className="admin-mono admin-meta">{p.customerPhone}</span> →
                         </Link>
                       </div>
                     )}
@@ -217,7 +217,7 @@ export function PaymentDrawer({ id, onClose, onChanged }: {
                       </div>
                     ))}
                     {p.order.couponDiscount > 0 && (
-                      <div className="admin-meta" style={{ marginTop: 4 }}>Скидка по купону: −{money(p.order.couponDiscount)}</div>
+                      <div className="admin-meta" style={{ marginTop: 4 }}>Coupon discount: −{money(p.order.couponDiscount)}</div>
                     )}
                   </div>
                 </div>
@@ -225,7 +225,7 @@ export function PaymentDrawer({ id, onClose, onChanged }: {
 
               {/* идентификаторы Stripe */}
               <div className="admin-panel">
-                <div className="admin-panel-head"><div className="admin-panel-title">Идентификаторы Stripe</div></div>
+                <div className="admin-panel-head"><div className="admin-panel-title">Stripe identifiers</div></div>
                 <div className="admin-panel-body">
                   <IdRow label="Payment Intent" value={p.paymentIntentId} href={stripeLink("payments", p.paymentIntentId)} />
                   <IdRow label="Charge" value={p.chargeId} />
@@ -233,7 +233,7 @@ export function PaymentDrawer({ id, onClose, onChanged }: {
                   <IdRow label="Checkout / ref" value={p.providerId} />
                   {p.receiptUrl && (
                     <div style={{ paddingTop: 6 }}>
-                      <a href={p.receiptUrl} target="_blank" rel="noreferrer" className="admin-btn ghost sm">Чек об оплате ↗</a>
+                      <a href={p.receiptUrl} target="_blank" rel="noreferrer" className="admin-btn ghost sm">Payment receipt ↗</a>
                     </div>
                   )}
                 </div>
@@ -242,7 +242,7 @@ export function PaymentDrawer({ id, onClose, onChanged }: {
               {/* таймлайн */}
               {(p.timeline ?? []).length > 0 && (
                 <div className="admin-panel">
-                  <div className="admin-panel-head"><div className="admin-panel-title">История платежа</div></div>
+                  <div className="admin-panel-head"><div className="admin-panel-title">Payment history</div></div>
                   <div className="admin-panel-body" style={{ display: "grid", gap: 8 }}>
                     {p.timeline.map((e: any, i: number) => (
                       <div key={i} style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
@@ -266,30 +266,30 @@ export function PaymentDrawer({ id, onClose, onChanged }: {
           <div className="admin-drawer-foot" style={{ display: "block" }}>
             {!refundOpen ? (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span className="admin-meta">{refundable ? `Доступно к возврату: ${money(remaining)}` : "Возврат недоступен"}</span>
+                <span className="admin-meta">{refundable ? `Available to refund: ${money(remaining)}` : "Refund unavailable"}</span>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button className="admin-btn ghost" onClick={onClose}>Закрыть</button>
-                  {refundable && <button className="admin-btn danger" onClick={() => { setRefundOpen(true); setRefundAmt(String(remaining)); }}>Оформить возврат</button>}
+                  <button className="admin-btn ghost" onClick={onClose}>Close</button>
+                  {refundable && <button className="admin-btn danger" onClick={() => { setRefundOpen(true); setRefundAmt(String(remaining)); }}>Issue refund</button>}
                 </div>
               </div>
             ) : (
               <div style={{ display: "grid", gap: 8 }}>
                 <div style={{ display: "flex", gap: 8 }}>
                   <div className="admin-field" style={{ flex: 1 }}>
-                    <label className="admin-label">Сумма возврата</label>
+                    <label className="admin-label">Refund amount</label>
                     <input className="admin-input mono" value={refundAmt} inputMode="decimal"
                            onChange={(e) => setRefundAmt(e.target.value.replace(/[^\d.]/g, ""))} />
                   </div>
                   <div className="admin-field" style={{ flex: 2 }}>
-                    <label className="admin-label">Причина (необязательно)</label>
-                    <input className="admin-input" value={refundReason} placeholder="дубль оплаты / жалоба…"
+                    <label className="admin-label">Reason (optional)</label>
+                    <input className="admin-input" value={refundReason} placeholder="duplicate charge / complaint…"
                            onChange={(e) => setRefundReason(e.target.value)} />
                   </div>
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                  <button className="admin-btn ghost" disabled={busy} onClick={() => setRefundOpen(false)}>Отмена</button>
+                  <button className="admin-btn ghost" disabled={busy} onClick={() => setRefundOpen(false)}>Cancel</button>
                   <button className="admin-btn danger" disabled={busy} onClick={doRefund}>
-                    {busy ? "Возврат…" : `Вернуть ${money(refundAmt ? Number(refundAmt) : remaining)}`}
+                    {busy ? "Refunding…" : `Refund ${money(refundAmt ? Number(refundAmt) : remaining)}`}
                   </button>
                 </div>
               </div>

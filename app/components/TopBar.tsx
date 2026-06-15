@@ -32,6 +32,7 @@ export function TopBar({
 
   return (
     <header
+      dir="ltr"
       className="sticky top-0 z-20 flex items-center justify-between px-4 pt-safe"
       style={{
         height: 64,

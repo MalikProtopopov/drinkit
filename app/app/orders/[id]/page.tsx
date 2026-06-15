@@ -84,7 +84,8 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="flex-1 flex flex-col">
-      <header className="flex items-center justify-between px-4 pt-safe pb-2 h-16">
+      {/* dir=ltr: кнопка «назад» слева и стрелка влево — одинаково в EN и AR (навигация не зависит от RTL) */}
+      <header dir="ltr" className="flex items-center justify-between px-4 pt-safe pb-2 h-16">
         <button onClick={() => router.push("/home")}
                 className="w-10 h-10 rounded-full bg-[#F2F2F4] flex items-center justify-center">
           <IconBack size={18} />
@@ -145,13 +146,23 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
               <div className="text-body font-semibold">{t("Curbside pickup", "الاستلام من السيارة")}</div>
               <div className="text-tiny muted mt-0.5">{t("The barista will bring your order to this plate", "سيحضر الباريستا طلبك إلى هذه اللوحة")}</div>
             </div>
-            <div className="flex items-center gap-2.5 rounded-xl px-3 py-2 flex-none" style={{ background: "#fcfcfa", border: "2.5px solid #15171c" }}>
+            <div dir="ltr" className="flex items-center gap-2.5 rounded-xl px-3 py-2 flex-none" style={{ background: "#fcfcfa", border: "2.5px solid #15171c" }}>
               <div className="flex flex-col leading-[1.05]">
                 <div className="text-[9px] font-black" style={{ color: "#c0392b" }}>{order.emirate || "Dubai"}</div>
                 <div className="text-[8px] font-extrabold tracking-[1px] mt-0.5" style={{ color: "#15171c" }}>U.A.E</div>
               </div>
               <div className="w-[1.5px] h-7" style={{ background: "#dcdcd6" }} />
               <div className="font-black text-[22px] tracking-wide" style={{ color: "#15171c" }}>{order.carPlate}</div>
+            </div>
+          </div>
+        )}
+
+        {/* блок локации (REQ-6): к какой точке относится заказ + адрес */}
+        {order.outlet && (
+          <div className="rounded-2xl p-4 mb-3" style={{ background: "#F4F4F7" }}>
+            <div className="text-body font-semibold">{t("Outlet", "الفرع")}</div>
+            <div className="text-tiny muted mt-0.5">
+              {order.outlet.name}{order.outlet.address ? ` · ${order.outlet.address}` : ""}
             </div>
           </div>
         )}

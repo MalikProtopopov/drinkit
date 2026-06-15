@@ -9,8 +9,10 @@ from ..core.pubsub import pubsub
 from ..models.catalog import Drink
 from ..models.orders import (ORDER_STATUSES, Coupon, Order, OrderEvent, OrderItem,
                              OrderItemAddon)
+from ..models.outlet import Outlet
 from ..models.users import User
 from .i18n import t
+from .outlet_service import load_stop_sets, refresh_limit_pause, resolve_outlet, runtime_status
 
 ACTIVE_STATUSES = ["new", "in_progress", "ready"]  # ADM-M-01 AC2
 
@@ -32,11 +34,15 @@ def add_event(db: Session, order: Order, type_: str, status: str | None = None,
 
 
 def notify(order: Order):
-    """Realtime по WebSocket (решение владельца, PUB-A-03 AC5)."""
+    """Realtime по WebSocket (решение владельца, PUB-A-03 AC5).
+    Помимо общего канала публикуем в канал точки — менеджер/screen слушают только свою (REQ-7)."""
     msg = {"orderId": order.id, "status": order.status, "paymentStatus": order.payment_status,
            "arrived": order.arrived_at is not None}
     pubsub.publish(f"order:{order.id}", msg)
-    pubsub.publish("admin:orders", {**msg, "number": order.number})
+    admin_msg = {**msg, "number": order.number, "outletId": order.outlet_id}
+    pubsub.publish("admin:orders", admin_msg)
+    if order.outlet_id is not None:
+        pubsub.publish(f"admin:orders:{order.outlet_id}", admin_msg)
 
 
 def next_order_number(db: Session) -> int:
@@ -48,8 +54,14 @@ def create_order(db: Session, user: User, payload, locale: str) -> Order:
     if not payload.items:
         raise HTTPException(422, "CART_EMPTY")
 
+    # точка заказа (REQ-6): одна активная → она; несколько → требуется выбор; затем гейт по статусу
+    outlet = resolve_outlet(db, getattr(payload, "outletId", None))
+    if runtime_status(db, outlet) != "open":
+        raise HTTPException(409, "OUTLET_CLOSED")
+    stop = load_stop_sets(db, outlet.id)
+
     order = Order(
-        number=next_order_number(db), user_id=user.id, status="new",
+        number=next_order_number(db), user_id=user.id, status="new", outlet_id=outlet.id,
         customer_name=payload.customerName or user.name, phone=user.phone,
         car_plate=(payload.carPlate or user.car_plate or "").upper(),
         emirate=payload.emirate or user.emirate,
@@ -68,6 +80,11 @@ def create_order(db: Session, user: User, payload, locale: str) -> Order:
                       .where(Drink.id == line.drinkId))
         if not d or d.status != "published":
             raise HTTPException(409, "DRINK_NOT_AVAILABLE")
+        # стоп-лист точки (REQ-3): напиток/его категория застоплены на этой точке
+        if d.id in stop["drink"] or d.category_id in stop["drink_category"]:
+            raise HTTPException(409, "DRINK_NOT_AVAILABLE")
+        if any(s.addonId in stop["addon"] for s in line.addons):
+            raise HTTPException(409, "ADDON_NOT_AVAILABLE")
         calc = drink_preview(
             d.slug,
             PreviewIn(selections=[PreviewSelection(addonId=s.addonId, portions=s.portions)
@@ -129,6 +146,11 @@ def mark_paid(db: Session, order: Order, provider_id: str | None = None):
         coupon.discount_amount = order.coupon_discount
     add_event(db, order, "paid", note=provider_id)
     db.commit()
+    # дневной лимит точки (REQ-4, paid-only): синхронизируем авто-паузу/аудит после оплаты
+    if order.outlet_id:
+        outlet = db.get(Outlet, order.outlet_id)
+        if outlet and refresh_limit_pause(db, outlet):
+            db.commit()
     notify(order)
 
 

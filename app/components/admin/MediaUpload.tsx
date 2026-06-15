@@ -22,7 +22,7 @@ export function MediaUpload({ value, onChange, accept = "image", height = 150 }:
 
   const acceptAttr = accept === "video" ? "video/*" : accept === "media" ? "image/*,video/*" : "image/*";
   const isVideo = value ? VIDEO_RE.test(value) : accept === "video";
-  const kindWord = accept === "video" ? "видео" : accept === "media" ? "изображение или видео" : "изображение";
+  const kindWord = accept === "video" ? "video" : accept === "media" ? "image or video" : "image";
   const fileName = value ? decodeURIComponent(value.split("/").pop() || value).split(/[?#]/)[0] : "";
 
   const handleFile = async (file?: File | null) => {
@@ -33,7 +33,7 @@ export function MediaUpload({ value, onChange, accept = "image", height = 150 }:
       const { url } = await catalogApi.uploadMedia(file);
       onChange(url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Не удалось загрузить");
+      setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
       setBusy(false);
     }
@@ -69,23 +69,23 @@ export function MediaUpload({ value, onChange, accept = "image", height = 150 }:
           // браузер не смог отрисовать превью (напр. .mov в Chrome) — но файл загружен
           <div style={{ padding: 16, color: "var(--a-ink-soft)" }}>
             <div style={{ fontSize: 26, lineHeight: 1 }}>{isVideo ? "🎬" : "🖼"}</div>
-            <div style={{ fontWeight: 600, marginTop: 6 }}>{isVideo ? "Видео загружено" : "Файл загружен"}</div>
+            <div style={{ fontWeight: 600, marginTop: 6 }}>{isVideo ? "Video uploaded" : "File uploaded"}</div>
             <div className="admin-mono admin-meta" style={{ marginTop: 2, maxWidth: 220, overflow: "hidden",
                           textOverflow: "ellipsis", whiteSpace: "nowrap", marginInline: "auto" }}>{fileName}</div>
-            <div className="admin-meta" style={{ marginTop: 4 }}>предпросмотр недоступен в браузере</div>
+            <div className="admin-meta" style={{ marginTop: 4 }}>preview not available in this browser</div>
           </div>
         ) : (
           <div style={{ padding: 16, color: "var(--a-ink-soft)" }}>
             <div style={{ fontSize: 24, lineHeight: 1 }}>⬆</div>
             <div style={{ fontWeight: 600, marginTop: 6 }}>
-              {busy ? "Загрузка…" : "Перетащите файл сюда или нажмите"}
+              {busy ? "Loading…" : "Drag a file here or click"}
             </div>
-            <div className="admin-meta" style={{ marginTop: 2 }}>{kindWord} · до 60 МБ</div>
+            <div className="admin-meta" style={{ marginTop: 2 }}>{kindWord} · up to 60 MB</div>
           </div>
         )}
         {busy && value && (
           <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,.7)",
-                        display: "grid", placeItems: "center", fontWeight: 600 }}>Загрузка…</div>
+                        display: "grid", placeItems: "center", fontWeight: 600 }}>Loading…</div>
         )}
       </div>
 
@@ -99,7 +99,7 @@ export function MediaUpload({ value, onChange, accept = "image", height = 150 }:
             {value}
           </span>
           <button type="button" className="admin-btn ghost sm"
-                  onClick={() => onChange(null)}>Удалить</button>
+                  onClick={() => onChange(null)}>Delete</button>
         </div>
       )}
       {error && <div className="admin-meta" style={{ color: "var(--a-danger)", marginTop: 4 }}>{error}</div>}

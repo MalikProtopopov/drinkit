@@ -6,23 +6,28 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { Pager } from "@/components/admin/AdminUI";
 import { adminApi, adminOrdersWs, ADMIN_STATUS_LABEL, type AdminOrder } from "@/lib/adminApi";
 import { useAdmin } from "@/components/admin/AdminShell";
+import { OutletFilter } from "@/components/admin/OutletFilter";
 import { usePaged } from "@/lib/usePaged";
 import { useLiveReload } from "@/lib/useLiveReload";
 
 function OrdersInner() {
   const { staff } = useAdmin();
+  const isSuper = staff?.role === "super_admin";
   const [activeFilter, setActiveFilter] = useState<"all" | "active" | "done">("active");
   const [managerFilter, setManagerFilter] = useState<"all" | "mine" | "unassigned">("all");
+  // фильтр по точке — только супер-админу; менеджер/screen жёстко скоупятся бэкендом (REQ-7)
+  const [outletFilter, setOutletFilter] = useState<number | "all">("all");
 
   const fetcher = useCallback((p: { limit: number; offset: number }) => adminApi.ordersPaged({
     ...p,
     active: activeFilter === "all" ? undefined : activeFilter === "active",
     managerId: managerFilter === "mine" ? staff?.id : undefined,
     unassigned: managerFilter === "unassigned",
-  }), [activeFilter, managerFilter, staff]);
+    outletId: isSuper && outletFilter !== "all" ? outletFilter : undefined,
+  }), [activeFilter, managerFilter, staff, isSuper, outletFilter]);
 
   const { items: rows, total, limit, offset, loading, setOffset, setLimit, reload } =
-    usePaged<AdminOrder>(fetcher, [activeFilter, managerFilter, staff?.id], 20);
+    usePaged<AdminOrder>(fetcher, [activeFilter, managerFilter, staff?.id, outletFilter], 20);
 
   // realtime-лента (ADM-M-03 AC2): новые заказы и смены статуса появляются сразу,
   // без обновления страницы; авто-reconnect + догон пропущенного при разрыве связи
@@ -37,7 +42,7 @@ function OrdersInner() {
     <>
       <div className="admin-filter-row">
         <div style={{ display: "inline-flex", gap: 4, padding: 4, background: "#FFF", borderRadius: 999 }}>
-          {([["active", "Активные"], ["done", "Завершённые"], ["all", "Все"]] as const).map(([v, l]) => (
+          {([["active", "Active"], ["done", "Completed"], ["all", "All"]] as const).map(([v, l]) => (
             <button key={v} className="admin-btn sm" onClick={() => setActiveFilter(v)}
                     style={activeFilter === v ? { background: "#4A56E2", color: "#FFF" } : { background: "transparent" }}>
               {l}
@@ -45,15 +50,16 @@ function OrdersInner() {
           ))}
         </div>
         <div style={{ display: "inline-flex", gap: 4, padding: 4, background: "#FFF", borderRadius: 999 }}>
-          {([["all", "Все менеджеры"], ["mine", "Мои"], ["unassigned", "Без менеджера"]] as const).map(([v, l]) => (
+          {([["all", "All managers"], ["mine", "Mine"], ["unassigned", "Unassigned"]] as const).map(([v, l]) => (
             <button key={v} className="admin-btn sm" onClick={() => setManagerFilter(v)}
                     style={managerFilter === v ? { background: "#4A56E2", color: "#FFF" } : { background: "transparent" }}>
               {l}
             </button>
           ))}
         </div>
+        {isSuper && <OutletFilter value={outletFilter} onChange={setOutletFilter} />}
         <span className="admin-meta" style={{ marginLeft: "auto", alignSelf: "center" }}>
-          Всего <strong>{total}</strong>
+          Total <strong>{total}</strong>
         </span>
       </div>
 
@@ -61,8 +67,8 @@ function OrdersInner() {
         <div className="admin-tablewrap"><table className="admin-table">
           <thead>
             <tr>
-              <th>№</th><th>Клиент</th><th>Машина</th><th>Состав</th>
-              <th>Сумма</th><th>Статус</th><th>Оценка</th><th></th>
+              <th>#</th><th>Customer</th><th>Car</th><th>Items</th>
+              <th>Amount</th><th>Status</th><th>Rating</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -77,6 +83,9 @@ function OrdersInner() {
                 <td>
                   <div style={{ fontWeight: 600 }}>{o.customerName ?? "—"}</div>
                   <div className="admin-mono admin-meta">{o.phone}</div>
+                  {isSuper && o.outlet?.name && (
+                    <div className="admin-meta">📍 {o.outlet.name}</div>
+                  )}
                 </td>
                 <td><span className="admin-mono" style={{ fontWeight: 600 }}>{o.emirate} {o.carPlate}</span></td>
                 <td style={{ fontSize: 12.5 }}>
@@ -90,7 +99,7 @@ function OrdersInner() {
                   </span>
                   {o.arrived && o.status !== "completed" && (
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#B45309", marginTop: 4 }}>
-                      🚗 клиент на месте
+                      🚗 customer arrived
                     </div>
                   )}
                 </td>
@@ -99,17 +108,17 @@ function OrdersInner() {
                   {o.status === "new" ? (
                     <button className="admin-btn primary sm"
                             onClick={() => adminApi.take(o.id).then(reload)}>
-                      Взять в работу
+                      Take
                     </button>
                   ) : (
-                    <Link href={`/admin/orders/${o.id}`} className="admin-btn sm">Открыть</Link>
+                    <Link href={`/admin/orders/${o.id}`} className="admin-btn sm">Open</Link>
                   )}
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "#5A6172" }}>
-                {loading ? "Загрузка…" : "Заказов нет"}
+                {loading ? "Loading…" : "No orders"}
               </td></tr>
             )}
           </tbody>
@@ -123,7 +132,7 @@ function OrdersInner() {
 
 export default function OrdersListPage() {
   return (
-    <AdminShell title="Заказы" crumbs={[{ label: "Заказы" }]}>
+    <AdminShell title="Orders" crumbs={[{ label: "Orders" }]}>
       <OrdersInner />
     </AdminShell>
   );

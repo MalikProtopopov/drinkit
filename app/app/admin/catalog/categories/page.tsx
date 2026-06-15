@@ -11,7 +11,7 @@ function Inner() {
   const toast = useToast();
   const [rows, setRows] = useState<DrinkCat[]>([]);
   const [open, setOpen] = useState(false);
-  const [nameRu, setNameRu] = useState("");
+  const [nameEn, setNameEn] = useState("");
   const [nameAr, setNameAr] = useState("");
   const [slug, setSlug] = useState("");
   const [photo, setPhoto] = useState("");
@@ -22,12 +22,12 @@ function Inner() {
   const create = async () => {
     try {
       await catalogApi.createDrinkCategory({
-        name: { ru: nameRu, ar: nameAr || undefined }, slug: slug || undefined, photoUrl: photo || null,
+        name: { en: nameEn, ar: nameAr || undefined }, slug: slug || undefined, photoUrl: photo || null,
         isActive: true, sort: rows.length + 1,
       });
-      setOpen(false); setNameRu(""); setNameAr(""); setSlug(""); setPhoto("");
-      load(); toast("Категория создана");
-    } catch (e) { toast(e instanceof Error ? e.message : "Ошибка", "warn"); }
+      setOpen(false); setNameEn(""); setNameAr(""); setSlug(""); setPhoto("");
+      load(); toast("Category created");
+    } catch (e) { toast(e instanceof Error ? e.message : "Error", "warn"); }
   };
 
   return (
@@ -35,8 +35,8 @@ function Inner() {
       <div className="admin-panel">
         <div className="admin-tablewrap"><table className="admin-table">
           <thead>
-            <tr><th>Сорт.</th><th>Название (RU)</th><th>Название (AR)</th><th>Slug</th><th>Медиа</th>
-                <th>Активна / сохранить</th></tr>
+            <tr><th>Sort</th><th>Name (EN)</th><th>Name (AR)</th><th>Slug</th><th>Media</th>
+                <th>Active / save</th></tr>
           </thead>
           <tbody>
             {rows.map((c) => (
@@ -46,28 +46,28 @@ function Inner() {
         </table></div>
       </div>
       <div style={{ marginTop: 12 }}>
-        <button className="admin-btn primary" onClick={() => setOpen(true)}>+ Новая категория</button>
+        <button className="admin-btn primary" onClick={() => setOpen(true)}>+ New category</button>
       </div>
 
-      <Modal open={open} title="Новая категория напитков" onClose={() => setOpen(false)}
-             onSubmit={create} submitDisabled={!nameRu.trim()} submitLabel="Создать">
+      <Modal open={open} title="New drink category" onClose={() => setOpen(false)}
+             onSubmit={create} submitDisabled={!nameEn.trim()} submitLabel="Create">
         <div className="admin-grid-2">
           <div className="admin-field">
-            <label className="admin-label">Название (RU)</label>
-            <input className="admin-input" autoFocus value={nameRu} onChange={(e) => setNameRu(e.target.value)} />
+            <label className="admin-label">Name (EN)</label>
+            <input className="admin-input" autoFocus value={nameEn} onChange={(e) => setNameEn(e.target.value)} />
           </div>
           <div className="admin-field">
-            <label className="admin-label">Название (AR)</label>
+            <label className="admin-label">Name (AR)</label>
             <input className="admin-input" dir="rtl" value={nameAr} onChange={(e) => setNameAr(e.target.value)} />
           </div>
         </div>
         <div className="admin-field">
-          <label className="admin-label">Slug (для фильтра в URL)</label>
-          <input className="admin-input mono" value={slug} placeholder="например: fresh (пусто = из названия)"
+          <label className="admin-label">Slug (for the URL filter)</label>
+          <input className="admin-input mono" value={slug} placeholder="e.g. fresh (empty = from name)"
                  onChange={(e) => setSlug(e.target.value)} />
         </div>
         <div className="admin-field">
-          <label className="admin-label">Фото категории</label>
+          <label className="admin-label">Category photo</label>
           <MediaUpload accept="image" value={photo} onChange={(url) => setPhoto(url ?? "")} />
         </div>
       </Modal>
@@ -84,13 +84,13 @@ function CategoryRow({ cat, onSaved }: { cat: DrinkCat; onSaved: () => void }) {
     <tr className={!c.isActive ? "muted" : ""}>
       <td className="admin-num">{c.sort}</td>
       <td>
-        <input className="admin-input" value={c.name.ru ?? ""}
-               onChange={(e) => setC({ ...c, name: { ...c.name, ru: e.target.value } })} />
+        <input className="admin-input" value={c.name.en ?? ""}
+               onChange={(e) => setC({ ...c, name: { ...c.name, en: e.target.value } })} />
       </td>
       <td>
         {/* H05 (ADM-S-11 AC4): индикатор непереведённого поля */}
         <input className="admin-input" dir="rtl" value={c.name.ar ?? ""}
-               placeholder="нет перевода"
+               placeholder="no translation"
                style={!c.name.ar ? { borderColor: "#B45309", background: "#FFF7E5" } : {}}
                onChange={(e) => setC({ ...c, name: { ...c.name, ar: e.target.value } })} />
       </td>
@@ -99,22 +99,22 @@ function CategoryRow({ cat, onSaved }: { cat: DrinkCat; onSaved: () => void }) {
                onChange={(e) => setC({ ...c, slug: e.target.value })} />
       </td>
       <td style={{ minWidth: 200 }}>
-        <div className="admin-label" style={{ marginBottom: 4 }}>Фото</div>
+        <div className="admin-label" style={{ marginBottom: 4 }}>Photo</div>
         <MediaUpload accept="image" height={90} value={c.photoUrl}
                      onChange={(url) => setC({ ...c, photoUrl: url })} />
-        <div className="admin-label" style={{ margin: "8px 0 4px" }}>Видео</div>
+        <div className="admin-label" style={{ margin: "8px 0 4px" }}>Video</div>
         <MediaUpload accept="video" value={c.videoUrl}
                      onChange={(url) => setC({ ...c, videoUrl: url })} />
       </td>
       <td>
         <Toggle defaultOn={c.isActive}
                 onChange={(v) => catalogApi.updateDrinkCategory(c.id, { ...c, isActive: v })
-                  .then(() => toast(v ? "Видна в каталоге" : "Скрыта из каталога", "info"))} />
+                  .then(() => toast(v ? "Visible in catalog" : "Hidden from catalog", "info"))} />
         {dirty && (
           <button className="admin-btn primary sm" style={{ marginTop: 6 }}
                   onClick={() => catalogApi.updateDrinkCategory(c.id, c)
-                    .then(() => { onSaved(); toast("Категория сохранена"); })}>
-            Сохранить
+                    .then(() => { onSaved(); toast("Category saved"); })}>
+            Save
           </button>
         )}
       </td>
@@ -124,7 +124,7 @@ function CategoryRow({ cat, onSaved }: { cat: DrinkCat; onSaved: () => void }) {
 
 export default function DrinkCategoriesPage() {
   return (
-    <AdminShell title="Категории напитков" crumbs={[{ label: "Каталог" }, { label: "Категории" }]}>
+    <AdminShell title="Drink categories" crumbs={[{ label: "Catalog" }, { label: "Categories" }]}>
       <Inner />
     </AdminShell>
   );
