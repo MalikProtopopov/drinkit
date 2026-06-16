@@ -5,9 +5,12 @@ import { useEffect, useState } from "react";
 export function OfflineBanner() {
   const [offline, setOffline] = useState(false);
   useEffect(() => {
-    const on = () => setOffline(false);
-    const off = () => setOffline(true);
-    setOffline(typeof navigator !== "undefined" && !navigator.onLine);
+    // WEB-11: реально восстанавливаемся — при возврате сети перезагружаем страницу за свежими данными
+    // (раньше баннер только скрывался, хотя обещал «reload»). Если ушли в офлайн впервые — флагуем.
+    let wasOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    const on = () => { setOffline(false); if (wasOffline) window.location.reload(); };
+    const off = () => { wasOffline = true; setOffline(true); };
+    setOffline(wasOffline);
     window.addEventListener("online", on);
     window.addEventListener("offline", off);
     return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };

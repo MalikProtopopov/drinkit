@@ -1,51 +1,35 @@
-"use client";
-import { use, useEffect, useState } from "react";
+import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { API_URL } from "@/lib/api";
 import { TopBrand } from "@/components/TopBrand";
 import { Icon } from "@/components/Icon";
 
-/** Деталка напитка — опциональный модуль (план Р3.2). Просмотр → выбор точки → заказ. */
+/** Деталка напитка — серверный компонент: для несуществующего slug отдаём настоящий
+ *  HTTP 404 + брендовую not-found (с noindex), а не soft-200 (C4/SEO). */
 type Drink = { id: number; name: string; description: string | null; basePrice: number; kcal: number | null };
 
-export default function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params);
-  const [drink, setDrink] = useState<Drink | null>(null);
-  const [err, setErr] = useState(false);
-
-  useEffect(() => {
-    api.drink(slug).then(setDrink).catch(() => setErr(true));
-  }, [slug]);
-
-  if (err) {
-    return (
-      <main style={wrap}>
-        <TopBrand />
-        <div style={center}>
-          <div className="card" style={{ textAlign: "center", display: "grid", gap: 16, placeItems: "center", paddingBlock: 32, width: "100%" }}>
-            <div className="tile" style={{ width: 96, height: 96 }}><Icon name="info" size={40} /></div>
-            <h1 className="display" style={{ fontSize: 28 }}>Drink not found</h1>
-            <p style={{ color: "var(--color-muted)" }}>This drink isn&apos;t on the menu anymore.</p>
-            <Link href="/menu"><button className="btn-primary">Back to menu</button></Link>
-          </div>
-        </div>
-      </main>
-    );
+async function getDrink(slug: string): Promise<Drink | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/drinks/${encodeURIComponent(slug)}?locale=en`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return (await res.json()) as Drink;
+  } catch {
+    return null;
   }
+}
 
-  if (!drink) {
-    return (
-      <main style={wrap}>
-        <TopBrand />
-        <div style={{ ...center, gap: 16 }}>
-          <div className="skeleton" style={{ width: 220, height: 220, borderRadius: "var(--radius-card)" }} />
-          <div className="skeleton" style={{ height: 34, width: "60%" }} />
-          <div className="skeleton" style={{ height: 60, width: "90%" }} />
-          <div className="skeleton" style={{ height: 30, width: "40%" }} />
-        </div>
-      </main>
-    );
-  }
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const drink = await getDrink(slug);
+  if (!drink) return { title: "Drink not found — GRABZI", robots: { index: false, follow: true } };
+  return { title: `${drink.name} — GRABZI`, description: drink.description ?? undefined };
+}
+
+export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const drink = await getDrink(slug);
+  if (!drink) notFound(); // C4: реальный 404 (рендерит not-found.tsx с meta noindex), не soft-200
 
   return (
     <main style={wrap}>

@@ -32,6 +32,18 @@ type Data = { location: Location; drinks: Drink[]; outlets: Location[] };
 type State = { k: "loading" } | { k: "error"; msg: string } | { k: "ok"; data: Data };
 
 const ERR_COPY: Record<string, string> = {
+  // реальные коды бэкенда (C1/X2: понятное сообщение про недоступный напиток)
+  DRINK_NOT_AVAILABLE: "A drink in your cart isn't available at this spot. We've removed it — review and pay again.",
+  ADDON_NOT_AVAILABLE: "An add-on isn't available at this spot.",
+  OUTLET_CLOSED: "This spot just closed for orders.",
+  OUTLET_REQUIRED: "Choose a spot first.",
+  OUTLET_INVALID: "This spot is unavailable right now.",
+  CAR_PLATE_REQUIRED: "Add your car plate so we can find you.",
+  COUPON_ALREADY_RESERVED: "Your coupon is held on another unpaid order.",
+  COUPON_INVALID: "This coupon can't be used.",
+  ALREADY_PAID: "This order is already paid.",
+  ORDER_NUMBER_CONFLICT: "We're busy right now — tap Pay again.",
+  // легаси/совместимость
   LOCATION_CLOSED: "This spot is closed now.",
   LOCATION_PAUSED: "This spot paused new orders.",
   LOCATION_LIMIT_REACHED: "Sold out for today at this spot.",
@@ -124,7 +136,7 @@ function SelectedLocationCard({ loc, outlets, onSwitch }: {
       <div className="loc__hours">
         <button className="loc__hourstoggle" onClick={() => setShowHours((v) => !v)}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
-            <Icon name="clock" size={16} stroke={2} /> Today {todayHours(wh)}
+            <Icon name="clock" size={16} stroke={2} /> Today {todayHours(wh, loc.timezone ?? undefined)}
           </span>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
             {showHours ? "Hide" : "All hours"}
@@ -152,6 +164,7 @@ export default function OrderPage() {
   const items = useOrderDraft((s) => s.items);
   const setQty = useOrderDraft((s) => s.setQty);
   const clear = useOrderDraft((s) => s.clear);
+  const pruneItems = useOrderDraft((s) => s.pruneItems);
   const setLocation = useOrderDraft((s) => s.setLocation);
   const router = useRouter();
 
@@ -172,6 +185,9 @@ export default function OrderPage() {
       const [outlets, drinks] = await Promise.all([api.locations(), api.drinks(id)]);
       const location = outlets.find((o) => o.id === id);
       if (!location) { setState({ k: "error", msg: "This spot is unavailable right now." }); return; }
+      // C1/X2: после смены точки в корзине могли остаться напитки, которых нет в её меню
+      // (стоп-лист точки) — убираем их, чтобы оплата не падала с непонятной ошибкой.
+      pruneItems(drinks.map((d) => d.id));
       setState({ k: "ok", data: { location, drinks, outlets } });
     } catch (e) {
       setState({ k: "error", msg: ERR_COPY[(e as ApiError).code] ?? "Something went wrong." });
@@ -199,6 +215,9 @@ export default function OrderPage() {
   async function pay() {
     if (state.k !== "ok") return;
     const { location } = state.data;
+    // WEB-2: точка должна принимать заказы (paused/closed/sold-out/!acceptingOrders → стоп)
+    const info = statusInfo(location);
+    if (!info.orderable) { setOverlay(info.msg); return; }
     // гард по остатку — остаётся модалкой (это не ошибка поля)
     if (location.remaining !== null && totalDrinks > location.remaining) {
       setOverlay(`Only ${location.remaining} left here. Reduce your order.`); return;
@@ -207,7 +226,8 @@ export default function OrderPage() {
     const errs: { name?: string; phone?: string; car?: string } = {};
     if (!name.trim()) errs.name = "Enter your name.";
     if (!isPhoneComplete(phone)) errs.phone = "Enter a valid UAE phone number (9 digits).";
-    if (car.trim().length < 2) errs.car = "Add your car plate so we find you.";
+    // PLATE-2: нужен реальный номер — минимум 2 цифры (раньше проходила «12» и пустой код)
+    if ((car.match(/\d/g) ?? []).length < 2) errs.car = "Add a valid car plate (e.g. A 12345).";
     setFieldErr(errs);
     if (errs.name || errs.phone || errs.car) return;
     setPaying(true);
@@ -319,8 +339,12 @@ export default function OrderPage() {
                   style={{ marginBlockStart: 6 }} />
                 {fieldErr.phone && <p style={fieldErrText}>{fieldErr.phone}</p>}
               </div>
-              <button className="btn-block" disabled={totalDrinks === 0 || paying} onClick={pay}>
-                {paying ? "Creating order…" : totalDrinks === 0 ? "Pick a drink"
+              <button className="btn-block"
+                disabled={totalDrinks === 0 || paying || !statusInfo(state.data.location).orderable}
+                onClick={pay}>
+                {paying ? "Creating order…"
+                  : !statusInfo(state.data.location).orderable ? statusInfo(state.data.location).msg
+                  : totalDrinks === 0 ? "Pick a drink"
                   : `Proceed to Payment · AED ${total}`}
               </button>
             </div>

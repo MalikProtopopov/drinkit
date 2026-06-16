@@ -21,7 +21,7 @@ function LocationCard({ loc, idx, onChoose }: { loc: Location; idx: number; onCh
   const [fillW, setFillW] = useState(0);
 
   const wh = (loc.workingHours ?? {}) as WeekHours;
-  const today = todayHours(wh);
+  const today = todayHours(wh, loc.timezone ?? undefined);
   const limited = loc.dailyDrinkLimit !== null && loc.remaining !== null;
   const pct = limited
     ? Math.max(0, Math.min(100, Math.round((loc.remaining! / loc.dailyDrinkLimit!) * 100)))

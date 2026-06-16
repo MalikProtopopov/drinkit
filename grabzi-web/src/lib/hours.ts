@@ -15,15 +15,23 @@ export function fmtIvs(ivs: Interval[] | undefined): string {
   return ivs.map((i) => `${i.open}–${i.close}`).join(", ");
 }
 
-/** Индекс сегодняшнего дня в нумерации бэкенда (Mon=0). JS Sun=0 → (+6)%7. */
-export function todayIdx(): number {
+/** TZ по умолчанию — Дубай (GRABZI работает в ОАЭ); часы точки задаются в её TZ, не в браузерной. */
+export const DEFAULT_TZ = "Asia/Dubai";
+const _WD: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+
+/** Индекс сегодняшнего дня (Mon=0) в часовом поясе точки (C2: не в TZ браузера). */
+export function todayIdx(tz: string = DEFAULT_TZ): number {
+  try {
+    const wd = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(new Date());
+    if (wd in _WD) return _WD[wd];
+  } catch { /* кривая TZ → фолбэк ниже */ }
   return (new Date().getDay() + 6) % 7;
 }
 
 /** Человекочитаемые часы на сегодня: круглосуточная точка → «Open 24 hours». */
-export function todayHours(wh: WeekHours | null | undefined): string {
+export function todayHours(wh: WeekHours | null | undefined, tz: string = DEFAULT_TZ): string {
   if (isAlwaysOpen(wh)) return "Open 24 hours";
-  return fmtIvs(wh![String(todayIdx())]);
+  return fmtIvs(wh![String(todayIdx(tz))]);
 }
 
 /** Неделя, сгруппированная по одинаковым часам: «Mon–Sat 05:30–22:00». 24/7 → одна строка. */

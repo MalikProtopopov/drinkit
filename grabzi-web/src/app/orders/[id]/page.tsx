@@ -30,35 +30,55 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
   const orderId = Number(id);
   const [order, setOrder] = useState<Order | null>(null);
   const [err, setErr] = useState(false);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   async function refresh() {
     try { setOrder(await api.order(orderId)); } catch { setErr(true); }
   }
   useEffect(() => {
     refresh();
-    // realtime + polling-fallback (фронт-спека §1.6): WS со схемой ws://, ping игнорируем
-    const wsUrl = `${API_URL.replace(/^http/, "ws")}/ws/orders/${orderId}?token=${
-      typeof window !== "undefined" ? window.localStorage.getItem("grabzi_token") ?? "" : ""
-    }`;
+    // realtime + polling-fallback (фронт-спека §1.6): WS со схемой ws://, ping игнорируем.
+    // WS-RECONN: переподключаемся при обрыве; JSON.parse под guard (битый фрейм не роняет хендлер).
+    const tokenStr = typeof window !== "undefined" ? window.localStorage.getItem("grabzi_token") ?? "" : "";
+    const wsUrl = `${API_URL.replace(/^http/, "ws")}/ws/orders/${orderId}?token=${tokenStr}`;
     let ws: WebSocket | null = null;
-    try {
-      ws = new WebSocket(wsUrl);
-      ws.onmessage = (e) => {
-        const m = JSON.parse(e.data);
-        if (m.type === "ping") return;
-        refresh();
-      };
-    } catch { /* fallback to polling */ }
+    let reconnect: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
+    const connect = () => {
+      try {
+        ws = new WebSocket(wsUrl);
+        ws.onmessage = (e) => {
+          let m: { type?: string } | null = null;
+          try { m = JSON.parse(e.data); } catch { return; }
+          if (m?.type === "ping") return;
+          refresh();
+        };
+        ws.onclose = () => { if (!closed) reconnect = setTimeout(connect, 3000); };
+      } catch { if (!closed) reconnect = setTimeout(connect, 3000); }
+    };
+    connect();
     const poll = setInterval(refresh, 20000);
-    return () => { ws?.close(); clearInterval(poll); };
+    return () => { closed = true; if (reconnect) clearTimeout(reconnect); ws?.close(); clearInterval(poll); };
   }, [orderId]);
 
   async function imHere() {
-    await fetch(`${API_URL}/api/orders/${orderId}/arrived`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${window.localStorage.getItem("grabzi_token") ?? ""}` },
-    });
-    refresh();
+    // C5: обрабатываем 401/ошибки — иначе при протухшем токене кнопка молча ничего не делает
+    setActionMsg(null);
+    try {
+      const res = await fetch(`${API_URL}/api/orders/${orderId}/arrived`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${window.localStorage.getItem("grabzi_token") ?? ""}` },
+      });
+      if (!res.ok) {
+        setActionMsg(res.status === 401
+          ? "Your session expired — reopen this link from your phone."
+          : "Couldn't let them know. Please try again.");
+        return;
+      }
+      refresh();
+    } catch {
+      setActionMsg("Can't reach GRABZI. Check your connection.");
+    }
   }
 
   if (err) return <Center><p>Order not found.</p><Link href="/orders"><button className="btn-primary">My orders</button></Link></Center>;
@@ -151,6 +171,9 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
           <p style={{ marginBlockStart: 16, color: "var(--color-teal)", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 6 }}>
             <Icon name="check" size={18} stroke={2.2} /> We know you&apos;re here
           </p>
+        )}
+        {actionMsg && (
+          <p style={{ marginBlockStart: 12, color: "var(--color-danger)", fontWeight: 600, fontSize: 13.5 }}>{actionMsg}</p>
         )}
       </div>
 

@@ -65,6 +65,7 @@ export const LocationSchema = z.object({
   status: StockState,
   nextOpenAt: z.string().nullable(),
   acceptingOrders: z.boolean(),
+  timezone: z.string().nullable().optional(),  // TZ точки (C2): часы/«Today» считаем в ней, не в браузерной
   color: z.string().nullable().optional(),
   imageUrl: z.string().nullable(),
 });
@@ -116,10 +117,13 @@ export const api = {
   // backend = JOOZ: точки на /api/outlets (поле workingHours/remaining/soldToday отдаёт сервер)
   locations: () => apiFetch("/api/outlets?locale=en", z.array(LocationSchema), { auth: false, cache: "no-store" }),
   location: (id: number) => apiFetch(`/api/outlets/${id}?locale=en`, LocationSchema, { auth: false }),
-  categories: () => apiFetch("/api/categories?locale=en", z.array(CategorySchema), { auth: false }),
-  // JOOZ /api/drinks — общий каталог опубликованных напитков (location_id игнорируется)
-  drinks: (_locationId?: number) =>
-    apiFetch("/api/drinks?locale=en", z.array(DrinkSchema), { auth: false }),
+  categories: (locationId?: number) =>
+    apiFetch(`/api/categories?locale=en${locationId ? `&outletId=${locationId}` : ""}`,
+      z.array(CategorySchema), { auth: false }),
+  // витрина опубликованных напитков; при мультиточке передаём outletId → стоп-лист точки (CAT-PUB/C1)
+  drinks: (locationId?: number) =>
+    apiFetch(`/api/drinks?locale=en${locationId ? `&outletId=${locationId}` : ""}`,
+      z.array(DrinkSchema), { auth: false }),
 
   /** Авто-логин по телефону без OTP (план §4.7): code пустой. Сохраняет токен. */
   async login(phone: string, name?: string) {

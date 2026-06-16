@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { API_URL, api } from "@/lib/api";
 import { TopBrand } from "@/components/TopBrand";
 import { Icon } from "@/components/Icon";
+import { maskPhoneUAE, normalizePhoneUAE, isPhoneComplete } from "@/lib/masks";
 import { z } from "zod";
 
 // список заказов клиента — бэкенд (full=false) отдаёт точку, позиции, время, статус оплаты
@@ -56,10 +57,12 @@ export default function MyOrdersPage() {
   useEffect(() => { load(); }, []);
 
   async function signIn() {
-    if (!/^\+?\d{7,15}$/.test(phone)) return;
+    // PHONE-2: тот же канонический формат, что и при оформлении (+9715XXXXXXXX),
+    // иначе вход по другому написанию телефона не находит заказы клиента.
+    if (!isPhoneComplete(phone)) return;
     setBusy(true);
     try {
-      await api.login(phone.startsWith("+") ? phone : `+${phone}`); // авто-логин без OTP
+      await api.login(normalizePhoneUAE(phone)); // авто-логин без OTP
       await load();
     } finally { setBusy(false); }
   }
@@ -78,8 +81,8 @@ export default function MyOrdersPage() {
       {rows !== null && !authed && (
         <div className="card" style={{ textAlign: "center", display: "grid", gap: 12 }}>
           <p>Create your first order or sign in.</p>
-          <input placeholder="Phone (+9715X XXX XXXX)" value={phone}
-            onChange={(e) => setPhone(e.target.value)} inputMode="tel"
+          <input placeholder="+971 50 123 4567" value={phone}
+            onChange={(e) => setPhone(maskPhoneUAE(e.target.value))} inputMode="tel"
             style={{ padding: 12, borderRadius: 12, border: "1px solid var(--color-border)" }} />
           <button className="btn-primary" onClick={signIn} disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
           <Link href="/locations" style={{ color: "var(--color-muted)" }}>Browse menu</Link>

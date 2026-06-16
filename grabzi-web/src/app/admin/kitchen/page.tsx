@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { API_URL, admin, type AdminOrder } from "@/lib/api";
+import { API_URL, ApiError, admin, type AdminOrder } from "@/lib/api";
 
 /** Экран готовки заказа для менеджера (фронт-спека §6): канбан, панель остатка, live WS. */
 const COLS: { status: string; title: string; next?: "ready" | "completed"; cta?: string; color: string }[] = [
@@ -23,9 +23,16 @@ export default function KitchenPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loc, setLoc] = useState<Loc>(null);
   const [authed, setAuthed] = useState(true);
+  const [actErr, setActErr] = useState<string | null>(null);
   const [, tick] = useState(0); // перерисовка таймеров
   const router = useRouter();
   const seen = useRef<Set<number>>(new Set());
+
+  function logout() {
+    // LOGOUT-2: даём кухне выйти из сессии (раньше кнопки не было — токен оставался навсегда)
+    if (typeof window !== "undefined") window.localStorage.removeItem("grabzi_staff_token");
+    router.push("/admin/login");
+  }
 
   const load = useCallback(async () => {
     try {
@@ -47,22 +54,42 @@ export default function KitchenPage() {
       router.push("/admin/login"); return;
     }
     load();
-    // realtime: WS админ-канал (ws://, ping игнорируем) + поллинг-фолбэк
+    // realtime: WS админ-канал (ws://, ping игнорируем) + поллинг-фолбэк.
+    // Переподключение при обрыве + guard на JSON.parse (битый фрейм не роняет хендлер).
     const token = window.localStorage.getItem("grabzi_staff_token") ?? "";
     let ws: WebSocket | null = null;
-    try {
-      ws = new WebSocket(`${API_URL.replace(/^http/, "ws")}/ws/admin/orders?token=${token}`);
-      ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.type !== "ping") load(); };
-    } catch { /* polling */ }
+    let reconnect: ReturnType<typeof setTimeout> | null = null;
+    let closed = false;
+    const connect = () => {
+      try {
+        ws = new WebSocket(`${API_URL.replace(/^http/, "ws")}/ws/admin/orders?token=${token}`);
+        ws.onmessage = (e) => {
+          let m: { type?: string } | null = null;
+          try { m = JSON.parse(e.data); } catch { return; }
+          if (m?.type !== "ping") load();
+        };
+        ws.onclose = () => { if (!closed) reconnect = setTimeout(connect, 3000); };
+      } catch { if (!closed) reconnect = setTimeout(connect, 3000); }
+    };
+    connect();
     const poll = setInterval(load, 10000);
     const clock = setInterval(() => tick((n) => n + 1), 1000);
-    return () => { ws?.close(); clearInterval(poll); clearInterval(clock); };
+    return () => { closed = true; if (reconnect) clearTimeout(reconnect); ws?.close(); clearInterval(poll); clearInterval(clock); };
   }, [load, router]);
 
   async function act(o: AdminOrder, col: typeof COLS[number]) {
-    if (col.status === "new") await admin.take(o.id);
-    else if (col.next) await admin.setStatus(o.id, col.next);
-    load();
+    // K3: раньше ошибка мутации (401/409) падала молча — теперь показываем причину / разлогиниваем
+    setActErr(null);
+    try {
+      if (col.status === "new") await admin.take(o.id);
+      else if (col.next) await admin.setStatus(o.id, col.next);
+      load();
+    } catch (e) {
+      const st = e instanceof ApiError ? e.status : 0;
+      if (st === 401) { setAuthed(false); return; }
+      setActErr(st === 409 ? `#${o.number}: already moved by someone else — refreshing.` : `#${o.number}: couldn't update. Try again.`);
+      load(); // подтягиваем актуальное состояние доски
+    }
   }
 
   if (!authed) {
@@ -90,23 +117,37 @@ export default function KitchenPage() {
             {loc ? loc.name : "All points"} {loc && loc.status !== "open" && <span className="badge badge--paused">{loc.status}</span>}
           </div>
         </div>
-        {loc && (
-          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 280 }}>
-            <span style={{ fontWeight: 700 }}>
-              {loc.limit === null ? `Sold ${loc.soldToday} · No limit`
-                : `${loc.soldToday}/${loc.limit} · ${loc.remaining} left`}
-            </span>
-            {loc.limit !== null && (
-              <div style={{ flex: 1, height: 8, background: "#eee", borderRadius: 9999 }}>
-                <div style={{
-                  width: `${pct}%`, height: "100%", borderRadius: 9999,
-                  background: pct >= 100 ? "var(--color-danger)" : pct >= 80 ? "var(--color-lowstock)" : "var(--color-teal)",
-                }} />
-              </div>
-            )}
-          </div>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {loc && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 280 }}>
+              <span style={{ fontWeight: 700 }}>
+                {loc.limit === null ? `Sold ${loc.soldToday} · No limit`
+                  : `${loc.soldToday}/${loc.limit} · ${loc.remaining} left`}
+              </span>
+              {loc.limit !== null && (
+                <div style={{ flex: 1, height: 8, background: "#eee", borderRadius: 9999 }}>
+                  <div style={{
+                    width: `${pct}%`, height: "100%", borderRadius: 9999,
+                    background: pct >= 100 ? "var(--color-danger)" : pct >= 80 ? "var(--color-lowstock)" : "var(--color-teal)",
+                  }} />
+                </div>
+              )}
+            </div>
+          )}
+          <button onClick={logout} title="Sign out"
+            style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: "8px 12px",
+              background: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", whiteSpace: "nowrap" }}>
+            Sign out
+          </button>
+        </div>
       </header>
+
+      {actErr && (
+        <div style={{ background: "var(--color-danger)", color: "#fff", borderRadius: 10,
+          padding: "8px 14px", marginBlockEnd: 12, fontWeight: 600, fontSize: 14 }}>
+          {actErr}
+        </div>
+      )}
 
       {/* канбан */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, alignItems: "start" }}>
