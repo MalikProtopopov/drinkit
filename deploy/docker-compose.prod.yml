@@ -1,0 +1,51 @@
+# GRABZI прод-стек (сеть client_network_prod, рядом с другими проектами на сервере).
+#
+# Архитектура:
+#   grabzi.mediann.dev        -> grabzi_web   (grabzi-web — актуальный публичный сайт заказа)
+#   admin.grabzi.mediann.dev  -> grabzi_admin (app/ — полная админка: точки/каталог/клиенты/стафф/платежи)
+#   api.grabzi.mediann.dev    -> grabzi_api   (FastAPI + SQLite, общий бэкенд для обоих фронтов)
+#
+# Фронты — Next standalone, собираются ЛОКАЛЬНО (см. deploy/build.sh): на сервере 2GB RAM
+# next build не влезает. Бандлы кладутся в deploy/web и deploy/front (не в git).
+# Секрет — в deploy/.env (не в git): JWT_SECRET=...
+services:
+  grabzi_web:
+    build: { context: ., dockerfile: Dockerfile.web }
+    image: grabzi_web:latest
+    container_name: grabzi_web_prod
+    restart: unless-stopped
+    expose: ["3000"]
+    networks: [client_network]
+    logging: { driver: json-file, options: { max-size: "20m", max-file: "3" } }
+
+  grabzi_admin:
+    build: { context: ., dockerfile: Dockerfile.front }
+    image: grabzi_admin:latest
+    container_name: grabzi_admin_prod
+    restart: unless-stopped
+    expose: ["3000"]
+    networks: [client_network]
+    logging: { driver: json-file, options: { max-size: "20m", max-file: "3" } }
+
+  grabzi_api:
+    build: { context: ../backend, dockerfile: Dockerfile }
+    image: grabzi_api:latest
+    container_name: grabzi_api_prod
+    restart: unless-stopped
+    expose: ["8000"]
+    environment:
+      DATABASE_URL: sqlite:////data/grabzi.db
+      JWT_SECRET: "${JWT_SECRET:?set JWT_SECRET in deploy/.env}"
+      OTP_DEV_MODE: "true"
+    volumes:
+      - grabzi_api_data:/data
+    networks: [client_network]
+    logging: { driver: json-file, options: { max-size: "20m", max-file: "3" } }
+
+volumes:
+  grabzi_api_data:
+
+networks:
+  client_network:
+    name: client_network_prod
+    external: true

@@ -1,0 +1,8 @@
+# app/ (полная админка GRABZI) — тонкий рантайм поверх локально собранного
+# Next standalone-бандла (deploy/front). next build на сервере не запускаем (мало RAM).
+FROM node:22-alpine
+WORKDIR /srv
+COPY front/ ./
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+EXPOSE 3000
+CMD ["node", "server.js"]

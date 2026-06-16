@@ -33,3 +33,8 @@ backend/uploads/
 
 # legacy reference web project (removed from tree)
 docs/grabzi-web/
+
+# prod deploy: built standalone bundles (собираются локально, доставляются на сервер) + секрет
+deploy/web/
+deploy/front/
+deploy/.env
