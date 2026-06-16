@@ -276,7 +276,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <div className="absolute inset-0 animate-fadeIn" style={{ background: "rgba(0,0,0,0.45)" }}
                onClick={() => setShowRating(false)} />
-          <div className="relative w-full max-w-[390px] bg-white rounded-t-[28px] px-6 pt-3 pb-8 animate-sheetUp">
+          <div className="relative w-full max-w-[var(--app-col)] bg-white rounded-t-[28px] px-6 pt-3 pb-8 animate-sheetUp">
             <div className="w-10 h-1.5 rounded-full mx-auto mb-5" style={{ background: "#E2E3E7" }} />
             <div className="text-center mb-6">
               <div className="text-h2">{t("How was your order?", "كيف كان طلبك؟")}</div>

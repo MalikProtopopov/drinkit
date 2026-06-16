@@ -30,7 +30,7 @@ export function BottomSheet({
         onClick={onClose}
       />
       <div
-        className="relative z-10 w-full max-w-[390px] bg-white rounded-t-3xl shadow-2xl animate-sheetUp"
+        className="relative z-10 w-full max-w-[var(--app-col)] bg-white rounded-t-3xl shadow-2xl animate-sheetUp"
         style={{ maxHeight: height ?? "85dvh", overflowY: "auto" }}
       >
         <div className="sticky top-0 bg-white pt-2 pb-1 z-10">

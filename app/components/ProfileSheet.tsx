@@ -82,7 +82,7 @@ export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => 
       <div className="absolute inset-0 animate-fadeIn" style={{ background: "rgba(15,10,4,.45)" }} onClick={onClose} />
 
       {/* колонка шириной с mobile-frame */}
-      <div className="relative w-full max-w-[390px] h-full">
+      <div className="relative w-full max-w-[var(--app-col)] h-full">
       {/* панель профиля */}
       <div className="absolute left-0 right-0 bottom-0 animate-sheetUp overflow-y-auto no-scrollbar"
            style={{

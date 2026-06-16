@@ -74,17 +74,23 @@ html, body {
   font-feature-settings: "ss01", "cv11";
 }
 
-/* Mobile frame: full-width on phones, fixed 390px on tablet/desktop */
+/* Адаптивная колонка приложения.
+   Телефон (< 640px, покрывает все современные телефоны ≤430px): фрейм на ВЕСЬ реальный экран.
+   Планшет/десктоп (≥ 640px): центрированная колонка-«телефон» (превью со скруглением/тенью).
+   Ширина вынесена в --app-col, чтобы оверлеи/шторки совпадали с колонкой. */
+:root { --app-col: 100%; }
+@media (min-width: 640px) { :root { --app-col: 390px; } }
+
 .mobile-frame {
   width: 100%;
-  max-width: 390px;
+  max-width: var(--app-col);
   height: 100dvh;
   margin: 0 auto;
   background: var(--background);
   position: relative;
   overflow: hidden;
 }
-@media (min-width: 391px) {
+@media (min-width: 640px) {
   body { background: #ECECEE; }
   .mobile-frame {
     box-shadow: 0 24px 80px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.04);
