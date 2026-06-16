@@ -95,6 +95,10 @@ export const OrderSchema = z.object({
   paymentStatus: z.string(),
   arrived: z.boolean().optional(),
   total: z.number(),
+  // контекст заказа (JOOZ order_payload отдаёт их в детальной ручке) — для экрана статуса
+  items: z.array(z.object({ name: z.string(), quantity: z.number() })).optional().default([]),
+  outlet: z.object({ name: z.string(), address: z.string().nullable().optional() }).nullable().optional(),
+  createdAt: z.string().nullable().optional(),
 });
 
 const VerifySchema = z.object({
@@ -109,15 +113,13 @@ export type OrderItemInput = { drinkId: number; quantity: number };
 
 // ---- эндпоинты ----
 export const api = {
-  locations: () => apiFetch("/api/locations?locale=en", z.array(LocationSchema), { auth: false, cache: "no-store" }),
-  location: (id: number) => apiFetch(`/api/locations/${id}?locale=en`, LocationSchema, { auth: false }),
+  // backend = JOOZ: точки на /api/outlets (поле workingHours/remaining/soldToday отдаёт сервер)
+  locations: () => apiFetch("/api/outlets?locale=en", z.array(LocationSchema), { auth: false, cache: "no-store" }),
+  location: (id: number) => apiFetch(`/api/outlets/${id}?locale=en`, LocationSchema, { auth: false }),
   categories: () => apiFetch("/api/categories?locale=en", z.array(CategorySchema), { auth: false }),
-  drinks: (locationId?: number) =>
-    apiFetch(
-      `/api/drinks?locale=en${locationId ? `&location_id=${locationId}` : ""}`,
-      z.array(DrinkSchema),
-      { auth: false },
-    ),
+  // JOOZ /api/drinks — общий каталог опубликованных напитков (location_id игнорируется)
+  drinks: (_locationId?: number) =>
+    apiFetch("/api/drinks?locale=en", z.array(DrinkSchema), { auth: false }),
 
   /** Авто-логин по телефону без OTP (план §4.7): code пустой. Сохраняет токен. */
   async login(phone: string, name?: string) {
@@ -130,8 +132,17 @@ export const api = {
     return res;
   },
 
+  // JOOZ создаёт заказ по outletId; позиции — с addons (пустой массив = без добавок)
   createOrder: (body: { locationId: number; items: OrderItemInput[]; carPlate: string; customerName?: string }) =>
-    apiFetch("/api/orders?locale=en", OrderSchema, { method: "POST", body: JSON.stringify(body) }),
+    apiFetch("/api/orders?locale=en", OrderSchema, {
+      method: "POST",
+      body: JSON.stringify({
+        outletId: body.locationId,
+        items: body.items.map((i) => ({ drinkId: i.drinkId, quantity: i.quantity, addons: [] })),
+        carPlate: body.carPlate,
+        customerName: body.customerName,
+      }),
+    }),
 
   checkout: (orderId: number) =>
     apiFetch("/api/payments/checkout-session", CheckoutSchema, {

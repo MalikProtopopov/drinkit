@@ -388,3 +388,77 @@ html, body {
    не затрагивается. font-black 900→700, font-extrabold 800→600. */
 .font-black { font-weight: 700; }
 .font-extrabold { font-weight: 600; }
+
+/* ============================================================
+   GRABZI design language — применён ТОЛЬКО к публичному сайту (.mobile-frame).
+   Источник стилей/токенов: grabzi-web/src/app/globals.css (терракота · крем · Grenadine).
+   Админка (.admin-viewport, токены --a-*) НЕ затрагивается.
+   Это база (палитра + шрифты + заголовки) — точечную доводку компонентов добиваем поверх.
+   ============================================================ */
+@font-face {
+  font-family: "Grenadine MVB";
+  src: url("/fonts/Grenadine-Black.woff2") format("woff2");
+  font-weight: 900; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Grenadine MVB";
+  src: url("/fonts/Grenadine-ExtraBoldItalic.woff2") format("woff2");
+  font-weight: 800; font-style: italic; font-display: swap;
+}
+
+.mobile-frame {
+  /* палитра GRABZI — доступна компонентам как токены */
+  --color-brand: #c44429;          /* терракота — бренд / CTA */
+  --color-brand-hover: #a8381f;
+  --color-brand-press: #780406;
+  --color-cream: #e8d5c7;
+  --color-cream-yellow: #fdf6d8;   /* фон страниц */
+  --color-teal: #29c4b4;
+  --color-lime: #b5bd62;
+  --color-paper: #fffdf6;
+  --color-heading: #a42325;
+  --font-display: "Grenadine MVB", system-ui, sans-serif;
+
+  /* ремап существующих токенов публички → палитра GRABZI:
+     компоненты, использующие токены, перекрашиваются автоматически */
+  --color-primary-500: #c44429;
+  --color-primary-600: #a8381f;
+  --color-primary-100: #f4e0d5;
+  --jooz-bg: #fdf6d8;
+  --jooz-ink: #2a1d14;
+  --jooz-ink-2: #2a1d14;
+  --jooz-muted: #8a7866;
+  --jooz-muted-2: #a08b76;
+  --jooz-surface: #f5ead7;
+  --background: #fffdf6;
+  --foreground: #2a1d14;
+  --color-text: #2a1d14;
+  --color-text-muted: #8a7866;
+  --color-border: #ead9c4;
+  --color-surface: #fffdf6;
+  --color-bg: #fffdf6;
+
+  background: var(--color-cream-yellow);
+  color: var(--foreground);
+}
+
+/* брендовые заголовки GRABZI — жирный курсив терракота.
+   применяй классом .display (или к семантическим h1/h2/h3 в публичке) */
+.mobile-frame .display,
+.mobile-frame h1, .mobile-frame h2, .mobile-frame h3 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-style: italic;
+  color: var(--color-brand);
+  letter-spacing: 0;
+}
+
+/* пилюля-кнопка бренда (как .btn-primary в grabzi) — на токенах, уже терракота */
+.mobile-frame .btn-grabzi {
+  background: var(--color-brand); color: #fff; border: none;
+  border-radius: 9999px; padding: 14px 28px; min-height: 52px;
+  font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 17px;
+  transition: background .15s;
+}
+.mobile-frame .btn-grabzi:hover:not(:disabled) { background: var(--color-brand-hover); }
+.mobile-frame .btn-grabzi:active:not(:disabled) { background: var(--color-brand-press); }

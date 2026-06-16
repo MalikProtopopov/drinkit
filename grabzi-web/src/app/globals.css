@@ -57,7 +57,12 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
+/* overflow-x:hidden — гасит лишние px от full-bleed полосок (width:100vw + scrollbar) */
+html, body { margin: 0; padding: 0; overflow-x: hidden; }
+
+/* герой-логотип главной: крупнее на десктопе, фикс. соотношение (без CLS) */
+.hero-logo { width: 100%; max-width: 320px; height: auto; margin: 0 auto; display: block; }
+@media (min-width: 768px) { .hero-logo { max-width: 440px; } }
 body {
   font-family: var(--font-sans);
   color: var(--color-ink);
@@ -151,3 +156,137 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 800; font-style: ita
 /* декоративный разделитель (ряд иконок) */
 .divider { text-align: center; color: var(--color-teal-soft); font-size: 14px; letter-spacing: 6px; opacity: .8; user-select: none; }
 .footer { text-align: center; color: var(--color-muted); font-size: 12px; padding-block: 24px; }
+
+/* плитка-заглушка вместо фото напитка/лого (медиа сейчас не рендерим):
+   кремовый бренд-тайл с line-art иконкой — выглядит «нарисованным», а не пустым */
+.tile {
+  display: grid; place-items: center; color: var(--color-brand);
+  background:
+    radial-gradient(circle at 30% 25%, #fff6e0 0%, transparent 55%),
+    var(--color-cream-yellow);
+  border: 1px solid var(--color-border); border-radius: var(--radius-card);
+}
+/* цветная точка статуса заказа (терракота/чай/олива/серый) */
+.dot { inline-size: 9px; block-size: 9px; border-radius: 9999px; display: inline-block; flex-shrink: 0; }
+
+/* бегущая брендовая полоска-разделитель (как на grabzi.ae): мелкие иконки тающий-стакан /
+   V60 / лёд в чередующихся цветах, едут вправо→влево бесшовно. Лента дублирована 2× (-50%). */
+.gz-strip {
+  inline-size: 100%; overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+.gz-strip-track {
+  display: flex; align-items: center; gap: 26px; inline-size: max-content;
+  will-change: transform; animation: gz-marquee 34s linear infinite;
+}
+.gz-strip:hover .gz-strip-track { animation-play-state: paused; }
+.gz-strip-item { flex: 0 0 auto; inline-size: 44px; block-size: 44px; }
+.gz-strip-item img { inline-size: 100%; block-size: 100%; object-fit: contain; display: block; }
+@keyframes gz-marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) { .gz-strip-track { animation: none; } }
+@media (min-width: 768px) {
+  .gz-strip-track { gap: 34px; }
+  .gz-strip-item { inline-size: 56px; block-size: 56px; }
+}
+
+/* ORDER NOW — контурная «таблетка» (как на референсе): прозрачный фон, терракотовая обводка */
+.btn-ghost {
+  background: transparent; color: var(--color-brand);
+  border: 2.5px solid var(--color-brand); border-radius: var(--radius-pill);
+  padding-block: 14px; padding-inline: 44px;
+  font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 20px;
+  letter-spacing: .02em; min-block-size: 56px; transition: background .15s, color .15s;
+}
+.btn-ghost:hover { background: var(--color-brand); color: #fff; }
+.btn-ghost:active { background: var(--color-brand-press); border-color: var(--color-brand-press); color: #fff; }
+
+/* ===== карточка точки (дизайн заказчика «Choose your spot»), тема через CSS-переменные =====
+   крупное имя + город, контурная ORDER →, метр TODAY'S LIMIT с прогресс-баром, статус, лента SOLD OUT.
+   Цвет темы задаём инлайн (--accent/--fill/--glow…), поэтому работает на любой точке. */
+.loc {
+  --accent: var(--color-brand);
+  --fill: var(--color-brand);
+  --bar-bg: rgba(196,68,41,.14);
+  --bar-line: rgba(196,68,41,.28);
+  --glow: rgba(196,68,41,.5);
+  position: relative; display: block; width: 100%; text-align: start;
+  border-radius: 28px; overflow: hidden;
+  border: 3px solid var(--accent); background: var(--color-paper);
+  box-shadow: 0 18px 40px -22px var(--glow);
+  padding: 22px 22px 20px; color: inherit; font: inherit;
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.loc--clickable { cursor: pointer; }
+.loc--clickable:hover { transform: translateY(-4px); box-shadow: 0 26px 48px -22px var(--glow); }
+.loc--clickable:active { transform: translateY(-1px) scale(.995); }
+.loc.is-out { opacity: .62; }
+
+.loc__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.loc__name {
+  font-family: var(--font-display); font-weight: 800; font-style: italic;
+  font-size: clamp(30px, 9vw, 48px); line-height: .9; color: var(--accent); text-transform: uppercase;
+}
+.loc__city {
+  font-family: var(--font-display); font-weight: 800; font-style: italic;
+  font-size: 14px; opacity: .72; margin-block-start: 6px; color: var(--accent);
+}
+.loc__go {
+  flex: 0 0 auto; font-family: var(--font-display); font-weight: 800; font-style: italic;
+  font-size: 15px; border: 2px solid var(--accent); color: var(--accent);
+  border-radius: 999px; padding: 8px 16px; white-space: nowrap;
+  transition: background .15s ease, color .15s ease;
+}
+.loc--clickable:hover .loc__go { background: var(--accent); color: #fff; }
+
+.loc__meter { margin-block-start: 20px; }
+.loc__meterhead { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-block-end: 8px; }
+.loc__label { font-family: var(--font-display); font-weight: 800; font-style: italic; font-size: 15px; letter-spacing: .4px; color: var(--accent); }
+.loc__count { font-family: var(--font-display); font-weight: 800; font-style: italic; font-size: clamp(22px, 6vw, 30px); line-height: 1; color: var(--accent); white-space: nowrap; }
+.loc__count .slash { opacity: .5; font-size: .66em; }
+.loc__bar { height: 14px; border-radius: 999px; background: var(--bar-bg); overflow: hidden; border: 1px solid var(--bar-line); }
+.loc__fill { height: 100%; width: 0; border-radius: 999px; background: var(--fill); transition: width 1s cubic-bezier(.2,.8,.2,1); }
+.loc__status { margin-block-start: 10px; font-weight: 700; font-style: italic; font-size: 14px; display: flex; align-items: center; gap: 7px; color: var(--accent); }
+.loc__dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: var(--accent); flex: 0 0 auto; }
+
+/* лента SOLD OUT (диагональ в углу) */
+.loc__ribbon {
+  position: absolute; top: 16px; right: -46px; transform: rotate(45deg);
+  background: var(--accent); color: #fff; font-family: var(--font-display);
+  font-weight: 800; font-style: italic; font-size: 13px; padding: 6px 54px; letter-spacing: 1px; z-index: 1;
+}
+
+/* часы работы (наша фича) — компактно в стиле карточки */
+.loc__hours { margin-block-start: 16px; border-block-start: 1px dashed var(--bar-line); padding-block-start: 12px; }
+.loc__hourstoggle {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: transparent; border: none; padding: 0; color: var(--accent);
+  font-weight: 800; font-style: italic; font-size: 14px;
+}
+.loc__hoursweek { margin-block-start: 8px; display: grid; gap: 4px; }
+.loc__hoursrow { display: flex; justify-content: space-between; font-size: 13.5px; }
+
+/* ===== /info: контакт-карточка (иконка-кружок + лейбл + значение), бренд ===== */
+.info-card {
+  display: flex; align-items: center; gap: 16px; width: 100%; text-align: start; color: inherit;
+  padding: 16px 18px; border-radius: var(--radius-card);
+  background: var(--color-paper); border: 1px solid var(--color-border);
+  box-shadow: 0 12px 30px -20px rgba(196,68,41,.4);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.info-card:hover { transform: translateY(-3px); box-shadow: 0 18px 36px -20px rgba(196,68,41,.5); }
+.info-card__ic {
+  flex: 0 0 auto; inline-size: 48px; block-size: 48px; border-radius: 50%; display: grid; place-items: center;
+  border: 2.5px solid var(--color-brand); color: var(--color-brand);
+  font-family: var(--font-display); font-style: italic; font-weight: 800; font-size: 20px;
+}
+.info-card__lbl { font-style: italic; font-weight: 600; font-size: 13px; color: var(--color-muted); }
+.info-card__val {
+  font-family: var(--font-display); font-style: italic; font-weight: 800; line-height: 1.1;
+  font-size: clamp(17px, 4.5vw, 21px); color: var(--color-brand); word-break: break-word;
+}
+
+/* мягкое появление блоков (можно со stagger через inline animation-delay) */
+@keyframes rise-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise-in .5s cubic-bezier(.2,.8,.2,1) both; }
+@media (prefers-reduced-motion: reduce) { .rise { animation: none; } }

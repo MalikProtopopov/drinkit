@@ -1,58 +1,90 @@
 "use client";
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { useOrderDraft } from "@/lib/store";
+import { TopBrand } from "@/components/TopBrand";
+import { Icon } from "@/components/Icon";
 
-/** Деталка напитка — опциональный модуль (план Р3.2). Просмотр + количество → в заказ. */
-type Drink = { id: number; name: string; description: string | null; previewUrl: string | null; basePrice: number };
+/** Деталка напитка — опциональный модуль (план Р3.2). Просмотр → выбор точки → заказ. */
+type Drink = { id: number; name: string; description: string | null; basePrice: number; kcal: number | null };
 
 export default function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const [drink, setDrink] = useState<Drink | null>(null);
   const [err, setErr] = useState(false);
-  const [qty, setQty] = useState(1);
-  const setQtyStore = useOrderDraft((s) => s.setQty);
-  const items = useOrderDraft((s) => s.items);
-  const router = useRouter();
 
   useEffect(() => {
     api.drink(slug).then(setDrink).catch(() => setErr(true));
   }, [slug]);
 
-  if (err) return <main style={{ padding: 24, textAlign: "center" }}><p>Drink not found.</p><Link href="/order"><button className="btn-primary">Back to menu</button></Link></main>;
-  if (!drink) return <main style={{ padding: 24 }}><div className="skeleton" style={{ height: 240 }} /></main>;
+  if (err) {
+    return (
+      <main style={wrap}>
+        <TopBrand />
+        <div style={center}>
+          <div className="card" style={{ textAlign: "center", display: "grid", gap: 16, placeItems: "center", paddingBlock: 32, width: "100%" }}>
+            <div className="tile" style={{ width: 96, height: 96 }}><Icon name="info" size={40} /></div>
+            <h1 className="display" style={{ fontSize: 28 }}>Drink not found</h1>
+            <p style={{ color: "var(--color-muted)" }}>This drink isn&apos;t on the menu anymore.</p>
+            <Link href="/menu"><button className="btn-primary">Back to menu</button></Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
-  function add() {
-    if (!drink) return;
-    setQtyStore(drink.id, (items[drink.id] ?? 0) + qty);
-    router.push("/order");
+  if (!drink) {
+    return (
+      <main style={wrap}>
+        <TopBrand />
+        <div style={{ ...center, gap: 16 }}>
+          <div className="skeleton" style={{ width: 220, height: 220, borderRadius: "var(--radius-card)" }} />
+          <div className="skeleton" style={{ height: 34, width: "60%" }} />
+          <div className="skeleton" style={{ height: 60, width: "90%" }} />
+          <div className="skeleton" style={{ height: 30, width: "40%" }} />
+        </div>
+      </main>
+    );
   }
 
   return (
-    <main style={{ maxWidth: 560, margin: "0 auto", padding: 20 }}>
-      <div style={{
-        aspectRatio: "1 / 1", background: "var(--color-cream)", borderRadius: "var(--radius-card)",
-        display: "grid", placeItems: "center", overflow: "hidden", marginBlockEnd: 16,
-      }}>
-        {drink.previewUrl
-          ? <img src={drink.previewUrl} alt={drink.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          : <span style={{ fontSize: 80 }}>🧊</span>}
+    <main style={wrap}>
+      <TopBrand />
+
+      <div style={center}>
+        <div className="tile" style={{ width: 220, height: 220, marginBlockEnd: 24 }}>
+          <Icon name="cup" size={72} />
+        </div>
+
+        <h1 className="display" style={{ fontSize: 38, marginBlockEnd: 12 }}>{drink.name}</h1>
+
+        {drink.description && (
+          <p style={{ color: "var(--color-ink)", lineHeight: 1.55, marginBlockEnd: 20, maxWidth: 420 }}>{drink.description}</p>
+        )}
+
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBlockEnd: 28, justifyContent: "center" }}>
+          <span className="display" style={{ fontSize: 30, color: "var(--color-brand-press)" }}>
+            AED {drink.basePrice.toFixed(2)}
+          </span>
+          {drink.kcal !== null && (
+            <span style={{ color: "var(--color-muted)", fontWeight: 700 }}>{drink.kcal} kcal</span>
+          )}
+        </div>
+
+        <Link href="/locations" style={{ width: "100%", maxWidth: 360 }}>
+          <button className="btn-primary btn-block">Order now</button>
+        </Link>
       </div>
-      <h1 style={{ fontSize: 26 }}>{drink.name}</h1>
-      <p style={{ color: "var(--color-muted)" }}>{drink.description}</p>
-      <p style={{ fontWeight: 900, fontSize: 22, marginBlock: 12 }}>AED {drink.basePrice}</p>
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBlockEnd: 16 }}>
-        <button onClick={() => setQty(Math.max(1, qty - 1))} style={step}>−</button>
-        <span style={{ fontWeight: 800, fontSize: 18 }}>{qty}</span>
-        <button onClick={() => setQty(qty + 1)} style={{ ...step, background: "var(--color-brand)", color: "#fff" }}>+</button>
-      </div>
-      <button className="btn-primary" style={{ width: "100%" }} onClick={add}>Add to order ▶</button>
     </main>
   );
 }
-const step: React.CSSProperties = {
-  inlineSize: 44, blockSize: 44, borderRadius: 9999, border: "1px solid var(--color-border)",
-  background: "var(--color-cream)", fontSize: 22, fontWeight: 800,
+
+const wrap: React.CSSProperties = {
+  maxWidth: 560, margin: "0 auto", padding: 20, minHeight: "100dvh",
+  display: "flex", flexDirection: "column",
+};
+// центрируем контент по вертикали и горизонтали под шапкой
+const center: React.CSSProperties = {
+  flex: 1, width: "100%", display: "flex", flexDirection: "column",
+  justifyContent: "center", alignItems: "center", textAlign: "center", paddingBlock: 24,
 };

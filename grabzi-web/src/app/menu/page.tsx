@@ -2,12 +2,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { api, type Drink } from "@/lib/api";
+import { TopBrand } from "@/components/TopBrand";
+import { Icon } from "@/components/Icon";
 
-/** Меню (browse) — по референсу: крупные эмодзи-иллюстрации, имена, DHS. XX.XX, ORDER NOW. */
-function bigEmoji(name: string): string {
-  const m = name.match(/\p{Emoji}+/u);
-  return m ? m[0] : "🧊";
-}
+/** Меню (browse) — по референсу: line-art стакан-плейсхолдер, имена, AED XX.XX, ORDER NOW. */
 function cleanName(name: string): string {
   return name.replace(/\p{Emoji}/gu, "").trim();
 }
@@ -19,6 +17,7 @@ export default function MenuPage() {
 
   return (
     <main style={{ maxWidth: 560, margin: "0 auto", padding: 20 }}>
+      <TopBrand />
       <h1 className="display" style={{ fontSize: 52, marginBlockEnd: 8 }}>Menu</h1>
       <div style={{ height: 2, background: "var(--color-brand)", opacity: .4, marginBlockEnd: 24 }} />
 
@@ -32,21 +31,17 @@ export default function MenuPage() {
       {drinks && (
         <div style={{ display: "grid", gap: 44 }}>
           {drinks.map((d) => (
-            <div key={d.id} style={{ textAlign: "center" }}>
-              {d.previewUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={d.previewUrl} alt={cleanName(d.name)}
-                  style={{ width: 150, height: 150, objectFit: "contain", margin: "0 auto" }} />
-              ) : (
-                <div style={{ fontSize: 92, lineHeight: 1 }} aria-hidden>{bigEmoji(d.name)}</div>
-              )}
+            <Link key={d.id} href={`/product/${d.slug}`} style={{ textAlign: "center", display: "block" }}>
+              <div className="tile" style={{ width: 120, height: 120, margin: "0 auto", display: "grid", placeItems: "center", color: "var(--color-brand)" }}>
+                <Icon name="cup" size={44} />
+              </div>
               <div className="display" style={{ fontSize: 26, textTransform: "uppercase", marginBlockStart: 8 }}>
                 {cleanName(d.name)}
               </div>
               <div className="display" style={{ fontSize: 18, color: "var(--color-brand-press)" }}>
-                DHS. {d.basePrice.toFixed(2)}
+                AED {d.basePrice.toFixed(2)}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
@@ -54,7 +49,7 @@ export default function MenuPage() {
       <div style={{ textAlign: "center", paddingBlock: 40 }}>
         <Link href="/locations"><button className="btn-primary">ORDER NOW</button></Link>
       </div>
-      <footer className="footer"><div style={{ fontSize: 18 }}>📷</div>© 2026 GRABZI</footer>
+      <footer className="footer"><Icon name="cup" size={18} />© 2026 GRABZI</footer>
     </main>
   );
 }

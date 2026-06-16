@@ -3,6 +3,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, type Location } from "@/lib/api";
 import { useOrderDraft } from "@/lib/store";
+import { Icon } from "@/components/Icon";
+import { TopBrand } from "@/components/TopBrand";
+import { IconStrip } from "@/components/IconStrip";
+import { type WeekHours, todayHours, weeklyHours } from "@/lib/hours";
+import { statusInfo, themeFor } from "@/lib/outletStatus";
+import { useReveal } from "@/lib/useReveal";
 
 type State =
   | { k: "loading" }
@@ -10,128 +16,93 @@ type State =
   | { k: "empty" }
   | { k: "ok"; items: Location[] };
 
-const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-const DAY_LABEL: Record<string, string> = {
-  mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
-};
-
-function fmtIvs(ivs: { open: string; close: string }[] | undefined): string {
-  if (!ivs || ivs.length === 0) return "Closed";
-  return ivs.map((i) => `${i.open}–${i.close}`).join(", ");
-}
-
-function todayIdx(): number {
-  return (new Date().getDay() + 6) % 7; // JS Sun=0 → наш mon=0
-}
-
-/** Группируем подряд идущие дни с одинаковыми часами: «Mon–Sat 05:30–22:00». */
-function weeklyHours(wh: Record<string, { open: string; close: string }[]>) {
-  const out: { range: string; hours: string }[] = [];
-  let i = 0;
-  while (i < 7) {
-    const h = fmtIvs(wh[DAYS[i]]);
-    let j = i;
-    while (j + 1 < 7 && fmtIvs(wh[DAYS[j + 1]]) === h) j++;
-    const range = i === j ? DAY_LABEL[DAYS[i]] : `${DAY_LABEL[DAYS[i]]}–${DAY_LABEL[DAYS[j]]}`;
-    out.push({ range, hours: h });
-    i = j + 1;
-  }
-  return out;
-}
-
-function badge(loc: Location) {
-  if (loc.status === "paused") return ["Paused", "badge--paused"];
-  if (loc.status === "closed") {
-    const t = loc.nextOpenAt
-      ? ` · opens ${new Date(loc.nextOpenAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
-      : "";
-    return [`Closed${t}`, "badge--closed"];
-  }
-  if (loc.isSoldOut) return ["Sold out today", "badge--out"];
-  if (loc.remaining !== null && loc.remaining <= 15) return [`Only ${loc.remaining} left`, "badge--low"];
-  return ["Open now", "badge--open"];
-}
-
-function LocationCard({ loc, onChoose }: { loc: Location; onChoose: (l: Location) => void }) {
+function LocationCard({ loc, idx, onChoose }: { loc: Location; idx: number; onChoose: (l: Location) => void }) {
   const [showHours, setShowHours] = useState(false);
-  const [label, cls] = badge(loc);
-  const wh = (loc.workingHours ?? {}) as Record<string, { open: string; close: string }[]>;
-  const today = fmtIvs(wh[DAYS[todayIdx()]]);
-  const pct = loc.dailyDrinkLimit && loc.remaining !== null
-    ? Math.max(0, Math.round((loc.remaining / loc.dailyDrinkLimit) * 100))
-    : null;
-  const barColor = loc.remaining === 0 ? "var(--color-danger)"
-    : loc.remaining !== null && loc.remaining <= 15 ? "var(--color-lowstock)" : "var(--color-instock)";
+  const [fillW, setFillW] = useState(0);
+
+  const wh = (loc.workingHours ?? {}) as WeekHours;
+  const today = todayHours(wh);
+  const limited = loc.dailyDrinkLimit !== null && loc.remaining !== null;
+  const pct = limited
+    ? Math.max(0, Math.min(100, Math.round((loc.remaining! / loc.dailyDrinkLimit!) * 100)))
+    : 100;
+  const st = statusInfo(loc);
+  const theme = themeFor(idx);
+
+  // анимация заливки прогресс-бара (как у заказчика): 0 → pct после монтирования
+  useEffect(() => {
+    const id = setTimeout(() => setFillW(pct), 90);
+    return () => clearTimeout(id);
+  }, [pct]);
+
+  const clickProps = st.orderable
+    ? {
+        role: "button" as const, tabIndex: 0,
+        onClick: () => onChoose(loc),
+        onKeyDown: (e: React.KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onChoose(loc); }
+        },
+      }
+    : {};
 
   return (
-    <div className="card" style={{
-      padding: 0, overflow: "hidden", position: "relative",
-      borderInlineStart: `6px solid ${loc.color || "var(--color-brand)"}`,
-    }}>
-      <div style={{ padding: "16px 18px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div style={{ fontSize: 34 }} aria-hidden>🥤</div>
-            <div>
-              <div className="display" style={{ fontSize: 21, textTransform: "uppercase" }}>{loc.name}</div>
-              <div style={{ color: "var(--color-muted)", fontSize: 14 }}>📍 {loc.address}</div>
-            </div>
-          </div>
-          <span className={`badge ${cls}`}>{label}</span>
-        </div>
+    <div
+      className={`loc ${st.orderable ? "loc--clickable" : "is-out"}`}
+      style={theme as React.CSSProperties}
+      {...clickProps}
+    >
+      {st.soldOut && <span className="loc__ribbon">SOLD OUT</span>}
 
-        {/* часы работы сегодня */}
+      <div className="loc__top">
+        <div>
+          <div className="loc__name">{loc.name}</div>
+          {loc.address && <div className="loc__city">{loc.address}</div>}
+        </div>
+        {st.orderable && <span className="loc__go">ORDER →</span>}
+      </div>
+
+      <div className="loc__meter">
+        <div className="loc__meterhead">
+          <span className="loc__label">{limited ? "LEFT TODAY" : "MADE TODAY"}</span>
+          <span className="loc__count">
+            <b>{limited ? loc.remaining : loc.soldToday}</b>
+            {limited && <span className="slash"> / {loc.dailyDrinkLimit}</span>}
+          </span>
+        </div>
+        {limited && (
+          <div className="loc__bar"><div className="loc__fill" style={{ width: `${fillW}%` }} /></div>
+        )}
+        <div className="loc__status">
+          <span className="loc__dot" />
+          <span>{limited ? st.msg : "No daily limit — always pouring"}</span>
+        </div>
+      </div>
+
+      {/* часы работы (наша фича) — компактно, в стиле карточки */}
+      <div className="loc__hours">
         <button
-          onClick={() => setShowHours((v) => !v)}
-          style={{
-            marginBlockStart: 12, background: "var(--color-cream-yellow)", border: "1px solid var(--color-border)",
-            borderRadius: 12, padding: "8px 12px", width: "100%", display: "flex",
-            justifyContent: "space-between", alignItems: "center", color: "var(--color-ink)",
-          }}
+          className="loc__hourstoggle"
+          onClick={(e) => { e.stopPropagation(); setShowHours((v) => !v); }}
         >
-          <span style={{ fontWeight: 700 }}>🕐 Today {today}</span>
-          <span style={{ color: "var(--color-brand)", fontWeight: 800 }}>{showHours ? "Hide hours ▲" : "All hours ▼"}</span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+            <Icon name="clock" size={16} stroke={2} /> Today {today}
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            {showHours ? "Hide" : "All hours"}
+            <Icon name="chevron-right" size={15} stroke={2.4}
+              style={{ transform: `rotate(${showHours ? -90 : 90}deg)`, transition: "transform .15s" }} />
+          </span>
         </button>
         {showHours && (
-          <div style={{ marginBlockStart: 8, display: "grid", gap: 4 }}>
+          <div className="loc__hoursweek">
             {weeklyHours(wh).map((r, n) => (
-              <div key={n} style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
-                <span style={{ fontWeight: 700, color: "var(--color-brand)" }}>{r.range}</span>
-                <span style={{ color: r.hours === "Closed" ? "var(--color-muted)" : "var(--color-ink)" }}>{r.hours}</span>
+              <div key={n} className="loc__hoursrow">
+                <span style={{ fontWeight: 800, fontStyle: "italic" }}>{r.range}</span>
+                <span style={{ opacity: r.hours === "Closed" ? 0.55 : 0.85 }}>{r.hours}</span>
               </div>
             ))}
           </div>
         )}
-
-        {/* остаток на сегодня */}
-        <div style={{ marginBlockStart: 14 }}>
-          {loc.remaining === null ? (
-            <div style={{ color: "var(--color-muted)", fontSize: 14 }}>♾️ No daily limit</div>
-          ) : (
-            <>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBlockEnd: 6 }}>
-                <span style={{ color: "var(--color-muted)" }}>Today&apos;s drinks</span>
-                <span style={{ fontWeight: 800, color: barColor }}>{loc.remaining} / {loc.dailyDrinkLimit} left</span>
-              </div>
-              <div style={{ height: 8, background: "#efe3cf", borderRadius: 9999, overflow: "hidden" }}>
-                <div style={{ width: `${pct}%`, height: "100%", background: barColor, transition: "width .4s" }} />
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* CTA */}
-        <button
-          className="btn-block"
-          style={{ marginBlockStart: 16 }}
-          disabled={!loc.isOpen}
-          onClick={() => onChoose(loc)}
-        >
-          {loc.isOpen ? "Order here ▶"
-            : loc.status === "paused" ? "Temporarily paused"
-            : loc.isSoldOut ? "Sold out today"
-            : "Closed now"}
-        </button>
       </div>
     </div>
   );
@@ -141,6 +112,8 @@ export default function LocationsPage() {
   const [state, setState] = useState<State>({ k: "loading" });
   const setLocation = useOrderDraft((s) => s.setLocation);
   const router = useRouter();
+  // GSAP-появление карточек точек со stagger
+  const grid = useReveal<HTMLDivElement>([state.k === "ok"]);
 
   async function load() {
     setState({ k: "loading" });
@@ -154,33 +127,41 @@ export default function LocationsPage() {
   useEffect(() => { load(); }, []);
 
   function choose(loc: Location) {
-    if (!loc.isOpen) return;
     setLocation(loc.id);
     router.push("/order");
   }
 
   return (
-    <main style={{ maxWidth: 600, margin: "0 auto", padding: 20 }}>
-      <h1 className="display" style={{ fontSize: 36, marginBlockEnd: 6 }}>Pick a spot</h1>
-      <p style={{ color: "var(--color-muted)", marginBlockEnd: 18 }}>Drive-through · pick up in your car 🚗</p>
+    <main style={{ maxWidth: 600, margin: "0 auto", paddingBlockEnd: 44 }}>
+      <div style={{ paddingInline: 20 }}><TopBrand /></div>
 
-      {state.k === "loading" && (
-        <div style={{ display: "grid", gap: 14 }}>
-          {[0, 1].map((i) => <div key={i} className="skeleton" style={{ height: 200 }} />)}
-        </div>
-      )}
-      {state.k === "error" && (
-        <div className="card" style={{ textAlign: "center" }}>
-          <p>Can&apos;t reach GRABZI. Check your connection.</p>
-          <button className="btn-primary" onClick={load} style={{ marginBlockStart: 12 }}>Try again</button>
-        </div>
-      )}
-      {state.k === "empty" && <div className="card" style={{ textAlign: "center" }}>No locations yet.</div>}
-      {state.k === "ok" && (
-        <div style={{ display: "grid", gap: 16 }}>
-          {state.items.map((loc) => <LocationCard key={loc.id} loc={loc} onChoose={choose} />)}
-        </div>
-      )}
+      <section style={{ textAlign: "center", paddingInline: 20 }}>
+        <h1 className="display" style={{ fontSize: "clamp(30px,8vw,46px)", lineHeight: 0.95, letterSpacing: ".01em" }}>
+          CHOOSE YOUR SPOT
+        </h1>
+        <p style={{ marginBlockStart: 8, color: "var(--color-muted)", fontStyle: "italic", fontWeight: 600, fontSize: 15 }}>
+          Limited cups every day — come early, we don&apos;t make more!!
+        </p>
+      </section>
+
+      <div style={{ marginBlock: 16 }}><IconStrip /></div>
+
+      <div ref={grid} style={{ paddingInline: 18, display: "grid", gap: 16 }}>
+        {state.k === "loading" && [0, 1].map((i) => <div key={i} className="skeleton" style={{ height: 230, borderRadius: 28 }} />)}
+
+        {state.k === "error" && (
+          <div className="card" style={{ textAlign: "center" }}>
+            <p>Can&apos;t reach GRABZI. Check your connection.</p>
+            <button className="btn-primary" onClick={load} style={{ marginBlockStart: 12 }}>Try again</button>
+          </div>
+        )}
+
+        {state.k === "empty" && <div className="card" style={{ textAlign: "center" }}>No locations yet.</div>}
+
+        {state.k === "ok" && state.items.map((loc, i) => (
+          <LocationCard key={loc.id} loc={loc} idx={i} onChoose={choose} />
+        ))}
+      </div>
     </main>
   );
 }

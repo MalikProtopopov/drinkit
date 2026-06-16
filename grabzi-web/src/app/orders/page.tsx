@@ -3,13 +3,40 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { API_URL, api } from "@/lib/api";
+import { TopBrand } from "@/components/TopBrand";
+import { Icon } from "@/components/Icon";
 import { z } from "zod";
 
+// список заказов клиента — бэкенд (full=false) отдаёт точку, позиции, время, статус оплаты
 const ListSchema = z.array(z.object({
   id: z.number(), number: z.number(), status: z.string(),
   paymentStatus: z.string(), total: z.number(),
+  createdAt: z.string().nullable().optional(),
+  arrived: z.boolean().optional(),
+  outlet: z.object({ name: z.string() }).nullable().optional(),
+  items: z.array(z.object({ name: z.string(), quantity: z.number() })).optional().default([]),
 }));
 type Row = z.infer<typeof ListSchema>[number];
+
+// человекочитаемый статус готовки + цвет (терракота → янтарь → лайм → приглушённый → данжер)
+const STATUS: Record<string, { label: string; color: string }> = {
+  new: { label: "Received", color: "var(--color-brand)" },
+  in_progress: { label: "Making", color: "var(--color-lowstock)" },
+  ready: { label: "Ready for pickup", color: "var(--color-instock)" },
+  completed: { label: "Handed over", color: "var(--color-muted)" },
+  refund: { label: "Refunded", color: "var(--color-danger)" },
+};
+function statusOf(s: string) { return STATUS[s] ?? { label: s, color: "var(--color-muted)" }; }
+
+function fmtWhen(iso?: string | null): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+  } catch { return ""; }
+}
+function itemsSummary(items: Row["items"]): string {
+  return (items ?? []).map((i) => `${i.name} ×${i.quantity}`).join(" · ");
+}
 
 export default function MyOrdersPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -22,7 +49,7 @@ export default function MyOrdersPage() {
     const token = window.localStorage.getItem("grabzi_token");
     if (!token) { setAuthed(false); setRows([]); return; }
     setAuthed(true);
-    const res = await fetch(`${API_URL}/api/orders`, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(`${API_URL}/api/orders?locale=en`, { headers: { Authorization: `Bearer ${token}` } });
     if (res.ok) setRows(ListSchema.parse(await res.json()));
     else setRows([]);
   }
@@ -39,9 +66,14 @@ export default function MyOrdersPage() {
 
   return (
     <main style={{ maxWidth: 560, margin: "0 auto", padding: 20 }}>
-      <h1 style={{ fontSize: 26, marginBlockEnd: 16 }}>My orders</h1>
+      <TopBrand />
+      <h1 className="display" style={{ fontSize: 30, marginBlockEnd: 16 }}>My orders</h1>
 
-      {rows === null && <div className="skeleton" style={{ height: 64 }} />}
+      {rows === null && (
+        <div style={{ display: "grid", gap: 10 }}>
+          {[0, 1].map((i) => <div key={i} className="skeleton" style={{ height: 110, borderRadius: "var(--radius-card)" }} />)}
+        </div>
+      )}
 
       {rows !== null && !authed && (
         <div className="card" style={{ textAlign: "center", display: "grid", gap: 12 }}>
@@ -62,15 +94,51 @@ export default function MyOrdersPage() {
       )}
 
       {rows !== null && authed && rows.length > 0 && (
-        <div style={{ display: "grid", gap: 10 }}>
-          {rows.map((o) => (
-            <button key={o.id} className="card" onClick={() => router.push(`/orders/${o.id}`)}
-              style={{ textAlign: "start", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 800 }}>#{o.number}</span>
-              <span style={{ color: "var(--color-muted)" }}>{o.status}</span>
-              <span style={{ fontWeight: 800 }}>AED {o.total}</span>
-            </button>
-          ))}
+        <div style={{ display: "grid", gap: 12 }}>
+          {rows.map((o) => {
+            const st = statusOf(o.status);
+            const when = fmtWhen(o.createdAt);
+            const summary = itemsSummary(o.items);
+            const unpaid = o.paymentStatus !== "paid" && o.status !== "refund";
+            return (
+              <button key={o.id} className="card" onClick={() => router.push(`/orders/${o.id}`)}
+                style={{ textAlign: "start", display: "grid", gap: 9, width: "100%" }}>
+                {/* строка 1: номер + время · статус готовки */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ fontWeight: 900, fontSize: 19 }}>#{o.number}</span>
+                    {when && <span style={{ color: "var(--color-muted)", fontSize: 12.5 }}>{when}</span>}
+                  </div>
+                  <span className="badge" style={{ background: "transparent", color: st.color, border: `1.5px solid ${st.color}` }}>
+                    <span className="dot" style={{ background: st.color }} /> {st.label}
+                  </span>
+                </div>
+
+                {/* строка 2: позиции заказа */}
+                {summary && (
+                  <div style={{ color: "var(--color-ink)", fontSize: 14, fontWeight: 600,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {summary}
+                  </div>
+                )}
+
+                {/* строка 3: точка + (оплата) · сумма */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                  <span style={{ display: "inline-flex", gap: 5, alignItems: "center", color: "var(--color-muted)", fontSize: 13, minWidth: 0 }}>
+                    {o.outlet?.name && <><Icon name="pin" size={14} /> <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.outlet.name}</span></>}
+                  </span>
+                  <span style={{ display: "inline-flex", gap: 10, alignItems: "center", whiteSpace: "nowrap" }}>
+                    {unpaid && (
+                      <span className="badge badge--paused" style={{ fontSize: 11 }}>
+                        <Icon name="clock" size={12} stroke={2} /> Payment pending
+                      </span>
+                    )}
+                    <span style={{ fontWeight: 800 }}>AED {o.total}</span>
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       )}
     </main>

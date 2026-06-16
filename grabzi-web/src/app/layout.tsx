@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { Nav } from "@/components/Nav";
 import { OfflineBanner } from "@/components/OfflineBanner";
 
 export const metadata: Metadata = {
@@ -20,8 +19,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" dir="ltr">
       <body>
         <OfflineBanner />
-        <Nav />
-        <div className="has-bottom-nav">{children}</div>
+        {/* навбар убран — заказ-флоу самодостаточный (логотип/назад внутри экранов) */}
+        {children}
       </body>
     </html>
   );
