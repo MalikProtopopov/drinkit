@@ -23,6 +23,7 @@
 7. [Кросс-флоу риски (фичи во взаимодействии)](#7-кросс-флоу-риски-фичи-во-взаимодействии)
 8. [Финальный QA-чеклист](#8-финальный-qa-чеклист)
 9. [Приложение: роуты, эндпойнты, коды ошибок](#9-приложение-роуты-эндпойнты-коды-ошибок)
+10. [Результаты верификации по коду](#10-результаты-верификации-по-коду-2026-06-16)
 
 ---
 
@@ -36,8 +37,13 @@ GRABZI — сервис предзаказа и выдачи напитков dr
 | **app/** | Полная админка (управление) | `https://admin.grabzi.mediann.dev` | `:3000` |
 | **backend** | FastAPI + SQLite | `https://api.grabzi.mediann.dev` | `:8000` |
 
-Оба фронта обращаются к общему бэкенду по `https://api.grabzi.mediann.dev`. Бариста-экран есть и в
-grabzi-web (`/admin/kitchen`), и полноценная админка — в `app/`.
+Оба фронта обращаются к общему бэкенду по `https://api.grabzi.mediann.dev`. Канбан-кухня есть и в
+grabzi-web (`/admin/kitchen`), и в полноценной админке `app/`. **Табло выдачи (screen) — только в `app/`
+(`/admin/screen`); в `grabzi-web` его нет** (проверено по коду, см. §10).
+
+> **Ревизия 2026-06-16-b.** Все гипотезы bug-watch/кросс-флоу прогнаны по реальному коду
+> (параллельный аудит backend + grabzi-web + app/). Вердикты, новые баги и список «подтверждено как
+> рабочее» — в новом разделе **§10**. Неточности первой редакции исправлены инлайн (см. §10.5).
 
 **Доступы в админку (сид по умолчанию):**
 
@@ -62,7 +68,7 @@ grabzi-web (`/admin/kitchen`), и полноценная админка — в `
 |---|---|---|
 | **Гость / Клиент** | grabzi-web (публичный) | смотрит лимит/точки/меню, заказывает, платит, отслеживает статус, «I'm here», история заказов |
 | **Бариста (manager)** | grabzi-web `/admin/kitchen` + app `/admin/orders` | принимает заказ (take), готовит (ready), выдаёт (completed); видит только свои точки |
-| **Экран выдачи (screen)** | app `/admin/screen` / grabzi-web | **read-only** табло «Preparing / Ready» для лобби; ровно одна точка |
+| **Экран выдачи (screen)** | app `/admin/screen` (**только в `app/`**, в grabzi-web табло нет) | **read-only** табло «Preparing / Ready» для лобби; ровно одна точка |
 | **Менеджер (admin)** | app `/admin/*` | заказы, детали, статусы, рефанд; только назначенные точки |
 | **Супер-админ** | app `/admin/*` | всё: точки, каталог, клиенты, стафф, платежи, дашборд, аудитория, экспорты |
 
@@ -147,8 +153,8 @@ grabzi-web (`/admin/kitchen`), и полноценная админка — в `
 ### 4.1 Клиент: заказ и оплата
 
 - **WEB-1 · TODAY'S LIMIT.** GIVEN открыта главная · WHEN страница загрузилась · THEN: 1 точка → крупно `«sold / limit»`; 0 точек → `«—»`; **2+ точек → сетка с именем каждой точки + `sold/limit` + прогресс-бар** (ревалидация кэша каждые 30с).
-- **WEB-2 · Статус точки.** THEN бейдж: `paused`→«Paused — not taking orders»; `closed`→«Closed — opens HH:MM» (или «Closed now»); sold-out→«Sold out — back HH:MM/tomorrow» + лента **SOLD OUT**; иначе «Plenty left / Selling fast / Almost gone». Заказ доступен только при `acceptingOrders=true`.
-- **WEB-3 · Маски и валидация.** Телефон `50123456`→`+971 50 123 4567` (на бэк `+9715XXXXXXXX`); номер авто `ab12345`→`A 12345` (0–2 буквы + до 5 цифр); пустые поля при submit → инлайн-ошибки под каждым полем (не модалка), ошибка очищается при вводе.
+- **WEB-2 · Статус точки.** THEN бейдж: `paused`→«Paused — not taking orders»; `closed`→«Closed — opens HH:MM» (или «Closed now»); sold-out→«Sold out — back HH:MM/tomorrow» + лента **SOLD OUT**; иначе «Almost gone — hurry! / Selling fast today / Plenty left — pull up» (пороги `remaining ≤ 20` / `≤ 60`). ⚠️ **Гейтинг заказа считается на клиенте из `status/remaining/isSoldOut`; флаг бэка `acceptingOrders` фронт игнорирует, а кнопка «Proceed to Payment» на `/order` вообще без проверки статуса (см. §10).**
+- **WEB-3 · Маски и валидация.** Телефон `501234567` (9 цифр) → `+971 50 123 4567` (на бэк `+9715XXXXXXXX`); номер авто `ab12345`→`AB 12345` (0–2 буквы + до 5 цифр — маска **жадно берёт 2 буквы**, `A 12345` получается только из ввода с одной буквой); пустые поля при submit → инлайн-ошибки под каждым полем (не модалка), ошибка очищается при вводе.
 - **WEB-3 · Гард по остатку.** GIVEN `remaining=5`, в корзине 7 · WHEN «Proceed to Payment» · THEN модалка «Only 5 left here. Reduce your order.».
 - **WEB-4 · Checkout.** WHEN валидные данные · THEN авто-логин (без OTP) → `createOrder` (outletId, items с `addons:[]`, carPlate, customerName) → checkout. `mock=true`→редирект `/orders/[id]?paid=1`; иначе → Stripe URL. Токен в localStorage.
 - **WEB-5 · Трекинг.** THEN WS `/ws/orders/{id}?token=…`; при сбое — polling каждые 20с. Степпер Received→Making→Ready→Handed over; бейдж «Payment pending» при `paymentStatus!=paid` (не скрывает степпер); кнопка «I'm here» при `paid && !arrived`; `refund` → степпер не рендерится.
@@ -172,9 +178,9 @@ grabzi-web (`/admin/kitchen`), и полноценная админка — в `
 
 ### 4.4 Каталог
 
-- **ADM-S-05.** Размеры: ≥1 активный; volume>0, price≥0; ровно один default; иначе ошибка (или **422 PORTIONS_RANGE_INVALID**). Привязки: `0 ≤ min ≤ default ≤ max`, portion>0. Описание санитизируется (только h2/h3/b/strong/i/em/u/p/br/ul/ol/li).
+- **ADM-S-05.** Размеры: ≥1 активный (**422 `AT_LEAST_ONE_SIZE`**); volume>0, price≥0 (**422 `SIZE_VALUES_INVALID`**); ровно один default (**422 `MULTIPLE_DEFAULT_SIZES`**) — а не `PORTIONS_RANGE_INVALID`. Привязки: `0 ≤ min ≤ default ≤ max` → **422 `PORTIONS_RANGE_INVALID`**; ⚠️ **`portion>0` валидируется только на клиенте — бэк `portionAmount=0` пропускает (баг CAT3, §10)**. Описание санитизируется (только h2/h3/**h4**/b/strong/i/em/u/p/br/ul/ol/li) — **но только rich-описание; короткое поле `description` не санитизируется** (§10).
 - **ADM-S-11.** Пустой AR-перевод → оранжевый бейдж «★ no AR» + подсветка поля.
-- **i18n.** Имя на публичке: `en ?? ru` (англ. первым). Проверить единообразие во всех местах (см. bug-watch).
+- **i18n.** Локали проекта — **`en`/`ar`** (никакого `ru` — это наследие переноса из JOOZ). Реальное правило показа: `запрошенная_локаль ?? default(en) ?? первое значение` (не «en ?? ru»). На публичке локаль **жёстко `en`**, переключателя языка и AR/RTL нет; `?lang=ar` ни на что не влияет (§10). В админке имена — `en ?? ru` почти везде, **кроме страницы add-on категорий/единиц (`groups`) — там RU-first, а записи создаются только с `en` → имена отображаются пустыми** (баг, §10).
 
 ### 4.5 Backend — правила заказа и роли (коды ошибок)
 
@@ -183,11 +189,13 @@ grabzi-web (`/admin/kitchen`), и полноценная админка — в `
 | Пустая корзина | `items=[]` | 422 `CART_EMPTY` |
 | Нет номера авто | `car_plate` пуст (и в профиле) | 422 `CAR_PLATE_REQUIRED` |
 | Точка не open | вне часов / пауза / лимит / inactive | 409 `OUTLET_CLOSED` |
+| Нет активных точек / битый `outletId` | 0 active или неизвестный id | 409 `OUTLET_INVALID` |
 | Напиток недоступен | не published / в стоп-листе / категория в стоп-листе | 409 `DRINK_NOT_AVAILABLE` |
 | Добавка в стоп-листе | addon в `stop_items` | 409 `ADDON_NOT_AVAILABLE` |
 | Несколько активных, нет outletId | 2+ active | 422 `OUTLET_REQUIRED` |
 | Повторная оплата | `payment_status=paid` | 409 `ALREADY_PAID` |
 | Повторный рейтинг | rating уже задан | 409 `ALREADY_RATED` |
+| Рейтинг до готовности | order ≠ completed **и** `arrived_at` пуст | 409 `ORDER_NOT_RATABLE` |
 | Купон чужой/неактивный | | 409 `COUPON_INVALID` |
 | Купон уже зарезервирован | в неоплаченном заказе | 409 `COUPON_ALREADY_RESERVED` |
 | Take неоплаченного | `payment_status!=paid` | 409 `ORDER_NOT_PAID` |
@@ -254,6 +262,7 @@ grabzi-web (`/admin/kitchen`), и полноценная админка — в `
 ## 6. ⚠️ Bug-watch — на что смотреть
 
 > Приоритет: 🔴 high · 🟡 medium. Каждый пункт — **проверить и зафиксировать факт**.
+> **Вердикты по каждой гипотезе (прогнано по коду 2026-06-16) — в §10.1–10.3.**
 
 ### 6.1 Клиент / публичный сайт
 
@@ -391,9 +400,106 @@ grabzi-web (`/admin/kitchen`), и полноценная админка — в `
 `POST /api/auth/verify` · `GET/PATCH /api/auth/me` · `GET /api/outlets` · `GET /api/drinks` · `GET /api/drinks/{slug}` · `POST /api/orders` · `GET /api/orders` · `GET /api/orders/{id}` · `POST /api/orders/{id}/arrived` · `POST /api/orders/{id}/rate` · `POST /api/payments/checkout-session` · `POST /api/staff/login` · `GET /api/admin/orders` · `POST /api/admin/orders/{id}/take|status|refund` · `GET /api/screen/board` · `GET/PATCH/POST /api/admin/outlets…` · `…/stop-list`, `…/drink-priorities`, `…/staff` · `GET /api/admin/catalog/*` · `/ws/orders/{id}` · `/ws/admin/orders`
 
 ### Коды ошибок (свод)
-`CART_EMPTY` · `CAR_PLATE_REQUIRED` · `OUTLET_CLOSED` · `OUTLET_REQUIRED` · `OUTLET_INVALID` · `OUTLET_HOURS_INVALID` · `LAST_ACTIVE_OUTLET` · `STAFF_NEEDS_OUTLET` · `OUTLET_SCOPE_INVALID` · `DRINK_NOT_AVAILABLE` · `ADDON_NOT_AVAILABLE` · `ALREADY_PAID` · `ALREADY_RATED` · `ORDER_NOT_PAID` · `INVALID_TRANSITION` · `COUPON_INVALID` · `COUPON_ALREADY_RESERVED` · `CANNOT_DEMOTE_SELF` · `CANNOT_DISABLE_SELF` · `PORTIONS_RANGE_INVALID` · `SLUG_TAKEN` · `VALIDATION_ERROR`
+`CART_EMPTY` · `CAR_PLATE_REQUIRED` · `OUTLET_CLOSED` · `OUTLET_REQUIRED` · `OUTLET_INVALID` · `OUTLET_HOURS_INVALID` · `LAST_ACTIVE_OUTLET` · `STAFF_NEEDS_OUTLET` · `OUTLET_SCOPE_INVALID` · `DRINK_NOT_AVAILABLE` · `ADDON_NOT_AVAILABLE` · `ALREADY_PAID` · `ALREADY_RATED` · `ORDER_NOT_RATABLE` · `ORDER_NOT_PAID` · `ORDER_FINISHED` · `INVALID_TRANSITION` · `COUPON_INVALID` · `COUPON_ALREADY_RESERVED` · `COUPON_ITEM_REQUIRED` · `CANNOT_DEMOTE_SELF` · `CANNOT_DISABLE_SELF` · `CANNOT_DELETE_SELF` · `PORTIONS_RANGE_INVALID` · `AT_LEAST_ONE_SIZE` · `SIZE_VALUES_INVALID` · `MULTIPLE_DEFAULT_SIZES` · `SLUG_TAKEN` · `SLUG_REQUIRED` · `EMAIL_TAKEN` · `CODE_TAKEN` · `PASSWORD_TOO_SHORT` · `VALIDATION_ERROR`
+
+> ⚠️ **Замечание по таблице §4.5:** код «точка не open / 0 активных» в `resolve_outlet` — это `OUTLET_INVALID` (для 0 active / неизвестного id); `OUTLET_REQUIRED` — только кейс «несколько активных, не выбран outletId». Рейтинг слишком рано → `ORDER_NOT_RATABLE` (не было в таблице). См. §10.
 
 ---
 
-> Подготовлено по анализу кода `grabzi-main` (grabzi-web + app/ + backend). Пункты bug-watch и кросс-флоу —
-> гипотезы для проверки; цель прогона — подтвердить/опровергнуть и завести задачи на найденное.
+## 10. Результаты верификации по коду (2026-06-16)
+
+> Все гипотезы bug-watch/кросс-флоу и критерии приёмки прогнаны по **реальному коду** ветки `grabzi-main`
+> (параллельный аудит backend + grabzi-web + app/). Это статический анализ кода, не ручной прогон —
+> там, где поведение зависит от рантайма (точные HTTP-коды под нагрузкой, гонки), указано «по коду».
+> Легенда: 🔴/🟡 — подтверждённый баг · ⚪ — гипотеза опровергнута (работает корректно) · ◐ — частично.
+
+### 10.1 Подтверждённые баги — критичные (🔴)
+
+| ID | Суть | Где (file:line) |
+|---|---|---|
+| **SEC-JWT** *(новый)* | **Дефолтный JWT-секрет `"dev-secret-change-me"`, HS256, без assert на старте.** Если env не переопределён в проде — подделка токена `super_admin` (полный обход auth). Усугубляет отсутствие ревокации токенов | `core/config.py:10` · `core/security.py:28` |
+| **O1/X3** | **Дневной лимит не enforced при оплате.** `create_order` проверяет статус точки один раз при создании; `mark_paid` только пересчитывает флаг `auto_paused`, оплату **не отклоняет** → точка уходит за лимит на любое число (лимит «мягкий»). `limit_reached` под конкуренцией может сработать дважды | `order_flow.py:60,138,151` · `outlet_service.py:204,313` |
+| **B3** | Номер заказа = `max(number)+1` без лока. Спасает `unique=True`, но **нет catch IntegrityError/retry** → проигравший гонку получает необработанный **500** | `order_flow.py:49` · `models/orders.py:27` |
+| **B1/X9** | Резерв купона — check-then-act без лока и без unique-констрейнта на `coupon_id` → два неоплаченных заказа резервируют один купон | `order_flow.py:119-126` |
+| **A1/X5** | **Scope менеджера не фильтрует по `is_active` точки** → после деактивации точки её заказы остаются видимы и изменяемы менеджером. (404-вместо-403 — корректно; обход через `?outlet_id=` — опровергнут, параметр для менеджера игнорируется) | `core/security.py:88-95` |
+| **OS-003/O2** | `active_outlet_count()` — `COUNT(*)` без лока → две одновременные деактивации при 2 активных дают **0 активных**, публичка падает `OUTLET_INVALID` | `admin_outlets.py:216` · `outlet_service.py:245` |
+| **K1/X11** | Кухня **не блокирует** TAKE/READY/HANDED-OVER при `paused`/`closed`/`inactive` (нет guard ни на кнопках, ни на мутации; бэк тоже не проверяет статус точки на take) | `kitchen/page.tsx:62-66,139` · `admin_orders.py:88` |
+| **C1/X2** | Корзина хранит старые `drinkId` при смене точки **+ в `ERR_COPY` нет текста для `DRINK_NOT_AVAILABLE`** → юзер видит generic «Payment couldn't start.», не понимая, что/какой напиток недоступен | `order/page.tsx:34-42,244` · `store.ts:20` |
+| **C4/SEO** | `/product/[slug]` для несуществующего слага — soft-404 (HTTP **200**) **и без `noindex`**: это client-компонент, `generateMetadata` невозможен, `notFound()` не вызывается | `product/[slug]/page.tsx:1,17` |
+| **C2** | Часы/«Today» считаются по TZ **браузера** (`new Date().getDay()`, `toLocaleTimeString`), а часы точки — в TZ точки (Dubai) → расхождение для не-UAE | `lib/hours.ts:19` · `lib/outletStatus.ts:6` |
+| **B2** | OTP dev-mode возвращает `devCode` в ответе; дефолт `otp_dev_mode=True`. Плюс: нет rate-limit на запрос кода, 4-значный код без счётчика попыток → brute-force, старые коды не инвалидируются | `core/config.py:23` · `auth.py:36-53` |
+| **REF-NET** *(новый)* | **Order-level рефанд (`/admin/orders/{id}/refund`) портит денежную отчётность**: ставит `payment_status=refunded`, но **не выставляет `refunded_amount`** → в платежах `refunds=0`, заказ остаётся в `captured` → **net завышен**. Плюс эндпойнт доступен `manager`, тогда как payment-рефанд — только `super_admin` | `admin_orders.py:117-134` · `admin_payments.py:57` |
+| **WEB-10** *(новый)* | **`Nav.tsx` — мёртвый код: компонент нигде не смонтирован** (`layout.tsx` рендерит только OfflineBanner + children). Нижнего навбара на мобиле / шапки на десктопе у пользователя **нет** — только `TopBrand` (кнопка назад) и футер на главной | `components/Nav.tsx` (не импортирован) · `layout.tsx:22` |
+| **SCR** *(новый/док)* | **Табло выдачи (screen) в `grabzi-web` отсутствует** — есть только в `app/admin/screen`. Документ (первая ред.) ошибочно утверждал, что оно есть и в grabzi-web | только `app/app/admin/screen/page.tsx` |
+
+### 10.2 Подтверждённые баги — средние (🟡)
+
+| ID | Суть | Где |
+|---|---|---|
+| **CAT3** | `portionAmount=0`/отрицательный **не отклоняется** на бэке (нет `Field(gt=0)`) → нулевые граммы, поломка расчёта нутриентов. (Диапазон `min≤default≤max` проверяется корректно) | `admin_catalog.py:247,331` |
+| **CAT2** | `basePrice` не пересинхронизируется при смене default-размера в редакторе (только после Save Sizes + перезагрузки стейта), хотя поле подписано «synced» | `products/[slug]/page.tsx:94,100` |
+| **CAT5** | Добавка в **неактивной категории** всё равно показывается в билдере напитка (фильтр только по `addon.isActive`, не по категории) | `ProductBindingsTab.tsx:75` |
+| **C5** | `imHere()` не проверяет `res.ok`, без try/catch → при 401/409 кнопка молча ничего не делает | `orders/[id]/page.tsx:56-62` |
+| **O5** | `auto_paused` остаётся `true` после рефанда (`refresh_limit_pause` зовётся только из `mark_paid`). Гейтинг заказов самолечится через live-счётчик paid-only — страдает только админ-UI/аудит | `outlet_service.py:313` · `admin_orders.py:117` |
+| **ADM-M-06** *(новый)* | **Причина рефанда НЕ обязательна** вопреки истории: `reason: str \| None = None`, не валидируется; фронт подписан «Reason (optional)». Граничная математика рефанда (A4) — корректна (порог `≥ amount-0.001`) | `admin_payments.py:161` · `PaymentDrawer.tsx:284` |
+| **ADM-EXP-12** *(новый)* | `customers.xlsx` **игнорирует все фильтры и сортировку** (эндпойнт без query-параметров), в отличие от остальных 4 экспортов, которые фильтры учитывают | `admin_exports.py:59` · `customers/page.tsx:53` |
+| **A6** | Пагинация заказов — чистый offset/limit по списку `id DESC` без курсора. `X-Total-Count` есть, но при вставке нового заказа стр.1 сдвигается → **дубли/пропуски между страницами** | `core/pagination.py:14` · `admin_orders.py:53` |
+| **WEB-2** *(новый)* | Флаг бэка `acceptingOrders` **парсится, но нигде не используется**; гейтинг заказа — клиентский из `status/remaining`. Кнопка «Proceed to Payment» на `/order` **без проверки статуса** (только totalDrinks>0) | `lib/api.ts:67` · `order/page.tsx:322` |
+| **WEB-13** *(новый)* | Zustand `persist` имеет `version:1`, но **нет функции `migrate`** → при будущем бампе версии корзина молча сбросится, а не мигрирует | `lib/store.ts:31` |
+| **WEB-11** *(новый)* | OfflineBanner: «We'll reload when you're back» — но `location.reload()`/рефетч **не вызывается**; «авто-восстановление» = просто скрытие баннера | `components/OfflineBanner.tsx` |
+| **i18n-groups** *(новый)* | Страница add-on категорий/единиц рендерит `name.ru`, а создаёт записи с `name.en` → **пустые имена** у созданных через UI записей | `groups/page.tsx:48,83,92,121` |
+| **PHONE-2** *(новый)* | Вход в `/orders` использует другую нормализацию (`/^\+?\d{7,15}$/` + просто префикс `+`), не `normalizePhoneUAE` → `0501234567`→`+0501234567` ≠ `+971501234567` из заказа → «нет заказов» для того же человека | `orders/page.tsx:59-62` |
+| **CAT-PUB** *(новый)* | `api.drinks(locationId)` **игнорирует аргумент** + `_public_outlet_id` = `None` при мультиточке → публичный каталог **никогда не пер-точечный**, стоп-лист точки на витрине не применяется (корень C1/X2) | `lib/api.ts:121` · `catalog.py:18` |
+| **PAY-500** *(новый)* | `mark_paid` падает 500, если `coupon_id` задан, а строка купона удалена/void (`coupon.status='used'` по `None`) | `order_flow.py:140-147` |
+| **PRICE-NEG** *(новый)* | `BindingIn.priceOverride` без `ge=0` → отрицательная цена аддона уменьшает сумму заказа | `admin_catalog.py:243` |
+| **LOGOUT-2** *(новый)* | Кухня (`grabzi-web`) **без кнопки logout** и использует другой ключ токена (`grabzi_staff_token` vs `juicy-staff-token` в `app/`) → две независимые сессии, logout в одной не чистит другую | `kitchen/page.tsx` · `AdminShell.tsx:107` |
+| **PLATE-2** *(новый)* | `pay()` проверяет только `car.trim().length<2`; маска допускает 0 букв → плита из одних цифр (`"12"`) проходит и фронт, и бэк (бэк — только непустоту) | `order/page.tsx:210` · `order_flow.py:70` |
+| **DESC-XSS** *(новый)* | Короткое поле `Drink.description` (и `ingredients`/`allergens`) сохраняется **без санитизации** (санитайзер применён только к rich-описанию) — stored-XSS, если фронт отрендерит как HTML | `admin_catalog.py:299,314` |
+| **WS-STAFF** *(новый)* | Любой авторизованный staff может смотреть WS **любого** `order:{id}` без проверки скоупа точки (cross-outlet leak для персонала). Изоляция между клиентами и в админ-фиде — корректна | `ws.py:49` |
+| **WS-RECONN** *(новый)* | На `/orders/[id]` WS открывается один раз, без reconnect; при обрыве — только 20с-поллинг; `JSON.parse(e.data)` без guard | `orders/[id]/page.tsx:44-51` |
+| **RFM-DEAD** *(новый)* | В сегментации RFM есть недостижимые ветки (`r==3 && f>=3` затенён `r>=3 && f>=3`) → часть сегментов никогда не присваивается | `crm_rfm.py:79-99` |
+| **B8** | Латентный DST-баг: `opensAt/closesAt/resetsAt` строятся через `datetime.replace()` (сохраняет старый offset) → ±1ч у DST-зон. Для Asia/Dubai (без DST) не проявляется | `outlet_service.py:182-200` |
+
+*Мелкие/косметические:* пороги low-stock рассинхронены (15 в `statusBadge` vs 20/60 в `statusInfo`), `peakHour` показывает «0:00 (0)» для пустого периода, звуковой сигнал новых заказов на кухне закомментирован (`playChime`), slug категорий выводится из `name.ru` (пустой → `SLUG_REQUIRED`), брендинг-строки `v1.0 · JOOZ` остались после ренейма.
+
+### 10.3 Гипотезы bug-watch, которые опровергнуты ⚪ (работают корректно)
+
+| ID | Вердикт | Где |
+|---|---|---|
+| **B4** | WS-изоляция корректна: каналы строго `order:{id}` и `admin:orders:{outlet_id}`, утечек между заказами/точками нет (но см. WS-STAFF в §10.2) | `ws.py:38,82` |
+| **O6** | Невалидная TZ → безопасный фолбэк на Dubai через try/except; «open при неверной TZ» не воспроизводится | `outlet_service.py:29` |
+| **A3** | Screen на 2+ точки невозможен: бэк `422 OUTLET_SCOPE_INVALID`, фронт форсит ровно 1 | `outlet_service.py:285` · `staff/[id]/page.tsx:148` |
+| **C6** | `/orders/[id]` берёт items/outlet из API, не из драфта → не устаревает | `orders/[id]/page.tsx:35` |
+| **A5** | Деление на 0 в дашборде защищено, NaN нет (`if … else 0`). *Но показывает `0.00`, а не `«—»` как ожидал документ* | `dashboard.py:171-172` |
+| **KIT-2/3/4** | Переходы статусов корректны, `INVALID_TRANSITION`/`ORDER_NOT_PAID` на месте | `order_flow.py:23-28` · `admin_orders.py:88` |
+| **рейтинг-гард** | Рейтинг только после `arrived`/`completed`, иначе `ORDER_NOT_RATABLE` | `orders.py:180` |
+| **ALREADY_PAID** | Повторный checkout/вебхук защищён | `payments.py:35,169` |
+| **B7** | Вебхук идемпотентен на дубль/устаревший/refunded — без 500 | `payments.py:162-193` |
+| **SEO-02** | `X-Robots-Tag: noindex` на всех ответах API + `/robots.txt` Disallow | `main.py:47-56` |
+| **A4** | Граничная математика рефанда корректна (порог `≥ amount-0.001`) | `admin_payments.py:193` |
+
+### 10.4 Функционал, подтверждённый как рабочий ✅
+
+- **Публичка:** WEB-1 (TODAY'S LIMIT: 0/1/2+ ветки + revalidate 30с), WEB-6 (история заказов), WEB-7 (карточка напитка), WEB-8 (info/контакты/точки), WEB-9 (брендовая 404 + noindex + HTTP 404), маски телефона/авто (все кейсы чеклиста, кроме уточнённых примеров).
+- **Кухня/экран:** KIT-1 (канбан 4 колонки + таймеры + состав), KIT-5 (Sold X/Limit, бар, `No limit` без бара, красный при 100%), KIT-6 (WS realtime + 10с-поллинг), SCR-1..3 (две секции Ready/Preparing, realtime + reconnect) — **но только в `app/`**.
+- **Админ-заказы:** ADM-M-01..04 (список paid-only, фильтры active/manager/unassigned, take, переходы, таймлайн с кликабельными именами стаффа).
+- **Стафф:** ADM-S-06/07 (CRUD, хеш паролей `pbkdf2_sha256`, гарды `CANNOT_DEMOTE_SELF`/`CANNOT_DISABLE_SELF`/`CANNOT_DELETE_SELF`, привязка точек с инвариантами).
+- **Каталог:** ADM-S-01 (категории), ADM-S-02 (selectionType single/multi/counter enforced), ADM-S-03/04 (добавки/единицы, `CODE_TAKEN`), ADM-S-05 (статусы draft/published/hidden, валидация размеров/привязок, EN-AR описание, `SLUG_TAKEN`), ADM-S-11 (бейдж «no AR» — есть для напитков/добавок; нет для категорий/групп). Публично видны только `published`.
+- **CRM/аналитика:** ADM-S-08 (сортируемый список + RFM/churn/CLV/история), ADM-S-09 (платежи: fees/net/successRate + рефанд), ADM-S-10 (дашборд: KPI/периоды/фильтр точки/пиковые часы/топы/графики), ADM-A-11 (аудитория: сегменты/персоны/drill-down), ADM-EXP-12 (5 экспортов .xlsx; 4 учитывают фильтры, `customers.xlsx` — нет, см. §10.2).
+
+### 10.5 Неточности первой редакции (исправлены в этой ревизии)
+
+1. **Табло screen «и в grabzi-web»** — неверно; оно только в `app/` (§1, §2 поправлены).
+2. **i18n «en ?? ru»** — в проекте локали `en`/`ar`, правило `запрошенная ?? default(en) ?? первое` (§4.4 поправлен).
+3. **Маска телефона** `50123456→+971 50 123 4567` — пример требует 9 цифр (`501234567`); `50123456` это 8 цифр (§4.1 поправлен).
+4. **Маска авто** `ab12345→A 12345` — на деле `AB 12345` (маска жадно берёт 2 буквы) (§4.1 поправлен).
+5. **Коды размеров** ADM-S-05 — это `AT_LEAST_ONE_SIZE`/`SIZE_VALUES_INVALID`/`MULTIPLE_DEFAULT_SIZES`, а `PORTIONS_RANGE_INVALID` — для привязок (§4.4 поправлен).
+6. **Таблица кодов §4.5** — «точка не open/0 активных» = `OUTLET_INVALID`; добавлен `ORDER_NOT_RATABLE`; свод §9 дополнен (поправлено).
+7. **Whitelist санитайзера** — включает `h4`, не включает `a`; применяется только к rich-описанию (§4.4 поправлен).
+8. **«Заказ доступен только при `acceptingOrders=true`»** — флаг не используется, гейтинг клиентский (§4.1 поправлен).
+
+---
+
+> Подготовлено по анализу кода `grabzi-main` (grabzi-web + app/ + backend). §1–9 — истории/критерии/флоу;
+> §10 — результаты верификации по коду (вердикты + новые баги). Гонки и точные HTTP-коды под нагрузкой
+> остаются для ручного/нагрузочного прогона; цель — подтвердить на стенде и завести задачи на найденное.
