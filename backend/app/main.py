@@ -11,7 +11,8 @@ UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 from .core.db import Base, SessionLocal, engine
 from .models import outlet  # noqa: F401  — регистрация таблиц локаций ДО create_all (см. models/__init__.py)
 from .services.migrate import (backfill_category_slugs, backfill_outlets, backfill_payments,
-                               backfill_sizes, ensure_schema, localize_catalog_en)
+                               backfill_sizes, ensure_schema, localize_catalog_en,
+                               upgrade_media_https)
 from .services.seed import seed
 
 
@@ -43,6 +44,7 @@ async def lifespan(app: FastAPI):
         localize_catalog_en(db)
         backfill_payments(db)
         backfill_outlets(db)  # последним: зависит от наличия orders + staff
+        upgrade_media_https(db)  # http→https для media-URL (mixed content на https-сайте)
     yield
 
 

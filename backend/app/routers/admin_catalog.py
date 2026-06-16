@@ -42,6 +42,13 @@ async def upload_media(request: Request, file: UploadFile = File(...)):
     with open(os.path.join(UPLOAD_DIR, name), "wb") as f:
         f.write(data)
     base = str(request.base_url).rstrip("/")
+    # За TLS-терминирующим прокси (nginx) uvicorn видит http → на https-сайте картинка
+    # блокируется как mixed content. Для реальных доменов (хост с точкой, не loopback)
+    # принудительно отдаём https; localhost/testserver/127.* остаются http (dev/тесты).
+    host = base.split("://", 1)[-1].split("/")[0].split(":")[0]
+    is_local = host in ("localhost", "testserver") or host.startswith("127.")
+    if base.startswith("http://") and "." in host and not is_local:
+        base = "https://" + base[len("http://"):]
     kind = "video" if ext in {".mp4", ".webm", ".mov", ".m4v"} else "image"
     return {"url": f"{base}/media/{name}", "kind": kind}
 
