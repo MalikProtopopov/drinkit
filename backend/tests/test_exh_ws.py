@@ -242,7 +242,8 @@ def test_order_ws_refund_event(client, customer, manager):
         ws.receive_json()
         _set_status(client, manager, order["id"], "completed")
         ws.receive_json()
-        r = client.post(f"/api/admin/orders/{order['id']}/refund", headers=manager["headers"])
+        r = client.post(f"/api/admin/orders/{order['id']}/refund", headers=manager["headers"],
+                        json={"reason": "брак"})
         assert r.status_code == 200, r.text
         msg = ws.receive_json()
     assert msg["status"] == "refund"

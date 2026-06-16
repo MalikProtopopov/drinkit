@@ -46,14 +46,21 @@ def _can_watch_order(token: str | None, order_id: int) -> bool:
     if not data:
         return False
     with SessionLocal() as db:
+        try:
+            o = db.get(Order, order_id)  # огромный/битый id → не найден, а не 500
+        except Exception:
+            return False
+        if o is None:
+            return False
         if data.get("kind") == "staff":
-            return db.get(StaffUser, int(data["sub"])) is not None
-        if data.get("kind") == "customer":
-            try:
-                o = db.get(Order, order_id)  # огромный/битый id → не найден, а не 500
-            except Exception:
+            staff = db.get(StaffUser, int(data["sub"]))
+            if staff is None or staff.disabled:
                 return False
-            return o is not None and o.user_id == int(data["sub"])
+            # REQ-7: персонал смотрит заказ только своей точки (super_admin — любой)
+            scope = get_staff_outlet_ids(staff, db)
+            return scope is None or o.outlet_id in scope
+        if data.get("kind") == "customer":
+            return o.user_id == int(data["sub"])
     return False
 
 

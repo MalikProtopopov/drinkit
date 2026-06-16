@@ -22,15 +22,27 @@ def _public_outlet_id(db: Session) -> int | None:
     return ids[0] if len(ids) == 1 else None
 
 
+def _effective_outlet_id(db: Session, outlet_id: int | None) -> int | None:
+    """Точка для стоп-листа/приоритетов витрины. При мультиточке фронт (/order) передаёт
+    выбранный outletId — применяем стоп-лист именно этой активной точки (CAT-PUB/C1);
+    иначе фолбэк на единственную активную."""
+    if outlet_id is not None:
+        ok = db.scalar(select(Outlet.id).where(Outlet.id == outlet_id, Outlet.is_active.is_(True)))
+        if ok is not None:
+            return outlet_id
+    return _public_outlet_id(db)
+
+
 @router.get("/categories")
-def list_categories(locale: str = Query("ru"), db: Session = Depends(get_db)):
+def list_categories(locale: str = Query("ru"), outletId: int | None = Query(None),
+                    db: Session = Depends(get_db)):
     """PUB-G-01: только активные категории, отсортированы."""
     locale = pick_locale(locale)
     cats = db.scalars(
         select(DrinkCategory).where(DrinkCategory.is_active.is_(True)).order_by(DrinkCategory.sort)
     ).all()
     # стоп-лист точки (REQ-3): скрываем застопленные категории на публичном сайте
-    stop = load_stop_sets(db, _public_outlet_id(db))
+    stop = load_stop_sets(db, _effective_outlet_id(db, outletId))
     cats = [c for c in cats if c.id not in stop["drink_category"]]
     return [
         {"id": c.id, "slug": c.slug, "name": t(c.name, locale),
@@ -43,6 +55,7 @@ def list_categories(locale: str = Query("ru"), db: Session = Depends(get_db)):
 def list_drinks(
     category: str | None = Query(None, description="фильтр по slug категории (query-параметр, PUB-G-01 AC4)"),
     locale: str = Query("ru"),
+    outletId: int | None = Query(None, description="точка витрины (мультиточка): её стоп-лист/приоритеты"),
     db: Session = Depends(get_db),
 ):
     locale = pick_locale(locale)
@@ -54,7 +67,7 @@ def list_drinks(
         q = q.where(Drink.category_id == cat.id)
     drinks = db.scalars(q).all()
     # стоп-лист + приоритеты точки (REQ-3)
-    outlet_id = _public_outlet_id(db)
+    outlet_id = _effective_outlet_id(db, outletId)
     stop = load_stop_sets(db, outlet_id)
     if stop["drink"] or stop["drink_category"]:
         drinks = [d for d in drinks

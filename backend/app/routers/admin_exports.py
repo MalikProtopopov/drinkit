@@ -57,8 +57,12 @@ def export_orders(outlet_id: int | None = Query(None),
 
 
 @router.get("/customers.xlsx")
-def export_customers(db: Session = Depends(get_db)):
-    """Все клиенты + агрегаты по оплаченным заказам (как на странице «Клиенты»)."""
+def export_customers(sort: str = Query("registered", description="id|name|orders|spent|registered|lastOrder"),
+                     direction: str = Query("desc", alias="dir", description="asc|desc"),
+                     q: str | None = Query(None, description="поиск: имя/телефон/авто"),
+                     db: Session = Depends(get_db)):
+    """Все клиенты + агрегаты по оплаченным заказам (как на странице «Клиенты»).
+    ADM-EXP-12: учитывает активные сортировку/поиск списка (раньше игнорировал все фильтры)."""
     agg: dict[int, dict] = {}
     for uid, total, created in db.execute(
         select(Order.user_id, Order.total, Order.created_at).where(Order.payment_status == "paid")
@@ -79,7 +83,16 @@ def export_customers(db: Session = Depends(get_db)):
             "spent": round(a["spent"], 2) if a else 0,
             "lastOrderAt": a["last"].isoformat() if a and a["last"] else None,
         })
-    rows.sort(key=lambda r: r["createdAt"] or "", reverse=True)
+    if q:
+        needle = q.strip().lower()
+        rows = [r for r in rows if needle in " ".join(
+            str(v).lower() for v in (r["name"], r["phone"], r["carPlate"]) if v)]
+    key_fns = {
+        "id": lambda r: r["id"], "name": lambda r: (r["name"] or "").lower(),
+        "orders": lambda r: r["orders"], "spent": lambda r: r["spent"],
+        "registered": lambda r: r["createdAt"] or "", "lastOrder": lambda r: r["lastOrderAt"] or "",
+    }
+    rows.sort(key=key_fns.get(sort, key_fns["registered"]), reverse=(direction != "asc"))
     return _file(export_service.build_customers_wb(rows), "customers")
 
 

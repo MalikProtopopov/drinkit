@@ -1,6 +1,8 @@
 """Админка-заказы (ADM-M-01..06)."""
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -8,8 +10,10 @@ from ..core.db import get_db
 from ..core.pagination import PageLimit, PageOffset, paginate
 from ..core.security import (get_current_staff, get_staff_outlet_ids, require_manager_or_admin)
 from ..models.orders import Order
+from ..models.outlet import Outlet
 from ..models.users import StaffUser
 from ..services.order_flow import ACTIVE_STATUSES, add_event, transition
+from ..services.outlet_service import refresh_limit_pause
 from ._serializers import _addon_map, _drink_map, _order_row
 
 router = APIRouter(prefix="/api/admin", tags=["admin-orders"])
@@ -97,7 +101,8 @@ class StatusIn(BaseModel):
 
 
 class RefundIn(BaseModel):
-    note: str | None = None  # refund использует только note (status не требуется)
+    reason: str = Field(min_length=1)  # ADM-M-06: причина возврата обязательна
+    note: str | None = None
 
 
 @router.post("/orders/{order_id}/status")
@@ -115,20 +120,37 @@ def set_status(order_id: int, body: StatusIn, staff: StaffUser = Depends(require
 
 
 @router.post("/orders/{order_id}/refund")
-def refund_order(order_id: int, body: RefundIn | None = None,
+def refund_order(order_id: int, body: RefundIn,
                  staff: StaffUser = Depends(require_manager_or_admin), db: Session = Depends(get_db)):
-    """ADM-M-06 (опциональный модуль): возврат. Полный возврат заказа;
+    """ADM-M-06 (опциональный модуль): полный возврат заказа с обязательной причиной.
     DECISION: Stripe Refund вызывается при наличии ключа, в mock-режиме помечается локально.
     Применённый купон аннулируется не возвращаясь (открытый вопрос Q18 — зафиксировано так)."""
     o = db.get(Order, order_id)
     if not o:
         raise HTTPException(404, "NOT_FOUND")
     _scoped_or_404(o, staff, db)
-    transition(db, o, "refund", by_staff_id=staff.id, note=(body.note if body else None))
-    o.payment_status = "refunded"
+    # проверки ДО мутаций, чтобы не оставить частичное состояние при ошибке
+    if o.status != "completed":
+        raise HTTPException(409, f"INVALID_TRANSITION:{o.status}->refund")
+    if o.payment_status == "refunded":
+        raise HTTPException(409, "ALREADY_REFUNDED")
+    if o.payment_status != "paid":
+        raise HTTPException(409, "ORDER_NOT_PAID")  # возвращать нечего
+    reason = body.reason.strip()
+    # деньги: помечаем успешные платежи возвращёнными И фиксируем refunded_amount —
+    # иначе сводка платежей считает заказ captured и завышает net (REF-NET).
     for p in o.payments:
         if p.status == "succeeded":
             p.status = "refunded"
-    add_event(db, o, "refund", by_staff_id=staff.id)
+            p.refunded_amount = round(p.amount or 0, 2)
+            p.updated_at = datetime.utcnow()
+    o.payment_status = "refunded"
+    transition(db, o, "refund", by_staff_id=staff.id, note=reason)  # статус + событие + commit + notify
+    add_event(db, o, "refund", by_staff_id=staff.id, note=reason)   # денежное событие для таймлайна платежа
     db.commit()
+    # O5: возвращённый заказ покидает paid-счётчик — снимаем auto_paused, если лимит больше не достигнут
+    if o.outlet_id:
+        outlet = db.get(Outlet, o.outlet_id, with_for_update=True)
+        if outlet and refresh_limit_pause(db, outlet):
+            db.commit()
     return _order_row(o)

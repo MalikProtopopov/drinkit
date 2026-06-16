@@ -213,7 +213,11 @@ def deactivate_outlet(outlet_id: int, staff: StaffUser = Depends(require_super_a
                       db: Session = Depends(get_db)):
     o = _get(db, outlet_id)
     if o.is_active:
-        if active_outlet_count(db) <= 1:
+        # O2: блокируем строки активных точек — две одновременные деактивации не смогут
+        # обе пройти проверку «> 1» и обнулить число активных (на Postgres FOR UPDATE сериализует).
+        active_ids = db.scalars(
+            select(Outlet.id).where(Outlet.is_active.is_(True)).with_for_update()).all()
+        if len(active_ids) <= 1:
             raise HTTPException(409, "LAST_ACTIVE_OUTLET")  # нельзя оставить публичный сайт без точки
         o.is_active = False
         o.updated_at = datetime.utcnow()

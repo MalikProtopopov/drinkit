@@ -11,7 +11,10 @@ from ..core.db import get_db
 from ..core.pagination import PageLimit, PageOffset, paginate
 from ..core.security import require_super_admin
 from ..models.orders import Payment
+from ..models.outlet import Outlet
+from ..models.users import StaffUser
 from ..services.order_flow import add_event, notify
+from ..services.outlet_service import refresh_limit_pause
 from ._serializers import _payment_row_full
 
 router = APIRouter(prefix="/api/admin", tags=["admin-payments"])
@@ -161,9 +164,9 @@ class PaymentRefundIn(BaseModel):
     reason: str | None = None
 
 
-@router.post("/payments/{payment_id}/refund", dependencies=[Depends(require_super_admin)])
+@router.post("/payments/{payment_id}/refund")
 def refund_payment(payment_id: int, body: PaymentRefundIn | None = None,
-                   db: Session = Depends(get_db)):
+                   staff: StaffUser = Depends(require_super_admin), db: Session = Depends(get_db)):
     """Возврат по платежу: Stripe Refund при реальном charge, иначе локально.
     Частичный возврат поддержан; полный переводит заказ в payment_status=refunded.
     Готовочный статус заказа не трогаем — возврат денег от него не зависит."""
@@ -199,10 +202,15 @@ def refund_payment(payment_id: int, body: PaymentRefundIn | None = None,
     o = p.order
     if o:
         note = (body.reason if body else None) or f"refund {amount} {p.currency}"
-        add_event(db, o, "refund", note=note)
+        add_event(db, o, "refund", by_staff_id=staff.id, note=note)  # атрибутируем актора (аудит)
         if full and o.payment_status != "refunded":
             o.payment_status = "refunded"
     db.commit()
     if o:
+        # O5: полный возврат выводит заказ из paid-счётчика — синхронизируем auto_paused точки
+        if full and o.outlet_id:
+            outlet = db.get(Outlet, o.outlet_id, with_for_update=True)
+            if outlet and refresh_limit_pause(db, outlet):
+                db.commit()
         notify(o)
     return _payment_row_full(p)
