@@ -1,7 +1,7 @@
 import "./admin.css";
 
 export const metadata = {
-  title: "JOOZ Admin",
+  title: "GRABZI Admin",
   // админка не должна попадать в поисковую выдачу: noindex на всех /admin страницах
   // (любой домен). На уровне nginx admin-домен дополнительно закрыт X-Robots-Tag.
   robots: { index: false, follow: false, nocache: true,

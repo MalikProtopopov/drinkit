@@ -37,7 +37,7 @@ export default function AdminLoginPage() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center",
                       gap: 8, marginBottom: 22 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="JOOZ" style={{ height: 26, width: "auto" }} />
+          <img src="/logo.png" alt="GRABZI" style={{ height: 56, width: "auto" }} />
           <div style={{ fontSize: 12, color: "#5A6172" }}>Admin · staff sign-in</div>
         </div>
         <div className="admin-field">

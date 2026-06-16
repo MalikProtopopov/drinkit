@@ -12,9 +12,9 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
-  title: "JOOZ — order your fresh juice ahead",
+  title: "GRABZI — order your fresh juice ahead",
   description:
-    "Juice bar web app in the UAE: pre-order fresh juices, smoothies and shots. Pickup by car plate.",
+    "GRABZI in the UAE: pre-order fresh juices, smoothies and shots. Drive-through pickup by car plate.",
 };
 
 export const viewport: Viewport = {

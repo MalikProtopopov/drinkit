@@ -129,9 +129,9 @@ export function AdminShell({
         <aside className="admin-sidebar" data-open={navOpen}>
           <div className="admin-brand" style={{ flexDirection: "column", alignItems: "flex-start", gap: 4 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img className="admin-brand-logo" src="/logo.png" alt="JOOZ" style={{ height: 24, width: "auto" }} />
+            <img className="admin-brand-logo" src="/logo.png" alt="GRABZI" style={{ height: 44, width: "auto" }} />
             {/* компактная марка для свёрнутого сайдбара */}
-            <span className="admin-brand-mark admin-brand-mark-collapsed" aria-hidden="true">J</span>
+            <span className="admin-brand-mark admin-brand-mark-collapsed" aria-hidden="true">G</span>
             <span className="admin-brand-sub">Admin · UAE</span>
           </div>
           <nav className="admin-nav">

@@ -111,7 +111,7 @@ export default function ScreenBoardPage() {
       <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="JOOZ" style={{ height: "clamp(20px,1.9vw,34px)", width: "auto" }} />
+          <img src="/logo.png" alt="GRABZI" style={{ height: "clamp(34px,3vw,54px)", width: "auto" }} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "clamp(12px,1.2vw,24px)",
                       color: "#8893B6", fontWeight: 700, fontSize: "clamp(14px,1.5vw,26px)" }}>

@@ -163,7 +163,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
                     transition: "transform .34s cubic-bezier(.3,1,.4,1), opacity .28s ease" }}>
         <div className="w-[54px] flex-none flex items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="JOOZ" className="h-4 w-auto"
+          <img src="/logo.png" alt="GRABZI" className="h-7 w-auto"
                style={{ filter: "brightness(0) invert(1) drop-shadow(0 1px 4px rgba(0,0,0,.4))" }} />
         </div>
         <button onClick={() => setShowName(true)}

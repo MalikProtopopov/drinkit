@@ -22,7 +22,7 @@ export default function Index() {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.png" alt="JOOZ" className="h-8 w-auto animate-breathe" />
+      <img src="/logo.png" alt="GRABZI" className="h-16 w-auto animate-breathe" />
       <div className="loader-ring" />
     </div>
   );

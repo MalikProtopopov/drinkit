@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
@@ -41,6 +41,20 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Total-Count", "Content-Disposition"],  # пагинация + имя файла выгрузки
 )
+
+
+# бэкенд-API не должен попадать в поисковую выдачу: noindex-заголовок на всех ответах
+@app.middleware("http")
+async def add_noindex_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
+    return response
+
+
+@app.get("/robots.txt", include_in_schema=False)
+def robots_txt():
+    return PlainTextResponse("User-agent: *\nDisallow: /\n")
+
 
 # загруженные медиа (картинки/видео из админки) отдаются по /media/*
 os.makedirs(UPLOAD_DIR, exist_ok=True)

@@ -86,7 +86,7 @@ function HomeInner({ initialProfileOpen = false }: { initialProfileOpen?: boolea
           <div className="absolute top-0 inset-x-0 z-20 flex items-start justify-between px-5 pt-safe pb-3">
             <div className="flex flex-col gap-1 min-w-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt="JOOZ" className="h-[26px] w-auto mt-0.5 self-start"
+              <img src="/logo.png" alt="GRABZI" className="h-9 w-auto mt-0.5 self-start"
                    style={{ filter: "brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0,0,0,.6)) drop-shadow(0 3px 12px rgba(0,0,0,.45))" }} />
               {/* локация: адрес мелким шрифтом + часы работы (REQ-5/6) */}
               {outlet?.address && (
