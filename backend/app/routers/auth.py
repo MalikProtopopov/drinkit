@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from ..core.config import settings
@@ -33,9 +33,18 @@ def request_code(body: PhoneIn, db: Session = Depends(get_db)):
     if not settings.auth_otp_enabled:
         # OTP выключен: SMS не шлём, фронт сразу вызывает /verify без кода
         return {"sent": False, "otpRequired": False}
+    now = datetime.utcnow()
+    # антифлуд: слишком много ещё живых кодов на этот телефон → притормаживаем (SMS-бомбинг/стоимость)
+    active = db.scalar(select(func.count()).select_from(OtpCode).where(
+        OtpCode.phone == body.phone, OtpCode.used.is_(False), OtpCode.expires_at > now)) or 0
+    if active >= settings.otp_max_active_per_phone:
+        raise HTTPException(429, "OTP_RATE_LIMITED")
+    # инвалидируем прежние коды этого телефона — действителен только последний (сужаем окно брутфорса)
+    db.execute(update(OtpCode).where(OtpCode.phone == body.phone, OtpCode.used.is_(False))
+               .values(used=True))
     code = settings.otp_dev_code if settings.otp_dev_mode else f"{random.randint(0, 9999):04d}"
     db.add(OtpCode(phone=body.phone, code=code,
-                   expires_at=datetime.utcnow() + timedelta(seconds=settings.otp_ttl_seconds)))
+                   expires_at=now + timedelta(seconds=settings.otp_ttl_seconds)))
     db.commit()
     resp = {"sent": True, "otpRequired": True, "ttl": settings.otp_ttl_seconds}
     if settings.otp_dev_mode:

@@ -732,6 +732,26 @@ def test_bindings_negative_min_422(client, admin):
     assert r.status_code == 422
 
 
+def test_bindings_zero_portion_amount_422(client, admin):
+    """CAT3: portionAmount должен быть > 0 (иначе нулевая граммовка ломает расчёт нутриентов)."""
+    d = _make_drink(client, admin)
+    a1 = _make_addon(client, admin)
+    r = client.put(f"{BASE}/drinks/{d['id']}/bindings", headers=_h(admin),
+                   json=[{"addonId": a1["id"], "minPortions": 0, "defaultPortions": 1,
+                          "maxPortions": 2, "portionAmount": 0}])
+    assert r.status_code == 422
+
+
+def test_bindings_negative_price_override_422(client, admin):
+    """PRICE-NEG: отрицательный priceOverride не принимаем (занижал бы сумму заказа)."""
+    d = _make_drink(client, admin)
+    a1 = _make_addon(client, admin)
+    r = client.put(f"{BASE}/drinks/{d['id']}/bindings", headers=_h(admin),
+                   json=[{"addonId": a1["id"], "priceOverride": -5, "minPortions": 0,
+                          "defaultPortions": 1, "maxPortions": 2, "portionAmount": 10}])
+    assert r.status_code == 422
+
+
 def test_bindings_boundary_equal_allowed(client, admin):
     d = _make_drink(client, admin)
     a1 = _make_addon(client, admin)

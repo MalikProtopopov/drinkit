@@ -406,13 +406,11 @@ def test_refund_forbidden_for_customer(client, customer):
 
 def test_refund_happy_path(client, customer, manager):
     """completed -> refund: статус и payment_status меняются, платёж помечается.
-
-    Тело передаём полностью (status+note), т.к. shared-модель StatusIn требует
-    обязательное поле status даже на refund (см. xfail-тест ниже)."""
+    ADM-M-06: причина возврата обязательна (reason)."""
     order = make_order(client, customer)
     _advance(client, manager, order["id"], "ready", "completed")
     r = client.post(f"/api/admin/orders/{order['id']}/refund",
-                    json={"status": "refund", "note": "брак"}, headers=manager["headers"])
+                    json={"reason": "брак"}, headers=manager["headers"])
     assert r.status_code == 200
     data = r.json()
     assert data["status"] == "refund"
@@ -422,50 +420,52 @@ def test_refund_happy_path(client, customer, manager):
     assert mine["status"] == "refund"
 
 
-def test_refund_with_only_note_should_work(client, customer, manager):
-    """Ожидаемое поведение: note без status должен приниматься (status refund игнорирует)."""
+def test_refund_requires_reason(client, customer, manager):
+    """ADM-M-06: причина обязательна — note без reason → 422."""
     order = make_order(client, customer)
     _advance(client, manager, order["id"], "ready", "completed")
     r = client.post(f"/api/admin/orders/{order['id']}/refund",
                     json={"note": "брак"}, headers=manager["headers"])
-    assert r.status_code == 200
+    assert r.status_code == 422
 
 
-def test_refund_works_without_body(client, customer, manager):
-    """Тело опционально (StatusIn | None)."""
+def test_refund_without_body_422(client, customer, manager):
+    """ADM-M-06: тело с reason обязательно — без тела → 422."""
     order = make_order(client, customer)
     _advance(client, manager, order["id"], "ready", "completed")
     r = client.post(f"/api/admin/orders/{order['id']}/refund", headers=manager["headers"])
-    assert r.status_code == 200
-    assert r.json()["status"] == "refund"
+    assert r.status_code == 422
 
 
 def test_refund_not_found_404(client, manager):
     assert client.post("/api/admin/orders/99999999/refund",
-                       headers=manager["headers"]).status_code == 404
+                       json={"reason": "x"}, headers=manager["headers"]).status_code == 404
 
 
 def test_refund_before_completed_409(client, customer, manager):
     """Возврат возможен только из completed; из new -> 409 (невалидный переход)."""
     order = make_order(client, customer)
-    r = client.post(f"/api/admin/orders/{order['id']}/refund", headers=manager["headers"])
+    r = client.post(f"/api/admin/orders/{order['id']}/refund",
+                    json={"reason": "x"}, headers=manager["headers"])
     assert r.status_code == 409
 
 
 def test_refund_from_ready_409(client, customer, manager):
     order = make_order(client, customer)
     _advance(client, manager, order["id"], "ready")
-    r = client.post(f"/api/admin/orders/{order['id']}/refund", headers=manager["headers"])
+    r = client.post(f"/api/admin/orders/{order['id']}/refund",
+                    json={"reason": "x"}, headers=manager["headers"])
     assert r.status_code == 409
 
 
 def test_refund_twice_409(client, customer, manager):
-    """Повторный возврат (refund->refund) запрещён -> 409 (не идемпотентно)."""
+    """Повторный возврат запрещён -> 409 (не идемпотентно)."""
     order = make_order(client, customer)
     _advance(client, manager, order["id"], "ready", "completed")
     assert client.post(f"/api/admin/orders/{order['id']}/refund",
-                       headers=manager["headers"]).status_code == 200
-    r = client.post(f"/api/admin/orders/{order['id']}/refund", headers=manager["headers"])
+                       json={"reason": "x"}, headers=manager["headers"]).status_code == 200
+    r = client.post(f"/api/admin/orders/{order['id']}/refund",
+                    json={"reason": "x"}, headers=manager["headers"])
     assert r.status_code == 409
 
 

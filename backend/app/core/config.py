@@ -19,10 +19,13 @@ class Settings(BaseSettings):
     # телефон = контакт для выдачи; клиент мотивирован указать верный — заказ уже оплачен).
     # При подключении SMS-провайдера включается AUTH_OTP_ENABLED=true без правок кода.
     auth_otp_enabled: bool = False
-    # OTP: в dev-режиме код фиксированный и возвращается в ответе API
-    otp_dev_mode: bool = True
+    # OTP: в dev-режиме код фиксированный и возвращается в ответе API.
+    # SAFE-BY-DEFAULT: выключено — чтобы включение AUTH_OTP_ENABLED в проде не утекло код в ответ.
+    # Для локальной разработки задайте OTP_DEV_MODE=true в .env.
+    otp_dev_mode: bool = False
     otp_dev_code: str = "1836"
     otp_ttl_seconds: int = 300
+    otp_max_active_per_phone: int = 5  # антифлуд: не больше N живых кодов на телефон
 
     default_locale: str = "en"
     locales: list[str] = ["en", "ar"]

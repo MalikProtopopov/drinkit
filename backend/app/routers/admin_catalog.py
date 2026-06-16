@@ -240,11 +240,11 @@ class DrinkIn(BaseModel):
 
 class BindingIn(BaseModel):
     addonId: int
-    priceOverride: float | None = None  # null => бесплатно (включено в стоимость)
+    priceOverride: float | None = Field(None, ge=0)  # null => бесплатно; отрицательную цену не принимаем
     minPortions: int = 0
     defaultPortions: int = 1
     maxPortions: int = 3
-    portionAmount: float = 30
+    portionAmount: float = Field(30, gt=0)  # граммовка порции должна быть > 0 (деление в расчёте нутриентов)
     selectionTypeOverride: str | None = None
 
 

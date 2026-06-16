@@ -77,23 +77,23 @@ def rfm_scores(recency_days, paid_orders, total_spent, thresholds: dict) -> dict
 
 
 def rfm_segment(r: int, f: int) -> str:
-    """Стандартная RFM-сетка 5x5 -> ключ сегмента (M используется для VIP-оверлея отдельно)."""
+    """Стандартная RFM-сетка 5x5 -> ключ сегмента (M используется для VIP-оверлея отдельно).
+    Ветки упорядочены без перекрытий: каждая клетка (r,f) попадает ровно в один сегмент,
+    недостижимых веток нет (ранее r==3&f>=3 и r<=2&f>=2 были затенены — RFM-DEAD)."""
     if r >= 4 and f >= 4:
         return "champions"
-    if r >= 3 and f >= 3:
-        return "loyal"
+    if r == 3 and f >= 4:
+        return "loyal"               # очень частые, умеренно свежие
     if r >= 4 and f >= 2:
-        return "potential_loyalist"
-    if r >= 4 and f <= 1:
+        return "potential_loyalist"  # свежие, средняя частота
+    if r >= 4:                       # f <= 1
         return "new_customers"
-    if r >= 3 and f <= 2:
-        return "promising"
-    if r == 3 and f >= 3:
-        return "need_attention"
+    if r == 3 and f >= 2:
+        return "need_attention"      # середина по всем осям
+    if r == 3:                       # f <= 1
+        return "promising"           # недавние, низкая частота
     if r <= 2 and f >= 3:
-        return "at_risk"
-    if r == 2 and f <= 2:
+        return "at_risk"             # раньше покупали активно, затихли
+    if r <= 2 and f == 2:
         return "hibernating"
-    if r <= 2 and f >= 2:
-        return "need_attention"
-    return "lost"
+    return "lost"                    # r <= 2, f <= 1

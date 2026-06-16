@@ -3,6 +3,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from ..core.pubsub import pubsub
@@ -51,7 +52,17 @@ def next_order_number(db: Session) -> int:
 
 
 def create_order(db: Session, user: User, payload, locale: str) -> Order:
-    """PUB-A-01/02: заказ из корзины; цены и состав снэпшотятся; купон — на выбранный напиток."""
+    """PUB-A-01/02: заказ из корзины. B3: номер = max+1 не атомарен — уникальный индекс
+    ловит коллизию под конкуренцией; ретраим с новым номером вместо необработанного 500."""
+    for _ in range(5):
+        try:
+            return _create_order(db, user, payload, locale)
+        except IntegrityError:
+            db.rollback()  # коллизия номера (или иной конфликт) — пересобираем заказ
+    raise HTTPException(409, "ORDER_NUMBER_CONFLICT")
+
+
+def _create_order(db: Session, user: User, payload, locale: str) -> Order:
     if not payload.items:
         raise HTTPException(422, "CART_EMPTY")
 
@@ -113,7 +124,10 @@ def create_order(db: Session, user: User, payload, locale: str) -> Order:
     order.subtotal = round(subtotal, 2)
 
     if payload.couponId is not None:
-        coupon = db.get(Coupon, payload.couponId)
+        # B1/X9: блокируем строку купона на время резервирования — два параллельных
+        # неоплаченных заказа не смогут зарезервировать один купон (на Postgres FOR UPDATE
+        # сериализует; на SQLite запись и так под общим локом).
+        coupon = db.get(Coupon, payload.couponId, with_for_update=True)
         if not coupon or coupon.user_id != user.id or coupon.status != "active":
             raise HTTPException(409, "COUPON_INVALID")
         # анти-дабл-букинг: купон нельзя применить к другому ещё не оплаченному заказу
@@ -136,20 +150,22 @@ def create_order(db: Session, user: User, payload, locale: str) -> Order:
 
 def mark_paid(db: Session, order: Order, provider_id: str | None = None):
     order.payment_status = "paid"
-    # купон становится использованным только после оплаты
+    # купон становится использованным только после оплаты (PAY-500: купон мог быть удалён/void — гард)
     if order.coupon_id:
         coupon = db.get(Coupon, order.coupon_id)
-        item = next((i for i in order.items if i.paid_by_coupon), None)
-        coupon.status = "used"
-        coupon.used_at = datetime.utcnow()
-        coupon.used_order_id = order.id
-        coupon.used_item_id = item.id if item else None
-        coupon.discount_amount = order.coupon_discount
+        if coupon is not None:
+            item = next((i for i in order.items if i.paid_by_coupon), None)
+            coupon.status = "used"
+            coupon.used_at = datetime.utcnow()
+            coupon.used_order_id = order.id
+            coupon.used_item_id = item.id if item else None
+            coupon.discount_amount = order.coupon_discount
     add_event(db, order, "paid", note=provider_id)
     db.commit()
-    # дневной лимит точки (REQ-4, paid-only): синхронизируем авто-паузу/аудит после оплаты
+    # дневной лимит точки (REQ-4, paid-only): синхронизируем авто-паузу/аудит после оплаты.
+    # O1: блокируем строку точки — событие limit_reached срабатывает один раз под конкуренцией.
     if order.outlet_id:
-        outlet = db.get(Outlet, order.outlet_id)
+        outlet = db.get(Outlet, order.outlet_id, with_for_update=True)
         if outlet and refresh_limit_pause(db, outlet):
             db.commit()
     notify(order)

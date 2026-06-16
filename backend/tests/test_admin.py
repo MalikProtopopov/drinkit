@@ -107,7 +107,7 @@ def test_refund_flow(client, customer, manager):
     client.post(f"/api/admin/orders/{order['id']}/status", json={"status": "completed"},
                 headers=manager["headers"])
     r = client.post(f"/api/admin/orders/{order['id']}/refund", headers=manager["headers"],
-                    json={"status": "refund", "note": "брак"})
+                    json={"reason": "брак"})
     assert r.status_code == 200
     data = r.json()
     assert data["status"] == "refund" and data["paymentStatus"] == "refunded"
