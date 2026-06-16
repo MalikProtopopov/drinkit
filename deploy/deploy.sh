@@ -13,4 +13,9 @@ cd "$(dirname "$0")"
 
 docker compose -p grabzi -f docker-compose.prod.yml up -d --build --remove-orphans
 docker ps --format '{{.Names}}\t{{.Status}}' | grep grabzi || true
-echo "▸ готово. Роутинг доменов настраивается в общем nginx (НЕ в этом репозитории): /opt/mediannfront/nginx/nginx.conf"
+
+# ОБЯЗАТЕЛЬНО: при пересоздании контейнеров их IP в docker-сети меняются, а nginx
+# кеширует старые → 404/502 (stale upstream). Reload заставляет nginx перечитать IP.
+docker exec client_nginx_prod nginx -s reload 2>/dev/null && echo "▸ nginx reloaded (upstream IPs refreshed)" \
+  || echo "⚠ не удалось reload client_nginx_prod — сделай вручную: docker exec client_nginx_prod nginx -s reload"
+echo "▸ готово. Роутинг доменов/SSL — в общем nginx (НЕ в этом репозитории): /opt/mediannfront/nginx/nginx.conf"
