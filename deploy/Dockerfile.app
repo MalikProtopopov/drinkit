@@ -1,0 +1,23 @@
+# JOOZ app/ (публичный сайт + админка, один Next) — собирается ИЗ ИСХОДНИКОВ на сервере.
+# Контекст сборки — корень репозитория (см. docker-compose.prod.yml). Локальная сборка/доставка
+# zip не нужны: git pull + make restart. NEXT_PUBLIC_API_URL зашивается при сборке (адрес API).
+FROM node:22-alpine AS build
+WORKDIR /app
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_OPTIONS=--max-old-space-size=2048
+COPY app/package.json app/package-lock.json ./
+RUN npm ci
+COPY app/ ./
+RUN npm run build
+
+# тонкий рантайм поверх Next standalone-бандла
+FROM node:22-alpine AS run
+WORKDIR /srv
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
+EXPOSE 3000
+CMD ["node", "server.js"]

@@ -1,0 +1,48 @@
+# JOOZ прод-стек (сеть client_network_prod, рядом с другими проектами на сервере).
+#
+# Архитектура (2 сервиса):
+#   <домен JOOZ>      -> jooz_app   (app/ — публичный сайт + админка в одном Next-приложении)
+#   <домен API JOOZ>  -> jooz_api   (FastAPI + SQLite, бэкенд)
+#
+# Деплой полностью из git: `make restart` на сервере (stop → prune → git pull → build → up).
+# app/ собирается ИЗ ИСХОДНИКОВ на сервере (multi-stage, context = корень репо) — локальная
+# сборка и доставка бандлов не нужны. Секрет и адрес API — в deploy/.env (не в git).
+#
+# По аналогии с grabzi прод использует SQLite в volume (просто и без отдельной БД). Если нужен
+# Postgres — добавьте сервис db и поменяйте DATABASE_URL.
+services:
+  jooz_app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.app
+      args:
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL in deploy/.env}"
+    image: jooz_app:latest
+    container_name: jooz_app_prod
+    restart: unless-stopped
+    expose: ["3000"]
+    networks: [client_network]
+    logging: { driver: json-file, options: { max-size: "20m", max-file: "3" } }
+
+  jooz_api:
+    build: { context: ../backend, dockerfile: Dockerfile }
+    image: jooz_api:latest
+    container_name: jooz_api_prod
+    restart: unless-stopped
+    expose: ["8000"]
+    environment:
+      DATABASE_URL: sqlite:////data/jooz.db
+      JWT_SECRET: "${JWT_SECRET:?set JWT_SECRET in deploy/.env}"
+      OTP_DEV_MODE: "false"
+    volumes:
+      - jooz_api_data:/data
+    networks: [client_network]
+    logging: { driver: json-file, options: { max-size: "20m", max-file: "3" } }
+
+volumes:
+  jooz_api_data:
+
+networks:
+  client_network:
+    name: client_network_prod
+    external: true

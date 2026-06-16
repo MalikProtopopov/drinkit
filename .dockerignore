@@ -1,0 +1,17 @@
+# Build-context trimming for on-server image builds (app build context = repo root).
+.git
+**/node_modules
+**/.next
+**/.turbo
+backend/.venv
+backend/uploads
+**/*.db
+grabzi-web
+deploy/web
+deploy/front
+deploy/.preserve-*
+deploy/*.bak.*
+reference_design
+docs
+**/.DS_Store
+*.log

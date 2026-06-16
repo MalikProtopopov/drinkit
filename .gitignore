@@ -33,3 +33,9 @@ backend/uploads/
 
 # legacy reference web project (removed from tree)
 docs/grabzi-web/
+
+# prod deploy: secret + locally-built bundles + backups (not in git)
+deploy/.env
+deploy/web/
+deploy/front/
+deploy/.preserve-*/
