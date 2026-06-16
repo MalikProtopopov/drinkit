@@ -5,12 +5,18 @@
 #   admin.grabzi.mediann.dev  -> grabzi_admin (app/ — полная админка: точки/каталог/клиенты/стафф/платежи)
 #   api.grabzi.mediann.dev    -> grabzi_api   (FastAPI + SQLite, общий бэкенд для обоих фронтов)
 #
-# Фронты — Next standalone, собираются ЛОКАЛЬНО (см. deploy/build.sh): на сервере 2GB RAM
-# next build не влезает. Бандлы кладутся в deploy/web и deploy/front (не в git).
-# Секрет — в deploy/.env (не в git): JWT_SECRET=...
+# Деплой полностью из git: `make restart` на сервере (stop → prune → git pull → build → up).
+# Фронты собираются ИЗ ИСХОДНИКОВ на сервере (multi-stage, context = корень репо) — локальная
+# сборка и доставка бандлов больше не нужны. Секрет — в deploy/.env (не в git): JWT_SECRET=...
+x-build-args: &api_url
+  NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-https://api.grabzi.mediann.dev}"
+
 services:
   grabzi_web:
-    build: { context: ., dockerfile: Dockerfile.web }
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+      args: *api_url
     image: grabzi_web:latest
     container_name: grabzi_web_prod
     restart: unless-stopped
@@ -19,7 +25,10 @@ services:
     logging: { driver: json-file, options: { max-size: "20m", max-file: "3" } }
 
   grabzi_admin:
-    build: { context: ., dockerfile: Dockerfile.front }
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.front
+      args: *api_url
     image: grabzi_admin:latest
     container_name: grabzi_admin_prod
     restart: unless-stopped
@@ -36,7 +45,7 @@ services:
     environment:
       DATABASE_URL: sqlite:////data/grabzi.db
       JWT_SECRET: "${JWT_SECRET:?set JWT_SECRET in deploy/.env}"
-      OTP_DEV_MODE: "true"
+      OTP_DEV_MODE: "false"
     volumes:
       - grabzi_api_data:/data
     networks: [client_network]

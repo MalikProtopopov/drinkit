@@ -1,0 +1,17 @@
+# Build-context trimming for on-server image builds (frontend context = repo root).
+# Keep source; drop everything heavy/irrelevant so the daemon context stays small.
+.git
+**/node_modules
+**/.next
+**/.turbo
+backend/.venv
+backend/uploads
+**/*.db
+deploy/web
+deploy/front
+deploy/.preserve-*
+deploy/*.bak.*
+reference_design
+docs
+**/.DS_Store
+*.log

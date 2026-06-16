@@ -1,8 +1,23 @@
-# app/ (полная админка GRABZI) — тонкий рантайм поверх локально собранного
-# Next standalone-бандла (deploy/front). next build на сервере не запускаем (мало RAM).
-FROM node:22-alpine
+# app/ (полная админка GRABZI) — собирается ИЗ ИСХОДНИКОВ на сервере (multi-stage).
+# Контекст сборки — корень репозитория (см. docker-compose.prod.yml), поэтому доступна папка app/.
+# Локальная сборка/доставка бандла больше не нужны (git pull + make restart).
+FROM node:22-alpine AS build
+WORKDIR /app
+ARG NEXT_PUBLIC_API_URL=https://api.grabzi.mediann.dev
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_OPTIONS=--max-old-space-size=2048
+COPY app/package.json app/package-lock.json ./
+RUN npm ci
+COPY app/ ./
+RUN npm run build
+
+# тонкий рантайм поверх Next standalone-бандла
+FROM node:22-alpine AS run
 WORKDIR /srv
-COPY front/ ./
 ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
+COPY --from=build /app/public ./public
 EXPOSE 3000
 CMD ["node", "server.js"]

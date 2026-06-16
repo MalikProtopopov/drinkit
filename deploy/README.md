@@ -17,19 +17,36 @@
 - **`backend/`** — FastAPI, SQLite в volume `grabzi_api_data`. Общий для обоих фронтов.
 - Оба фронта запекают `NEXT_PUBLIC_API_URL=https://api.grabzi.mediann.dev` и ходят на API по нему.
 
-## Деплой (flow)
+## Деплой (flow) — из git одной командой
 
-Фронты — Next `output: standalone`, собираются **локально** (на сервере 2GB RAM — `next build`
-не влезает), бандлы доставляются на сервер. Бэкенд собирается на сервере из `backend/`.
+Всё собирается **на сервере из git** (фронты — multi-stage Docker из `grabzi-web/` и `app/`,
+бэкенд — из `backend/`). Локальная сборка и доставка zip-бандлов **больше не нужны**.
 
-1. **Локально:** `bash deploy/build.sh` → соберёт `deploy/web` (grabzi-web) и `deploy/front` (app/).
-2. **Доставить** `deploy/web` и `deploy/front` на сервер в `/opt/grabzi/deploy/` (rsync/scp).
-3. **На сервере:** `cd /opt/grabzi && git pull origin grabzi-main && cd deploy && ./deploy.sh`
-   (нужен `deploy/.env` с `JWT_SECRET`, см. `.env.example`).
+```sh
+ssh <server> 'cd /opt/grabzi && make restart'
+```
 
-> Бандлы (`deploy/web`, `deploy/front`) и `deploy/.env` — в `.gitignore` (большие/секрет).
-> Роутинг доменов и SSL живут в общей серверной инфраструктуре
+`make restart` (см. корневой `Makefile`) делает: **stop** старых контейнеров → **prune**
+build-кеша и dangling-образов → **git pull** `grabzi-main` → **build** образов (по одному —
+экономим RAM) → **up** → **reload** общего nginx (новые IP апстримов).
+
+Разовая настройка на сервере: создать `deploy/.env` с секретом (в git его нет):
+```sh
+cp deploy/.env.example deploy/.env && nano deploy/.env   # JWT_SECRET=$(openssl rand -hex 24)
+```
+
+Цели Makefile: `make restart` (полный цикл), `stop`, `clean`, `pull`, `build`, `up`,
+`nginx-reload`, `ps`, `logs`.
+
+> Безопасно для общего сервера: операции скоупятся проектом `grabzi`; `clean` чистит только
+> build-cache + dangling-образы (именованный volume `grabzi_api_data` с БД и образы других
+> проектов не трогаются).
+> Роутинг доменов и SSL — в общей серверной инфраструктуре
 > (`/opt/mediannfront/nginx/nginx.conf`, certbot-volume), **не в этом репозитории**.
+
+> **Легаси (опционально):** `deploy/build.sh` + `deploy/deploy.sh` — старый путь со сборкой
+> бандлов локально и доставкой в `deploy/web`/`deploy/front`. Оставлен на случай, если сервер
+> не потянет сборку; для обычного деплоя не нужен.
 
 ## Доступы в админку (сид по умолчанию)
 
