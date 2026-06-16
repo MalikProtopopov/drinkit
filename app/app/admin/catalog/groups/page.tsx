@@ -15,11 +15,13 @@ function Inner() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [catOpen, setCatOpen] = useState(false);
   const [unitOpen, setUnitOpen] = useState(false);
-  const [nameEn, setNameEn] = useState("");
+  const [nameRu, setNameRu] = useState("");
+  const [nameAr, setNameAr] = useState("");
   const [iconUrl, setIconUrl] = useState("");
   const [selType, setSelType] = useState<AddonCat["selectionType"]>("counter");
   const [unitCode, setUnitCode] = useState("");
   const [unitName, setUnitName] = useState("");
+  const [unitNameAr, setUnitNameAr] = useState("");
 
   const load = useCallback(() => {
     catalogApi.addonCategories().then(setCats).catch(() => {});
@@ -45,7 +47,11 @@ function Inner() {
           <tbody>
             {cats.map((c) => (
               <tr key={c.id} className={!c.isActive ? "muted" : ""}>
-                <td><strong>{c.name.ru}</strong> <span className="admin-meta">{c.name.ar}</span></td>
+                <td>
+                  <strong>{c.name.ru ?? c.name.en ?? "—"}</strong>{" "}
+                  {c.name.ar ? <span className="admin-meta">{c.name.ar}</span>
+                             : <span className="admin-pill warn">no AR</span>}
+                </td>
                 <td>
                   <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F5EFE7", borderRadius: 999 }}>
                     {(["single", "multi", "counter"] as const).map((s) => (
@@ -80,7 +86,7 @@ function Inner() {
             {units.map((u) => (
               <tr key={u.id}>
                 <td><span className="admin-pill">{u.code}</span></td>
-                <td>{u.name.ru}</td>
+                <td>{u.name.ru ?? u.name.en ?? "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -89,14 +95,19 @@ function Inner() {
 
       <Modal open={catOpen} title="New add-on category" onClose={() => setCatOpen(false)}
              onSubmit={async () => {
-               await catalogApi.createAddonCategory({ name: { en: nameEn }, iconUrl: iconUrl || null,
-                 isActive: true, selectionType: selType });
-               setCatOpen(false); setNameEn(""); load(); toast("Category created");
+               await catalogApi.createAddonCategory({
+                 name: { ru: nameRu, ...(nameAr.trim() ? { ar: nameAr.trim() } : {}) },
+                 iconUrl: iconUrl || null, isActive: true, selectionType: selType });
+               setCatOpen(false); setNameRu(""); setNameAr(""); load(); toast("Category created");
              }}
-             submitDisabled={!nameEn.trim()} submitLabel="Create">
+             submitDisabled={!nameRu.trim()} submitLabel="Create">
         <div className="admin-field">
-          <label className="admin-label">Name (EN)</label>
-          <input className="admin-input" autoFocus value={nameEn} onChange={(e) => setNameEn(e.target.value)} />
+          <label className="admin-label">Name (RU)</label>
+          <input className="admin-input" autoFocus value={nameRu} onChange={(e) => setNameRu(e.target.value)} />
+        </div>
+        <div className="admin-field">
+          <label className="admin-label">Name (AR)</label>
+          <input className="admin-input" dir="rtl" value={nameAr} onChange={(e) => setNameAr(e.target.value)} />
         </div>
         <div className="admin-field">
           <label className="admin-label">Category icon</label>
@@ -117,8 +128,9 @@ function Inner() {
 
       <Modal open={unitOpen} title="New unit" onClose={() => setUnitOpen(false)}
              onSubmit={async () => {
-               await catalogApi.createUnit({ code: unitCode, name: { en: unitName } });
-               setUnitOpen(false); setUnitCode(""); setUnitName(""); load(); toast("Unit added");
+               await catalogApi.createUnit({ code: unitCode,
+                 name: { ru: unitName, ...(unitNameAr.trim() ? { ar: unitNameAr.trim() } : {}) } });
+               setUnitOpen(false); setUnitCode(""); setUnitName(""); setUnitNameAr(""); load(); toast("Unit added");
              }}
              submitDisabled={!unitCode.trim() || !unitName.trim()} submitLabel="Add">
         <div className="admin-grid-2">
@@ -128,9 +140,14 @@ function Inner() {
                    onChange={(e) => setUnitCode(e.target.value)} placeholder="g · ml · pcs" />
           </div>
           <div className="admin-field">
-            <label className="admin-label">Name</label>
+            <label className="admin-label">Name (RU)</label>
             <input className="admin-input" value={unitName}
-                   onChange={(e) => setUnitName(e.target.value)} placeholder="grams" />
+                   onChange={(e) => setUnitName(e.target.value)} placeholder="грамм" />
+          </div>
+          <div className="admin-field">
+            <label className="admin-label">Name (AR)</label>
+            <input className="admin-input" dir="rtl" value={unitNameAr}
+                   onChange={(e) => setUnitNameAr(e.target.value)} placeholder="غرام" />
           </div>
         </div>
       </Modal>

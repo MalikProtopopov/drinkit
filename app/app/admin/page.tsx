@@ -36,8 +36,10 @@ function DashboardInner() {
     let to: string | undefined;
     if (period === "custom") {
       // свой период: даты «от/до» (включительно по дню), в локальном времени
-      from = customFrom ? new Date(`${customFrom}T00:00:00`).toISOString() : undefined;
-      to = customTo ? new Date(`${customTo}T23:59:59`).toISOString() : undefined;
+      // A2: границы считаем в TZ точки (Dubai = UTC+4, без DST), а не в браузерной —
+      // иначе выбранный день съезжает на ±4ч у пользователей в другом часовом поясе.
+      from = customFrom ? new Date(`${customFrom}T00:00:00+04:00`).toISOString() : undefined;
+      to = customTo ? new Date(`${customTo}T23:59:59.999+04:00`).toISOString() : undefined;
     } else {
       const p = PERIODS.find((x) => x.key === period)!;
       from = typeof p.from === "function" ? p.from().toISOString() : undefined;
@@ -53,8 +55,10 @@ function DashboardInner() {
     let from: string | undefined;
     let to: string | undefined;
     if (period === "custom") {
-      from = customFrom ? new Date(`${customFrom}T00:00:00`).toISOString() : undefined;
-      to = customTo ? new Date(`${customTo}T23:59:59`).toISOString() : undefined;
+      // A2: границы считаем в TZ точки (Dubai = UTC+4, без DST), а не в браузерной —
+      // иначе выбранный день съезжает на ±4ч у пользователей в другом часовом поясе.
+      from = customFrom ? new Date(`${customFrom}T00:00:00+04:00`).toISOString() : undefined;
+      to = customTo ? new Date(`${customTo}T23:59:59.999+04:00`).toISOString() : undefined;
     } else {
       const p = PERIODS.find((x) => x.key === period)!;
       from = typeof p.from === "function" ? p.from().toISOString() : undefined;
@@ -111,7 +115,7 @@ function DashboardInner() {
       </div>
       <div className="admin-grid-4" style={{ marginTop: 12 }}>
         <Stat label="Avg. drinks/order" value={data.avgDrinksPerOrder} />
-        <Stat label="Peak hour" value={peakHour ? `${peakHour[0]}:00 (${peakHour[1]})` : "—"} />
+        <Stat label="Peak hour" value={peakHour && Number(peakHour[1]) > 0 ? `${peakHour[0]}:00 (${peakHour[1]})` : "—"} />
         <Stat label="Customers with orders" value={data.topCustomers.length} />
         <Stat label="Top products" value={data.topProducts.length} />
       </div>

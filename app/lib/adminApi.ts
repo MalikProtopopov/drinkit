@@ -10,6 +10,16 @@ export function setStaffToken(t: string | null) {
   else localStorage.removeItem("juicy-staff-token");
 }
 
+/** K3/X4/X8: токен протух/учётка отключена → чистим токен и уводим на логин (не оставляем
+ *  «протухшую» страницу). Защита от цикла: на самой странице логина не редиректим. */
+function handle401() {
+  if (typeof window === "undefined") return;
+  setStaffToken(null);
+  if (!window.location.pathname.startsWith("/admin/login")) {
+    window.location.href = "/admin/login";
+  }
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(`${API_URL}${path}`, {
     ...init,
@@ -20,6 +30,7 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (!r.ok) {
+    if (r.status === 401) handle401();
     let d = r.statusText;
     try { d = (await r.json()).detail ?? d; } catch {}
     throw Object.assign(new Error(typeof d === "string" ? d : JSON.stringify(d)), { status: r.status });
@@ -37,6 +48,7 @@ async function reqList<T>(path: string): Promise<Paged<T>> {
     },
   });
   if (!r.ok) {
+    if (r.status === 401) handle401();
     let d = r.statusText;
     try { d = (await r.json()).detail ?? d; } catch {}
     throw Object.assign(new Error(typeof d === "string" ? d : JSON.stringify(d)), { status: r.status });
@@ -151,9 +163,10 @@ export const adminApi = {
   setStatus: (id: number, status: "ready" | "completed", note?: string) =>
     req<AdminOrder>(`/api/admin/orders/${id}/status`,
       { method: "POST", body: JSON.stringify({ status, note }) }),
-  refund: (id: number, note?: string) =>
+  // ADM-M-06: причина возврата обязательна (бэк требует reason)
+  refund: (id: number, reason: string) =>
     req<AdminOrder>(`/api/admin/orders/${id}/refund`,
-      { method: "POST", body: JSON.stringify({ status: "refund", note }) }),
+      { method: "POST", body: JSON.stringify({ reason }) }),
 
   createCustomer: (b: { phone: string; name?: string; carPlate?: string; emirate?: string; locale?: string }) =>
     req<any>("/api/admin/customers", { method: "POST", body: JSON.stringify(b) }),

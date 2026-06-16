@@ -70,9 +70,11 @@ export function ProductBindingsTab({
     );
   };
 
-  // активные добавки, сгруппированные по своей категории; поиск по названию
+  // активные добавки, сгруппированные по своей категории; поиск по названию.
+  // CAT5: добавка из ВЫКЛЮЧЕННОЙ категории не предлагается в билдере напитка.
   const q = addonQuery.trim().toLowerCase();
-  const active = addons.filter((a) => a.isActive);
+  const inactiveCatIds = new Set(addonCats.filter((c) => c.isActive === false).map((c) => c.id));
+  const active = addons.filter((a) => a.isActive && !inactiveCatIds.has(a.categoryId));
   const matches = (a: AdminAddon) => !q
     || addonName(a.id).toLowerCase().includes(q) || (a.name.ar ?? "").includes(addonQuery.trim());
   const groups = addonCats.map((c) => ({ cat: c as AddonCat | null,
