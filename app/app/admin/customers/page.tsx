@@ -50,7 +50,7 @@ export default function CustomersPage() {
           <div className="admin-panel-title">All customers</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className="admin-meta">Total {total}</span>
-            <ExportButton path="/api/admin/exports/customers.xlsx" filename="customers.xlsx" />
+            <ExportButton path={`/api/admin/exports/customers.xlsx?sort=${sort}&dir=${dir}`} filename="customers.xlsx" />
             <button className="admin-btn primary sm" onClick={() => router.push("/admin/customers/new")}>
               + New customer
             </button>

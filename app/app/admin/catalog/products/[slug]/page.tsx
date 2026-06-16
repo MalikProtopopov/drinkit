@@ -97,8 +97,13 @@ function Editor({ slug }: { slug: string }) {
   };
 
   // единственный дефолт: выбор одного размера снимает флаг с остальных
-  const pickDefaultSize = (idx: number) =>
+  const pickDefaultSize = (idx: number) => {
     setSizes((arr) => arr.map((s, i) => ({ ...s, isDefault: i === idx })));
+    // CAT2: базовая цена синхронизируется с выбранным размером сразу в UI
+    // (бэк делает то же при сохранении) — поле «Base price» больше не отстаёт до Save.
+    const price = sizes[idx]?.price;
+    if (price !== undefined) set({ basePrice: price });
+  };
   const addSize = () =>
     setSizes((arr) => [...arr, { volume: 0, unit: "ml", price: drink.basePrice,
       isDefault: arr.length === 0, isActive: true, sort: arr.length }]);
