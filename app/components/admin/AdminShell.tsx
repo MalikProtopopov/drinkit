@@ -117,7 +117,16 @@ export function AdminShell({
   const backHref = crumbs?.slice().reverse().find((c) => c.href)?.href;
 
   if (!staff) {
-    return <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center", color: "#5A6172" }}>Loading…</div>;
+    return (
+      <div style={{ minHeight: "100dvh", display: "grid", placeItems: "center" }}>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 18 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="GRABZI" className="animate-breathe" style={{ height: 64, width: "auto" }} />
+          <div className="loader-ring" />
+          <div style={{ color: "#8A7866", fontWeight: 700, fontStyle: "italic", letterSpacing: ".02em" }}>Loading…</div>
+        </div>
+      </div>
+    );
   }
 
   return (
