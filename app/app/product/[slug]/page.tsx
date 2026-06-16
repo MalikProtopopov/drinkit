@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState, use } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api, type ApiAddon } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { BottomSheet } from "@/components/BottomSheet";
@@ -163,8 +164,10 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
                     transition: "transform .34s cubic-bezier(.3,1,.4,1), opacity .28s ease" }}>
         <div className="w-[54px] flex-none flex items-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.png" alt="JOOZ" className="h-4 w-auto"
-               style={{ filter: "brightness(0) invert(1) drop-shadow(0 1px 4px rgba(0,0,0,.4))" }} />
+          <Link href="/home" aria-label="JOOZ — на главную">
+            <img src="/logo.png" alt="JOOZ" className="h-4 w-auto"
+                 style={{ filter: "brightness(0) invert(1) drop-shadow(0 1px 4px rgba(0,0,0,.4))" }} />
+          </Link>
         </div>
         <button onClick={() => setShowName(true)}
                 className="flex-1 text-center font-extrabold text-[19px] leading-[1.12] text-white px-1 truncate drop-shadow">
