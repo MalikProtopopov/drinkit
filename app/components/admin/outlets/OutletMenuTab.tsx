@@ -35,7 +35,7 @@ export function OutletMenuTab({ outletId }: { outletId: number }) {
     return () => { alive = false; };
   }, [outletId]);
 
-  const drinkName = (d: AdminDrink) => d.name.ru ?? d.name.en ?? d.slug;
+  const drinkName = (d: AdminDrink) => d.name.en ?? d.name.ru ?? d.slug;
   const catName = (id: number) => { const c = cats.find((x) => x.id === id); return c ? oName(c.name) : "—"; };
   const addonName = (a: AdminAddon) => oName(a.name);
 
