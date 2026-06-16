@@ -11,11 +11,20 @@ COMPOSE := docker compose -p grabzi -f deploy/docker-compose.prod.yml
 BRANCH := grabzi-main
 NGINX := client_nginx_prod
 
-.PHONY: restart stop clean pull build up ps logs nginx-reload check-env
+.PHONY: restart restart-hard stop clean pull build up ps logs nginx-reload check-env
 
-## Полный передеплой из git (то, что нужно в 99% случаев)
-restart: check-env stop clean pull build up nginx-reload
+## Передеплой из git с минимальным простоем (рекомендуется):
+## pull → build (старые контейнеры ещё работают) → up (пересоздание ~15с) → prune → nginx reload.
+## Делает всё, что просили (обновление кода, остановка старых, чистка мусора, рестарт),
+## но строит ДО остановки — поэтому сайт лежит только на время пересоздания, а не всей сборки.
+restart: check-env pull build up clean nginx-reload
 	@echo "▸ restart готово:"
+	@$(COMPOSE) ps
+
+## Жёсткий вариант (буквальный порядок: сначала всё стоп): stop → prune → pull → build → up.
+## Дольше простой (сборка идёт уже без контейнеров), но гарантированно чистый старт.
+restart-hard: check-env stop clean pull build up nginx-reload
+	@echo "▸ restart-hard готово:"
 	@$(COMPOSE) ps
 
 ## 1) остановить старые контейнеры grabzi (другие проекты не трогаем)
