@@ -67,8 +67,15 @@ export function ProductDescriptionTab({
           <span className="admin-meta">{DESC_LOCALES.find((l) => l.code === descLocale)?.label}</span>
         </div>
         <div className="admin-panel-body">
-          <div style={{ background: "#fff", border: "1px solid #ECE6DC", borderRadius: 20, padding: 18 }}>
-            <div style={{ fontWeight: 900, fontSize: 22, marginBottom: 8 }}>{drink.name.en || drink.name.ru || drink.slug}</div>
+          <div style={{ background: "#fff", border: "1px solid #ECE6DC", borderRadius: 20, padding: 18 }}
+               dir={descLocale === "ar" ? "rtl" : "ltr"}>
+            {/* в арабской локали заголовок — арабским названием и справа (как на сайте) */}
+            <div style={{ fontWeight: 900, fontSize: 22, marginBottom: 8,
+                          textAlign: descLocale === "ar" ? "right" : "left" }}>
+              {descLocale === "ar"
+                ? (drink.name.ar || drink.name.en || drink.slug)
+                : (drink.name.en || drink.name.ru || drink.slug)}
+            </div>
             {descDraft && descDraft.replace(/<[^>]*>/g, "").trim() ? (
               <div className="rich-desc" dir={descLocale === "ar" ? "rtl" : "ltr"}
                    dangerouslySetInnerHTML={{ __html: descDraft }} />

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { Modal, Pager, useToast } from "@/components/admin/AdminUI";
+import { Pager } from "@/components/admin/AdminUI";
+import { SkeletonRows } from "@/components/admin/Skeleton";
 import { catalogApi, type AdminDrink, type DrinkCat } from "@/lib/adminApi";
 
 const STATUS_PILL: Record<string, { label: string; cls: string }> = {
@@ -16,22 +17,17 @@ const STATUS_PILL: Record<string, { label: string; cls: string }> = {
 /** ADM-S-05: напитки — статус черновик/опубликован/скрыт, цена базы, привязанные добавки. */
 function Inner() {
   const router = useRouter();
-  const toast = useToast();
   const [rows, setRows] = useState<AdminDrink[]>([]);
   const [cats, setCats] = useState<DrinkCat[]>([]);
-  const [open, setOpen] = useState(false);
-  const [nameEn, setNameEn] = useState("");
-  const [slug, setSlug] = useState("");
-  const [catId, setCatId] = useState<number | null>(null);
+  const [loaded, setLoaded] = useState(false);
   const [q, setQ] = useState("");
   const [offset, setOffset] = useState(0);
   const [limit, setLimit] = useState(20);
   useEffect(() => { setOffset(0); }, [q, limit]);
 
   const load = useCallback(() => {
-    catalogApi.drinks().then(setRows).catch(() => {});
-    catalogApi.drinkCategories().then((c) => { setCats(c); setCatId((p) => p ?? c[0]?.id ?? null); })
-      .catch(() => {});
+    catalogApi.drinks().then(setRows).catch(() => {}).finally(() => setLoaded(true));
+    catalogApi.drinkCategories().then(setCats).catch(() => {});
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -51,7 +47,8 @@ function Inner() {
           <div className="admin-panel-title">All drinks</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span className="admin-meta">Total {rows.length}, published {rows.filter((d) => d.status === "published").length}</span>
-            <button className="admin-btn primary sm" onClick={() => setOpen(true)}>+ New drink</button>
+            <button className="admin-btn primary sm"
+                    onClick={() => router.push("/admin/catalog/products/new")}>+ New drink</button>
           </div>
         </div>
         <div className="admin-panel-body" style={{ paddingBottom: 8 }}>
@@ -88,54 +85,15 @@ function Inner() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={8} className="admin-meta" style={{ padding: 16 }}>Nothing found</td></tr>
+            {filtered.length === 0 && (!loaded
+              ? <SkeletonRows rows={8} cols={8} />
+              : <tr><td colSpan={8} className="admin-meta" style={{ padding: 16 }}>Nothing found</td></tr>
             )}
           </tbody>
         </table></div>
         <Pager total={filtered.length} limit={limit} offset={offset}
                onOffset={setOffset} onLimit={setLimit} />
       </div>
-
-      <Modal open={open} title="New drink"
-             subtitle="Created as a draft — publish after filling it in"
-             onClose={() => setOpen(false)}
-             onSubmit={async () => {
-               try {
-                 await catalogApi.createDrink({
-                   slug: slug.trim(), name: { en: nameEn.trim() }, description: {},
-                   status: "draft", basePrice: 0, kcal: 0, protein: 0, fat: 0, carbs: 0,
-                   categoryId: catId!,
-                 });
-                 setOpen(false); setNameEn(""); setSlug(""); load();
-                 toast("Draft created — open it and fill it in");
-               } catch (e) { toast(e instanceof Error ? e.message : "Error", "warn"); }
-             }}
-             submitDisabled={!nameEn.trim() || !slug.trim() || !catId}
-             submitLabel="Create draft">
-        <div className="admin-grid-2">
-          <div className="admin-field">
-            <label className="admin-label">Name (EN)</label>
-            <input className="admin-input" autoFocus value={nameEn}
-                   onChange={(e) => {
-                     setNameEn(e.target.value);
-                     setSlug(e.target.value.toLowerCase()
-                       .replace(/[^a-z0-9\s]/gi, "").trim().replace(/\s+/g, "-") || slug);
-                   }} />
-          </div>
-          <div className="admin-field">
-            <label className="admin-label">Slug (Latin)</label>
-            <input className="admin-input mono" value={slug}
-                   onChange={(e) => setSlug(e.target.value.replace(/[^a-z0-9-]/g, ""))} />
-          </div>
-        </div>
-        <div className="admin-field">
-          <label className="admin-label">Category</label>
-          <select className="admin-select" value={catId ?? ""} onChange={(e) => setCatId(+e.target.value)}>
-            {cats.map((c) => <option key={c.id} value={c.id}>{c.name.en ?? c.name.ru}</option>)}
-          </select>
-        </div>
-      </Modal>
     </>
   );
 }

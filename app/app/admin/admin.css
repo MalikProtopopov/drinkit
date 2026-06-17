@@ -784,3 +784,20 @@
   .admin-page-title { font-size: 20px; }
   .admin-page-head { margin-bottom: 16px; }
 }
+
+/* ---------- скелетоны загрузки (шиммер) ---------- */
+.skel {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(100deg, #ECE7DE 30%, #F6F2EA 50%, #ECE7DE 70%);
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.25s ease-in-out infinite;
+}
+.skel + .skel { margin-top: 8px; }
+@keyframes skel-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; }
+}

@@ -33,6 +33,10 @@ function Inner() {
   return (
     <>
       <div className="admin-panel">
+        <div className="admin-panel-head">
+          <div className="admin-panel-title">Drink categories</div>
+          <button className="admin-btn primary sm" onClick={() => setOpen(true)}>+ New category</button>
+        </div>
         <div className="admin-tablewrap"><table className="admin-table">
           <thead>
             <tr><th>Sort</th><th>Name (EN)</th><th>Name (AR)</th><th>Slug</th><th>Media</th>
@@ -44,9 +48,6 @@ function Inner() {
             ))}
           </tbody>
         </table></div>
-      </div>
-      <div style={{ marginTop: 12 }}>
-        <button className="admin-btn primary" onClick={() => setOpen(true)}>+ New category</button>
       </div>
 
       <Modal open={open} title="New drink category" onClose={() => setOpen(false)}

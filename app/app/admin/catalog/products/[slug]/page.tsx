@@ -9,6 +9,7 @@ import { ProductMainTab } from "@/components/admin/product-editor/ProductMainTab
 import { ProductSizesTab } from "@/components/admin/product-editor/ProductSizesTab";
 import { ProductDescriptionTab } from "@/components/admin/product-editor/ProductDescriptionTab";
 import { ProductBindingsTab } from "@/components/admin/product-editor/ProductBindingsTab";
+import { Skeleton, PanelSkeleton } from "@/components/admin/Skeleton";
 
 /** ADM-S-05: редактор напитка — поля, статус, и промежуточная таблица напиток×добавка:
  *  цена в этом напитке (пусто = бесплатно), мин/дефолт/макс порций, объём порции,
@@ -52,7 +53,21 @@ function Editor({ slug }: { slug: string }) {
   }, [slug, router, descLocale]);
   useEffect(() => { load().catch(() => {}); }, [load]);
 
-  if (!drink) return <div className="admin-meta">Loading…</div>;
+  if (!drink) {
+    return (
+      <div aria-busy="true" aria-label="Loading drink">
+        <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+          <Skeleton w={120} h={28} r={999} /><Skeleton w={180} h={28} r={999} />
+        </div>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} w={110} h={34} r={10} />)}
+        </div>
+        <div className="admin-split" style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 16 }}>
+          <PanelSkeleton height={320} /><PanelSkeleton height={220} />
+        </div>
+      </div>
+    );
+  }
 
   const set = (patch: Partial<AdminDrink>) => setDrink({ ...drink, ...patch });
   const dirtyMain = mainSig(drink) !== baselineRef.current;

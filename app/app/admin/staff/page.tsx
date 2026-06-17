@@ -3,6 +3,7 @@
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { SkeletonRows } from "@/components/admin/Skeleton";
 import { Pager, useToast } from "@/components/admin/AdminUI";
 import { adminApi, type Staff } from "@/lib/adminApi";
 import { usePaged } from "@/lib/usePaged";
@@ -66,9 +67,9 @@ function StaffInner() {
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={5} className="admin-meta" style={{ padding: 16 }}>
-                {loading ? "Loading…" : "No staff"}</td></tr>
+            {rows.length === 0 && (loading
+              ? <SkeletonRows rows={6} cols={5} />
+              : <tr><td colSpan={5} className="admin-meta" style={{ padding: 16 }}>No staff</td></tr>
             )}
           </tbody>
         </table></div>

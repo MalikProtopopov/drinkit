@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { SkeletonRows } from "@/components/admin/Skeleton";
 import { Pager } from "@/components/admin/AdminUI";
 import { PaymentDrawer, PAYMENT_STATUS, methodLine } from "@/components/admin/PaymentDrawer";
 import { ExportButton } from "@/components/admin/ExportButton";
@@ -263,9 +264,9 @@ function PaymentsInner() {
                 </tr>
               );
             })}
-            {rows.length === 0 && (
-              <tr><td colSpan={10} style={{ textAlign: "center", padding: 40, color: "#5A6172" }}>
-                {loading ? "Loading…" : "No payments"}</td></tr>
+            {rows.length === 0 && (loading
+              ? <SkeletonRows rows={8} cols={10} />
+              : <tr><td colSpan={10} style={{ textAlign: "center", padding: 40, color: "#5A6172" }}>No payments</td></tr>
             )}
           </tbody>
         </table></div>

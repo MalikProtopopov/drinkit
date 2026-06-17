@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { SkeletonRows } from "@/components/admin/Skeleton";
 import { Pager } from "@/components/admin/AdminUI";
 import { adminApi, adminOrdersWs, qs, ADMIN_STATUS_LABEL, type AdminOrder } from "@/lib/adminApi";
 import { useAdmin } from "@/components/admin/AdminShell";
@@ -122,10 +123,9 @@ function OrdersInner() {
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "#5A6172" }}>
-                {loading ? "Loading…" : "No orders"}
-              </td></tr>
+            {rows.length === 0 && (loading
+              ? <SkeletonRows rows={8} cols={8} />
+              : <tr><td colSpan={8} style={{ textAlign: "center", padding: 40, color: "#5A6172" }}>No orders</td></tr>
             )}
           </tbody>
         </table></div>
