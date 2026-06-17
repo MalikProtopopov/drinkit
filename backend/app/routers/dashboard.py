@@ -1,7 +1,7 @@
 """Дашборд супер-админа (ADM-S-10): метрики с фильтром по периоду + бизнес-аналитика
 (дельты к прошлому периоду, пиковые часы, размеры, время обслуживания, добавки/аффинити)."""
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
@@ -25,6 +25,14 @@ def dashboard(
     outlet_id: int | None = Query(None, description="фильтр по точке (пусто = все точки)"),
     db: Session = Depends(get_db),
 ):
+    # даты могут прийти aware (с TZ из "...Z"/"+04:00") — приводим к наивному UTC, как Order.created_at.
+    # Иначе арифметика дельт (datetime.utcnow() - date_from) падает на naive/aware mix → 500
+    # (проявлялось на пресетах today/7d/30d, где есть from без to).
+    if date_from and date_from.tzinfo:
+        date_from = date_from.astimezone(timezone.utc).replace(tzinfo=None)
+    if date_to and date_to.tzinfo:
+        date_to = date_to.astimezone(timezone.utc).replace(tzinfo=None)
+
     paid = [Order.payment_status == "paid"]
     if date_from:
         paid.append(Order.created_at >= date_from)

@@ -449,3 +449,17 @@ def test_method_check_runs_before_auth(client):
     """405 (Method Not Allowed) отдаётся маршрутизацией до проверки токена."""
     r = client.post(DASH, json={})
     assert r.status_code == 405
+
+
+def test_dashboard_from_with_tz_without_to_no_500(client, admin):
+    """Регресс: пресеты today/7d/30d шлют from с таймзоной (...Z) и БЕЗ to.
+    Расчёт дельт раньше падал (naive datetime.utcnow() - aware date_from) → 500.
+    Должно быть 200 + deltas в ответе (в т.ч. вместе с фильтром по локации)."""
+    from datetime import datetime, timedelta, timezone
+    frm = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    r = client.get(DASH, headers=admin["headers"], params={"from": frm})
+    assert r.status_code == 200, r.text
+    assert "deltas" in r.json()
+    # тот же период + фильтр по точке не должен падать
+    r2 = client.get(DASH, headers=admin["headers"], params={"from": frm, "outlet_id": 1})
+    assert r2.status_code == 200, r2.text
