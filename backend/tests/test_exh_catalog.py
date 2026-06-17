@@ -326,6 +326,7 @@ def test_nutrition_scales_with_size(client, admin):
     cat = client.get("/api/admin/catalog/drinks", headers=h).json()[0]["categoryId"]
     d = client.post("/api/admin/catalog/drinks", headers=h, json={
         "slug": "size-nutrition-test", "name": {"en": "Size test"}, "status": "published",
+        "previewUrl": "/videos/size-test.jpg", "videoUrl": "/videos/size-test.mp4",
         "basePrice": 10, "kcal": 50, "protein": 2, "fat": 1, "carbs": 8, "categoryId": cat}).json()
     # 200 ml — дефолтный, 400 ml — двойной объём
     client.put(f"/api/admin/catalog/drinks/{d['id']}/sizes", headers=h, json=[
@@ -342,6 +343,38 @@ def test_nutrition_scales_with_size(client, admin):
                       json={"selections": [], "sizeId": sizes[400]}).json()
     assert base["kcal"] == 100.0 and base["protein"] == 4.0
     assert big["kcal"] == 200.0 and big["protein"] == 8.0  # 400 мл => вдвое больше
+
+
+def test_preview_unknown_size_falls_back_to_default(client):
+    """«Протухший» sizeId (размер пересоздан/удалён в админке) НЕ блокирует заказ —
+    откатываемся к дефолтному размеру вместо 409 SIZE_NOT_AVAILABLE (баг оплаты)."""
+    r = client.post("/api/drinks/orange-fresh/preview",
+                    json={"selections": [], "sizeId": 999999})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["kcal"] == 88.0   # дефолтный размер 400 мл
+    assert body["price"] == 22.0
+
+
+def test_set_sizes_preserves_ids(client, admin):
+    """Повторное сохранение вкладки «Размеры» с тем же id НЕ пересоздаёт строку —
+    sizeId стабилен (иначе корзины протухают и оплата падает с SIZE_NOT_AVAILABLE)."""
+    h = admin["headers"]
+    cat = client.get("/api/admin/catalog/drinks", headers=h).json()[0]["categoryId"]
+    d = client.post("/api/admin/catalog/drinks", headers=h, json={
+        "slug": "size-id-stable", "name": {"en": "Sz"}, "status": "published",
+        "previewUrl": "/videos/sz.jpg", "videoUrl": "/videos/sz.mp4",
+        "basePrice": 10, "kcal": 0, "categoryId": cat}).json()
+    client.put(f"/api/admin/catalog/drinks/{d['id']}/sizes", headers=h, json=[
+        {"volume": 300, "unit": "ml", "price": 10, "isDefault": True, "isActive": True, "sort": 0}])
+    drinks = client.get("/api/admin/catalog/drinks", headers=h).json()
+    sid = next(x for x in drinks if x["id"] == d["id"])["sizes"][0]["id"]
+    # повторное сохранение с тем же id + правкой цены — id не меняется
+    client.put(f"/api/admin/catalog/drinks/{d['id']}/sizes", headers=h, json=[
+        {"id": sid, "volume": 300, "unit": "ml", "price": 13, "isDefault": True, "isActive": True, "sort": 0}])
+    drinks2 = client.get("/api/admin/catalog/drinks", headers=h).json()
+    sizes2 = next(x for x in drinks2 if x["id"] == d["id"])["sizes"]
+    assert len(sizes2) == 1 and sizes2[0]["id"] == sid and sizes2[0]["price"] == 13
 
 
 def test_preview_paid_addon_adds_price_and_kbju(client):

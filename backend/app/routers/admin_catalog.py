@@ -262,6 +262,7 @@ class BindingIn(BaseModel):
 
 
 class SizeIn(BaseModel):
+    id: int | None = None  # id существующего размера — чтобы НЕ пересоздавать строку (стабильный sizeId в корзинах)
     volume: float = Field(0, ge=0)
     unit: str = "ml"
     price: float = Field(0, ge=0)
@@ -377,12 +378,25 @@ def set_sizes(drink_id: int, body: list[SizeIn], db: Session = Depends(get_db)):
         raise HTTPException(422, "MULTIPLE_DEFAULT_SIZES")
     default_id = id(defaults[0]) if defaults else id(active[0])  # авто-дефолт = первый активный
 
-    d.sizes.clear()
-    db.flush()
+    # Reconcile по id вместо clear+recreate: у существующих размеров СОХРАНЯЕМ id,
+    # чтобы sizeId в уже добавленных корзинах оставался валидным (иначе при каждом
+    # сохранении вкладки «Размеры» все id менялись → оплата падала с SIZE_NOT_AVAILABLE).
+    existing = {s.id: s for s in d.sizes}
+    seen: set[int] = set()
     for i, s in enumerate(body):
-        db.add(DrinkSize(drink_id=d.id, volume=s.volume, unit=s.unit, price=s.price,
-                         is_default=(s.isActive and id(s) == default_id),
-                         is_active=s.isActive, sort=s.sort if s.sort else i))
+        is_def = bool(s.isActive and id(s) == default_id)
+        srt = s.sort if s.sort else i
+        row = existing.get(s.id) if s.id else None
+        if row is not None:
+            row.volume, row.unit, row.price = s.volume, s.unit, s.price
+            row.is_default, row.is_active, row.sort = is_def, s.isActive, srt
+            seen.add(s.id)
+        else:
+            db.add(DrinkSize(drink_id=d.id, volume=s.volume, unit=s.unit, price=s.price,
+                             is_default=is_def, is_active=s.isActive, sort=srt))
+    for sid, row in existing.items():
+        if sid not in seen:
+            db.delete(row)
     # base_price напитка держим в синхроне с дефолтным размером (витрина/совместимость)
     d.base_price = next((s.price for s in active if id(s) == default_id), active[0].price)
     db.commit()
