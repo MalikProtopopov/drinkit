@@ -278,6 +278,32 @@ def active_outlet_count(db: Session) -> int:
     return int(db.scalar(select(func.count()).select_from(Outlet).where(Outlet.is_active.is_(True))) or 0)
 
 
+def upgrade_media_https(db: Session):
+    """Чинит media-URL: http→https для собственных /media/ ссылок на не-локальных хостах
+    (иначе на https-сайте картинки/видео блокируются как mixed content). Идемпотентно;
+    локальные (localhost/127.0.0.1) URL не трогаем, чтобы dev-режим оставался по http."""
+    specs = [
+        (DrinkCategory, ["photo_url", "video_url"]),
+        (Addon, ["image_url"]),
+        (AddonCategory, ["icon_url"]),
+        (Drink, ["preview_url", "video_url"]),
+    ]
+    changed = False
+    for model, fields in specs:
+        for f in fields:
+            col = getattr(model, f)
+            res = db.execute(
+                update(model)
+                .where(col.like("http://%/media/%"),
+                       ~col.like("%localhost%"), ~col.like("%127.0.0.1%"))
+                .values({f: func.replace(col, "http://", "https://")})
+            )
+            if res.rowcount:
+                changed = True
+    if changed:
+        db.commit()
+
+
 def backfill_sizes(db: Session):
     """Каждому напитку без размеров — дефолтный размер 400 ml по его base_price."""
     drink_ids_with_sizes = set(db.scalars(select(DrinkSize.drink_id)).all())
