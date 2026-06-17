@@ -110,7 +110,7 @@ export function ProfileSheet({ open, onClose }: { open: boolean; onClose: () => 
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-extrabold text-[21px]" style={{ color: "var(--jooz-ink)" }}>{user.name || t("Guest", "ضيف")}</div>
-              {user.phone && <div className="font-semibold text-[15px] mt-0.5" style={{ color: "var(--jooz-muted-2)" }}>{user.phone}</div>}
+              {user.phone && <div className="font-semibold text-[15px] mt-0.5" style={{ color: "var(--jooz-muted-2)" }}><bdi dir="ltr">{user.phone}</bdi></div>}
             </div>
             <div className="w-9 h-9 rounded-full flex-none flex items-center justify-center text-[16px]" style={{ background: "#f2f3f6" }}>✎</div>
           </button>

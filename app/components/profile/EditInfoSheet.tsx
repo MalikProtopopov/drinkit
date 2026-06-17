@@ -28,7 +28,7 @@ export function EditInfoSheet({
         <FieldLabel>{t("Name", "الاسم")}</FieldLabel>
         <input value={nameDraft} onChange={(e) => setNameDraft(maskName(e.target.value))} placeholder={t("Your name", "اسمك")} className={inputCls} />
         <FieldLabel className="mt-4">{t("Phone", "الهاتف")}</FieldLabel>
-        <input value={phoneDraft} onChange={(e) => setPhoneDraft(maskPhoneUAE(e.target.value))} inputMode="tel" placeholder="+971 50 123 4567" className={inputCls} />
+        <input dir="ltr" value={phoneDraft} onChange={(e) => setPhoneDraft(maskPhoneUAE(e.target.value))} inputMode="tel" placeholder="+971 50 123 4567" className={`${inputCls} text-left`} />
         <div className="flex gap-3 mt-5 mb-2">
           <button onClick={onClose} className="flex-1 h-14 rounded-full font-extrabold text-[17px]" style={{ background: "#f2f3f6", color: "var(--jooz-ink)" }}>{t("Cancel", "إلغاء")}</button>
           <button onClick={onSave} className="jooz-cta" style={{ flex: 1.4, height: 56 }}>{t("Save", "حفظ")}</button>
