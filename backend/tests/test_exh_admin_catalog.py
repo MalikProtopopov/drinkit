@@ -818,3 +818,18 @@ def test_bindings_rejects_all_or_nothing_on_bad_addon(client, admin):
     cur = client.get(f"{BASE}/drinks", headers=_h(admin)).json()
     mine = next(x for x in cur if x["id"] == d["id"])
     assert len(mine["bindings"]) == 1 and mine["bindings"][0]["addonId"] == a_ok["id"]
+
+
+def test_uploaded_media_has_immutable_cache(client, admin):
+    """Загруженные медиа (uuid-имена) отдаются с длинным иммутабельным кэшем —
+    браузер не перезапрашивает видео/картинку при повторном открытии карточки."""
+    png = (b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+           b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+           b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82")
+    r = client.post(f"{BASE}/upload", headers=_h(admin),
+                    files={"file": ("x.png", png, "image/png")})
+    assert r.status_code == 200, r.text
+    name = r.json()["url"].rstrip("/").split("/")[-1]
+    g = client.get(f"/media/{name}")  # /media отдаётся на обоих проектах
+    assert g.status_code == 200
+    assert "immutable" in g.headers.get("cache-control", "")
