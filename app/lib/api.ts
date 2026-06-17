@@ -58,6 +58,8 @@ export type ApiSize = { id: number; volume: number; unit: string; label: string;
   price: number; isDefault: boolean };
 export type ApiDrink = ApiDrinkLite & {
   description: string; protein: number; fat: number; carbs: number;
+  // КБЖУ базы на 100 мл/г — для клиентского пересчёта при смене размера (PUB-G-03)
+  kcalPer100: number; proteinPer100: number; fatPer100: number; carbsPer100: number;
   // rich-HTML описание в текущей локали (null => кнопку «Подробнее» скрыть)
   richDescription: string | null;
   sizes: ApiSize[]; addons: ApiAddon[];

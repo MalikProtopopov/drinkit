@@ -240,6 +240,8 @@ export const catalogApi = {
   units: () => req<Unit[]>("/api/admin/catalog/units"),
   createUnit: (b: { code: string; name: I18n }) =>
     req<Unit>("/api/admin/catalog/units", { method: "POST", body: JSON.stringify(b) }),
+  updateUnit: (id: number, b: { code: string; name: I18n }) =>
+    req<Unit>(`/api/admin/catalog/units/${id}`, { method: "PATCH", body: JSON.stringify(b) }),
 
   addonCategories: () => req<AddonCat[]>("/api/admin/catalog/addon-categories"),
   createAddonCategory: (b: Partial<AddonCat>) =>
