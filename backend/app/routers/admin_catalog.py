@@ -50,7 +50,8 @@ async def upload_media(request: Request, file: UploadFile = File(...)):
     if base.startswith("http://") and "." in host and not is_local:
         base = "https://" + base[len("http://"):]
     kind = "video" if ext in {".mp4", ".webm", ".mov", ".m4v"} else "image"
-    return {"url": f"{base}/media/{name}", "kind": kind}
+    # /api/media — доходит через общий nginx (location /api/), без отдельного /media-роута
+    return {"url": f"{base}/api/media/{name}", "kind": kind}
 
 
 # ---------- Категории напитков (ADM-S-01) ----------

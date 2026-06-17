@@ -58,9 +58,12 @@ app.add_middleware(
     expose_headers=["X-Total-Count", "Content-Disposition"],  # пагинация + имя файла выгрузки
 )
 
-# загруженные медиа (картинки/видео из админки) отдаются по /media/*
+# загруженные медиа (картинки/видео из админки) отдаются по /media/* и /api/media/*.
+# /api/media — чтобы за общим nginx (он проксирует /api/ на бэкенд) медиа доходило без отдельного
+# location /media; /media оставляем для прямого доступа (локалка/совместимость со старыми URL).
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 app.mount("/media", StaticFiles(directory=UPLOAD_DIR), name="media")
+app.mount("/api/media", StaticFiles(directory=UPLOAD_DIR), name="api-media")
 
 
 @app.exception_handler(ValueError)
