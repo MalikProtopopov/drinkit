@@ -116,14 +116,16 @@ def preview_calc(drink, body: PreviewIn, locale: str, stop: dict) -> dict:
              if link.addon.is_active and link.addon.category.is_active
              and link.addon_id not in stop["addon"]}
 
-    # цена старта = выбранный размер (если задан и валиден), иначе дефолтный/база
+    # цена старта = выбранный размер (если задан и валиден), иначе дефолтный/база.
+    # Если переданный sizeId не найден среди активных размеров (размер мог быть
+    # пересоздан/удалён в админке после добавления в корзину) — НЕ блокируем заказ,
+    # а откатываемся к дефолтному/первому активному размеру (раньше было 409
+    # SIZE_NOT_AVAILABLE, из-за которого падала оплата заказов со «старым» sizeId).
     sizes = active_sizes(drink)
     size = None
     if body.sizeId is not None:
         size = next((s for s in sizes if s.id == body.sizeId), None)
-        if size is None:
-            raise HTTPException(409, "SIZE_NOT_AVAILABLE")
-    elif sizes:
+    if size is None and sizes:
         size = next((s for s in sizes if s.is_default), sizes[0])
     total = size.price if size else drink.base_price
     # КБЖУ базы масштабируются по выбранному размеру (значения хранятся на 100 мл/г)
