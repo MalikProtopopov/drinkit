@@ -31,6 +31,9 @@ _ADD_COLUMNS = {
         "ingredients": "JSON",
         "allergens": "JSON",
         "may_contain": "JSON",
+        # КБЖУ переведены на 100 мл/г; DEFAULT 0 => существующие (абсолютные) строки помечаются
+        # «не мигрированы» и пересчитываются backfill_nutrition_per_100
+        "nutr_per_100": "BOOLEAN DEFAULT 0",
     },
     "staff_users": {
         "phone": "VARCHAR(30)",
@@ -310,6 +313,40 @@ def backfill_sizes(db: Session):
             continue
         db.add(DrinkSize(drink_id=d.id, volume=400, unit="ml",
                          price=d.base_price, is_default=True, is_active=True, sort=0))
+        changed = True
+    if changed:
+        db.commit()
+
+
+def _size_amount(size) -> float | None:
+    """Объём размера в базовых единицах per-100 (мл или г); л → мл."""
+    if size is None:
+        return None
+    return size.volume * 1000 if size.unit == "l" else size.volume
+
+
+def backfill_nutrition_per_100(db: Session):
+    """Однократно переводит КБЖУ напитков из абсолютных (на дефолтный размер) в per-100 (мл/г).
+
+    Вызывать ПОСЛЕ backfill_sizes — нужен дефолтный размер для коэффициента. Идемпотентно:
+    помеченные nutr_per_100=True пропускаются. Перевод сохраняет КБЖУ дефолтного размера без
+    изменений (round-trip: per100 × объём/100 = исходное), меняется только масштаб для НЕдефолтных
+    размеров. После пересчёта строка помечается мигрированной."""
+    from sqlalchemy.orm import selectinload
+    rows = db.scalars(
+        select(Drink).options(selectinload(Drink.sizes)).where(Drink.nutr_per_100.is_(False))
+    ).all()
+    changed = False
+    for d in rows:
+        sizes = [s for s in d.sizes if s.is_active] or list(d.sizes)
+        size = next((s for s in sizes if s.is_default), sizes[0] if sizes else None)
+        amount = _size_amount(size) or 100.0  # нет размеров → трактуем текущие значения как per-100
+        f = 100.0 / amount
+        d.kcal = round((d.kcal or 0) * f, 2)
+        d.protein = round((d.protein or 0) * f, 2)
+        d.fat = round((d.fat or 0) * f, 2)
+        d.carbs = round((d.carbs or 0) * f, 2)
+        d.nutr_per_100 = True
         changed = True
     if changed:
         db.commit()
