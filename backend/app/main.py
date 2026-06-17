@@ -8,6 +8,20 @@ from fastapi.staticfiles import StaticFiles
 
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 
+
+class CachedStaticFiles(StaticFiles):
+    """StaticFiles с длинным иммутабельным кэшем для загруженных медиа.
+    Имена файлов — uuid (контент не меняется), поэтому браузер кэширует картинки/видео
+    на год и НЕ перезапрашивает их при повторном открытии карточки (фикс «видео грузится
+    каждый раз заново»). Применяется только к успешным ответам (200/206/304)."""
+
+    async def get_response(self, path, scope):
+        resp = await super().get_response(path, scope)
+        if resp.status_code < 400:
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return resp
+
+
 from .core.db import Base, SessionLocal, engine
 from .models import outlet  # noqa: F401  — регистрация таблиц локаций ДО create_all (см. models/__init__.py)
 from .services.migrate import (backfill_category_slugs, backfill_nutrition_per_100,
@@ -74,7 +88,7 @@ def robots_txt():
 
 # загруженные медиа (картинки/видео из админки) отдаются по /media/*
 os.makedirs(UPLOAD_DIR, exist_ok=True)
-app.mount("/media", StaticFiles(directory=UPLOAD_DIR), name="media")
+app.mount("/media", CachedStaticFiles(directory=UPLOAD_DIR), name="media")
 
 
 @app.exception_handler(ValueError)
