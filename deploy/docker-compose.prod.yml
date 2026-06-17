@@ -1,46 +1,43 @@
-# JOOZ прод-стек (сеть client_network_prod, рядом с другими проектами на сервере).
+# drinkit (juicy) прод-стек (сеть client_network_prod, рядом с другими проектами на сервере).
 #
-# Архитектура (2 сервиса):
-#   <домен JOOZ>      -> jooz_app   (app/ — публичный сайт + админка в одном Next-приложении)
-#   <домен API JOOZ>  -> jooz_api   (FastAPI + SQLite, бэкенд)
+# Архитектура (2 сервиса) — имена СОВПАДАЮТ с тем, на что маршрутит общий nginx:
+#   drinkit.mediann.dev / admin.drinkit.mediann.dev -> juicy_frontend (app/ — публичка + админка, Next)
+#   .../api                                          -> juicy_api      (FastAPI + SQLite)
 #
-# Деплой полностью из git: `make restart` на сервере (stop → prune → git pull → build → up).
-# app/ собирается ИЗ ИСХОДНИКОВ на сервере (multi-stage, context = корень репо) — локальная
-# сборка и доставка бандлов не нужны. Секрет и адрес API — в deploy/.env (не в git).
-#
-# По аналогии с grabzi прод использует SQLite в volume (просто и без отдельной БД). Если нужен
-# Postgres — добавьте сервис db и поменяйте DATABASE_URL.
+# Деплой полностью из git: `make restart` (build из исходников на сервере → up → nginx reload).
+# Проект compose = `deploy` (как у живого стека), том БД = juicy_api_data (== deploy_juicy_api_data),
+# поэтому пересоздание контейнеров переиспользует существующую БД. Секрет/адрес API — в deploy/.env.
 services:
-  jooz_app:
+  juicy_frontend:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.app
       args:
         NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL in deploy/.env}"
-    image: jooz_app:latest
-    container_name: jooz_app_prod
+    image: juicy_frontend:latest
+    container_name: juicy_frontend_prod
     restart: unless-stopped
     expose: ["3000"]
     networks: [client_network]
     logging: { driver: json-file, options: { max-size: "20m", max-file: "3" } }
 
-  jooz_api:
+  juicy_api:
     build: { context: ../backend, dockerfile: Dockerfile }
-    image: jooz_api:latest
-    container_name: jooz_api_prod
+    image: juicy_api:latest
+    container_name: juicy_api_prod
     restart: unless-stopped
     expose: ["8000"]
     environment:
-      DATABASE_URL: sqlite:////data/jooz.db
+      DATABASE_URL: sqlite:////data/juicy.db
       JWT_SECRET: "${JWT_SECRET:?set JWT_SECRET in deploy/.env}"
       OTP_DEV_MODE: "false"
     volumes:
-      - jooz_api_data:/data
+      - juicy_api_data:/data
     networks: [client_network]
     logging: { driver: json-file, options: { max-size: "20m", max-file: "3" } }
 
 volumes:
-  jooz_api_data:
+  juicy_api_data:
 
 networks:
   client_network:

@@ -4,10 +4,12 @@
 #   stop → prune (кеш/мусор) → git pull → build (из исходников) → up → nginx reload.
 # app/ (публичный сайт + админка) и бэкенд собираются на сервере из исходников.
 #
-# Безопасно для общего сервера: затрагивает только проект `jooz`; prune чистит лишь build-cache
-# и dangling-образы (именованные volume'ы и образы других проектов не трогаются).
+# Безопасно для общего сервера: затрагивает только проект `deploy` (juicy_*); prune чистит лишь
+# build-cache и dangling-образы (именованные volume'ы и образы других проектов не трогаются).
 SHELL := /bin/bash
-COMPOSE := docker compose -p jooz -f deploy/docker-compose.prod.yml
+# проект `deploy` (== как у живого стека на сервере) → пересоздаём те же juicy_*-контейнеры,
+# том deploy_juicy_api_data с БД переиспользуется.
+COMPOSE := docker compose -p deploy -f deploy/docker-compose.prod.yml
 BRANCH := jooz-main
 NGINX := client_nginx_prod
 
@@ -24,9 +26,9 @@ restart-hard: check-env stop clean pull build up nginx-reload
 	@echo "▸ restart-hard готово:"
 	@$(COMPOSE) ps
 
-## остановить контейнеры jooz (другие проекты не трогаем)
+## остановить контейнеры проекта (другие проекты не трогаем)
 stop:
-	@echo "▸ stop контейнеров jooz…"
+	@echo "▸ stop контейнеров (project=deploy)…"
 	-$(COMPOSE) down --remove-orphans
 
 ## почистить docker-мусор: build-cache + dangling-образы (volume'ы/чужие образы целы)
@@ -43,8 +45,8 @@ pull:
 ## собрать образы из исходников (по одному — экономим RAM на сервере)
 build:
 	@echo "▸ build образов (последовательно)…"
-	$(COMPOSE) build jooz_api
-	$(COMPOSE) build jooz_app
+	$(COMPOSE) build juicy_api
+	$(COMPOSE) build juicy_frontend
 
 ## поднять контейнеры на новых образах
 up:
