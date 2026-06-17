@@ -27,6 +27,14 @@
   --color-peach-100: #F8E8DC;
   --color-mint-100:  #DDEDE0;
 
+  /* фоны hero/карточек по категории (используются categoryBg) — вынесены в переменные,
+     чтобы цветовые концепты могли их переопределять (см. ThemeSwitcher) */
+  --cat-bg-0: #F4EEE4;
+  --cat-bg-1: #EFE6F0;
+  --cat-bg-2: #DDE9DC;
+  --cat-bg-3: #F5EFE7;
+  --cat-bg-4: #E8DCD0;
+
   /* Neutrals */
   --color-bg:         #FFFFFF;
   --color-surface:    #FAFAFA;

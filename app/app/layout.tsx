@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Nunito } from "next/font/google";
 import { LocaleEffect } from "@/components/LocaleEffect";
 import { FrameShell } from "@/components/FrameShell";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher"; // ВРЕМЕННО: превью цветовых концептов
 import "./globals.css";
 
 // JOOZ UI-kit: Nunito (тяжёлые начертания — основа айдентики редизайна)
@@ -35,6 +36,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <LocaleEffect />
         <FrameShell>{children}</FrameShell>
+        <ThemeSwitcher /> {/* ВРЕМЕННО: убрать вместе с компонентом и lib/themePresets.ts после выбора концепта */}
       </body>
     </html>
   );

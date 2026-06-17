@@ -3,13 +3,14 @@ import Link from "next/link";
 import type { ApiDrinkLite } from "@/lib/api";
 import { DrinkArt } from "./DrinkArt";
 
-// палитра фонов по категории (визуальная идентичность прототипа)
-const BG = ["#F4EEE4", "#EFE6F0", "#DDE9DC", "#F5EFE7", "#E8DCD0"];
+// палитра фонов по категории — через CSS-переменные (--cat-bg-N в globals.css),
+// чтобы цветовые концепты (ThemeSwitcher) могли их переопределять
+const CAT_COUNT = 5;
 const GLASS: ("tall" | "smoothie" | "tumbler" | "paper")[] = ["tall", "smoothie", "tumbler", "paper"];
 const LIQ = ["#F0A340", "#E07596", "#7DAE7F", "#C2A07A", "#B43A3A"];
 
 export function categoryBg(categoryId: number) {
-  return BG[categoryId % BG.length];
+  return `var(--cat-bg-${((categoryId % CAT_COUNT) + CAT_COUNT) % CAT_COUNT})`;
 }
 
 export function ApiProductCard({ drink }: { drink: ApiDrinkLite }) {
