@@ -80,11 +80,15 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
       const cur = prev[a.addonId] ?? 0;
       const next = { ...prev };
       if (a.selectionType === "counter") {
-        if (action === "inc" && cur < a.maxPortions) next[a.addonId] = cur + 1;
+        // первый выбор добавки ставит её КОЛИЧЕСТВО ПО УМОЛЧАНИЮ (defaultPortions из админки),
+        // зажатое в [min..max]; далее +/- меняют по одной порции
+        const start = Math.min(a.maxPortions, Math.max(a.minPortions || 1, a.defaultPortions || 1));
+        if (cur === 0 && (action === "inc" || action === "toggle")) next[a.addonId] = start;
+        else if (action === "inc" && cur < a.maxPortions) next[a.addonId] = cur + 1;
         else if (action === "dec") {
           if (cur <= 1) delete next[a.addonId];
           else next[a.addonId] = cur - 1;
-        } else if (action === "toggle" && cur === 0) next[a.addonId] = Math.max(1, a.minPortions);
+        }
         return next;
       }
       // single: одна добавка в категории; multi: несколько по 1 порции (ADM-S-02 AC4)
