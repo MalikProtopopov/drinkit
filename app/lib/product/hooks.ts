@@ -34,8 +34,15 @@ export function useAddonGroups(drink: ApiDrink | null) {
   }, [drink]);
 }
 
+// объём размера в базовых единицах per-100 (мл/г); л → мл (зеркало drink_calc.size_amount)
+function sizeAmount(s: ApiSize | null): number | null {
+  if (!s) return null;
+  return s.unit === "l" ? s.volume * 1000 : s.volume;
+}
+
 // live-пересчёт цены и КБЖУ (PUB-G-03; зеркало серверной формулы, сервер валидирует в preview)
 // старт цены — выбранный размер (если есть), иначе базовая цена напитка
+// КБЖУ базы масштабируются по объёму выбранного размера (значения хранятся на 100 мл/г)
 export function usePriceAndNutrition(
   drink: ApiDrink | null,
   selections: Sel,
@@ -43,9 +50,11 @@ export function usePriceAndNutrition(
 ) {
   return useMemo(() => {
     if (!drink) return { price: 0, kcal: 0, protein: 0, fat: 0, carbs: 0 };
+    const amt = sizeAmount(currentSize);
+    const sf = amt ? amt / 100 : 1; // коэффициент per-100 → размер
     let price = currentSize ? currentSize.price : drink.basePrice,
-        kcal = drink.kcal,
-        protein = drink.protein, fat = drink.fat, carbs = drink.carbs;
+        kcal = drink.kcalPer100 * sf,
+        protein = drink.proteinPer100 * sf, fat = drink.fatPer100 * sf, carbs = drink.carbsPer100 * sf;
     for (const a of drink.addons) {
       const n = selections[a.addonId] ?? 0;
       if (!n) continue;

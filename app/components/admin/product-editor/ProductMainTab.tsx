@@ -75,12 +75,12 @@ export function ProductMainTab({ drink, cats, set, warn }: {
 
       <div className="admin-panel">
         <div className="admin-panel-head">
-          <div className="admin-panel-title">Nutrition of the base drink</div>
+          <div className="admin-panel-title">Nutrition (per 100 ml/g)</div>
         </div>
         <div className="admin-panel-body">
           <div className="admin-grid-2">
-            {([["kcal", "Kcal", "kcal"], ["protein", "Protein", "g"],
-               ["fat", "Fat", "g"], ["carbs", "Carbs", "g"]] as const).map(([k, l, u]) => (
+            {([["kcal", "Kcal", "per 100"], ["protein", "Protein", "g/100"],
+               ["fat", "Fat", "g/100"], ["carbs", "Carbs", "g/100"]] as const).map(([k, l, u]) => (
               <div className="admin-field" key={k}>
                 <label className="admin-label">{l}, {u}</label>
                 <NumInput value={drink[k]} min={0}
@@ -89,7 +89,8 @@ export function ProductMainTab({ drink, cats, set, warn }: {
             ))}
           </div>
           <p className="admin-meta" style={{ marginTop: 8 }}>
-            Per 1 serving (default size). Recalculated on the site when add-ons are selected.
+            Stored per 100 ml/g. On the site it’s scaled by the selected size (value × volume ÷ 100)
+            and recalculated when add-ons are selected.
           </p>
         </div>
       </div>
