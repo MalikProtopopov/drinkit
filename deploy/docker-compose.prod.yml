@@ -33,11 +33,13 @@ services:
       OTP_DEV_MODE: "false"
     volumes:
       - juicy_api_data:/data
+      - juicy_uploads:/srv/uploads   # загруженные медиа (картинки добавок/напитков) — переживают пересоздание
     networks: [client_network]
     logging: { driver: json-file, options: { max-size: "20m", max-file: "3" } }
 
 volumes:
   juicy_api_data:
+  juicy_uploads:
 
 networks:
   client_network:
