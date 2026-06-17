@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { SkeletonRows } from "@/components/admin/Skeleton";
 import { Pager } from "@/components/admin/AdminUI";
 import { ExportButton } from "@/components/admin/ExportButton";
 import { adminApi } from "@/lib/adminApi";
@@ -83,9 +84,9 @@ export default function CustomersPage() {
                 <td className="admin-meta">{u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-GB") : "—"}</td>
               </tr>
             ))}
-            {rows.length === 0 && (
-              <tr><td colSpan={9} className="admin-meta" style={{ padding: 16 }}>
-                {loading ? "Loading…" : "No customers"}</td></tr>
+            {rows.length === 0 && (loading
+              ? <SkeletonRows rows={8} cols={9} />
+              : <tr><td colSpan={9} className="admin-meta" style={{ padding: 16 }}>No customers</td></tr>
             )}
           </tbody>
         </table></div>

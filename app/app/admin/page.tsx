@@ -14,6 +14,7 @@ import { WeekdayHourHeatmap } from "@/components/admin/charts/WeekdayHourHeatmap
 import { SizeMixDonut } from "@/components/admin/charts/SizeMixDonut";
 import { ServiceTimeChart } from "@/components/admin/charts/ServiceTimeChart";
 import { HorizontalBars } from "@/components/admin/charts/HorizontalBars";
+import { StatsSkeleton, PanelSkeleton, TableSkeleton } from "@/components/admin/Skeleton";
 
 const PERIODS = [
   { key: "all", label: "All time", from: undefined },
@@ -66,7 +67,23 @@ function DashboardInner() {
     return `/api/admin/exports/dashboard.xlsx${qs({ from, to, outlet_id: outlet === "all" ? undefined : outlet })}`;
   }, [period, customFrom, customTo, outlet]);
 
-  if (!data) return <div className="admin-meta">Loading…</div>;
+  if (!data) {
+    return (
+      <div aria-busy="true" aria-label="Loading dashboard">
+        <StatsSkeleton count={4} />
+        <div style={{ marginTop: 12 }}><StatsSkeleton count={4} /></div>
+        <div className="admin-split" style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <PanelSkeleton height={220} />
+          <TableSkeleton rows={6} cols={3} />
+        </div>
+        <div className="admin-split" style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <PanelSkeleton height={200} />
+          <PanelSkeleton height={200} />
+        </div>
+        <div style={{ marginTop: 16 }}><TableSkeleton rows={5} cols={5} /></div>
+      </div>
+    );
+  }
 
   const peakHour = Object.entries(data.ordersByHour as Record<string, number>)
     .sort((a, b) => b[1] - a[1])[0];

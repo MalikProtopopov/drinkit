@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AdminShell, useAdmin } from "@/components/admin/AdminShell";
+import { SkeletonRows } from "@/components/admin/Skeleton";
 import { Modal, Pager, useToast } from "@/components/admin/AdminUI";
 import { adminOrdersWs, outletApi, type AdminOutlet, type I18n } from "@/lib/adminApi";
 import { usePaged } from "@/lib/usePaged";
@@ -97,9 +98,9 @@ function OutletsInner() {
                 </tr>
               );
             })}
-            {rows.length === 0 && (
-              <tr><td colSpan={6} className="admin-meta" style={{ padding: 16 }}>
-                {loading ? "Loading…" : "No outlets"}</td></tr>
+            {rows.length === 0 && (loading
+              ? <SkeletonRows rows={6} cols={6} />
+              : <tr><td colSpan={6} className="admin-meta" style={{ padding: 16 }}>No outlets</td></tr>
             )}
           </tbody>
         </table></div>
