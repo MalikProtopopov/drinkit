@@ -82,7 +82,7 @@ export default function OtpPage() {
         <div className="text-body text-center mb-1">
           {t("Enter the code sent to", "أدخل الرمز المُرسَل إلى")}
         </div>
-        <div className="text-h3 font-semibold mb-1">{phone}</div>
+        <div className="text-h3 font-semibold mb-1"><bdi dir="ltr">{phone}</bdi></div>
         <button onClick={() => router.back()} className="text-[var(--color-primary-500)] text-caption font-semibold mb-6">
           {t("Change number", "تغيير الرقم")}
         </button>

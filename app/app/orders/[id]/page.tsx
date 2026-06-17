@@ -246,7 +246,7 @@ export default function OrderStatusPage({ params }: { params: Promise<{ id: stri
           <div className="border-t border-[var(--color-border)] my-2" />
           <div className="text-caption muted">{t("Name", "الاسم")} · {order.customerName ?? "—"}</div>
           <div className="text-caption muted">{t("Car", "السيارة")} · {order.emirate} {order.carPlate}</div>
-          <div className="text-caption muted">{t("Phone", "الهاتف")} · {order.phone}</div>
+          <div className="text-caption muted">{t("Phone", "الهاتف")} · <bdi dir="ltr">{order.phone}</bdi></div>
           <div className="text-caption muted">
             {t("Placed", "تم الطلب")} · {new Date(order.createdAt).toLocaleString(locale === "ar" ? "ar" : "en-GB", {
               day: "2-digit", month: "long", hour: "2-digit", minute: "2-digit" })}
