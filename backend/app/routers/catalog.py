@@ -6,7 +6,7 @@ from ..core.db import get_db
 from ..models.catalog import Drink, DrinkCategory
 from ..models.outlet import Outlet, OutletDrinkPriority
 from ..services.drink_calc import (PreviewIn, active_sizes, addon_payload,
-                                   base_price, preview_calc, size_payload)
+                                   base_price, drink_nutrition, preview_calc, size_payload)
 from ..services.i18n import pick_locale, t
 from ..services.outlet_service import load_stop_sets
 
@@ -82,8 +82,10 @@ def list_drinks(
         {
             "id": d.id, "slug": d.slug, "name": t(d.name, locale),
             "previewUrl": d.preview_url, "videoUrl": d.video_url,
-            # цена «от» в карточке — по дефолтному/минимальному размеру
-            "basePrice": base_price(d), "kcal": d.kcal, "categoryId": d.category_id,
+            # цена «от» в карточке — по дефолтному/минимальному размеру;
+            # ккал — для дефолтного размера (КБЖУ хранятся на 100 мл/г)
+            "basePrice": base_price(d), "kcal": drink_nutrition(d)["kcal"],
+            "categoryId": d.category_id,
         }
         for d in drinks
     ]
@@ -118,9 +120,13 @@ def drink_detail(slug: str, locale: str = Query("ru"), db: Session = Depends(get
         # rich-описание для шторки «Подробнее» в выбранной локали (None => кнопку скрыть)
         "richDescription": rich,
         "previewUrl": d.preview_url, "basePrice": base_price(d),
-        # размерные вариации напитка (ADM-S-05): выбор размера влияет на цену
+        # размерные вариации напитка (ADM-S-05): выбор размера влияет на цену и КБЖУ
         "sizes": [size_payload(s) for s in active_sizes(d)],
-        "kcal": d.kcal, "protein": d.protein, "fat": d.fat, "carbs": d.carbs,
+        # КБЖУ для дефолтного размера (готовые к показу) + база на 100 мл/г для
+        # клиентского пересчёта при смене размера (PUB-G-03, зеркало drink_nutrition)
+        **drink_nutrition(d),
+        "kcalPer100": d.kcal, "proteinPer100": d.protein,
+        "fatPer100": d.fat, "carbsPer100": d.carbs,
         # «Детали напитка» (PUB-G-02): состав / аллергены / может содержать
         "ingredients": t(d.ingredients, locale),
         "allergens": t(d.allergens, locale),

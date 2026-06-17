@@ -10,8 +10,9 @@ UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 
 from .core.db import Base, SessionLocal, engine
 from .models import outlet  # noqa: F401  — регистрация таблиц локаций ДО create_all (см. models/__init__.py)
-from .services.migrate import (backfill_category_slugs, backfill_outlets, backfill_payments,
-                               backfill_sizes, ensure_schema, localize_catalog_en)
+from .services.migrate import (backfill_category_slugs, backfill_nutrition_per_100,
+                               backfill_outlets, backfill_payments, backfill_sizes,
+                               ensure_schema, localize_catalog_en)
 from .services.seed import seed
 
 
@@ -40,6 +41,7 @@ async def lifespan(app: FastAPI):
         seed(db)
         backfill_category_slugs(db)
         backfill_sizes(db)
+        backfill_nutrition_per_100(db)  # после backfill_sizes: абсолютные КБЖУ → per-100 (мл/г)
         localize_catalog_en(db)
         backfill_payments(db)
         backfill_outlets(db)  # последним: зависит от наличия orders + staff

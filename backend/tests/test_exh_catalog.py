@@ -187,6 +187,8 @@ def test_drink_detail_happy(client):
     assert set(d.keys()) == {
         "id", "slug", "name", "description", "videoUrl", "previewUrl",
         "basePrice", "kcal", "protein", "fat", "carbs", "addons",
+        # КБЖУ базы на 100 мл/г (для клиентского пересчёта при смене размера)
+        "kcalPer100", "proteinPer100", "fatPer100", "carbsPer100",
         # rich-описание, размерные вариации и «детали напитка» (sizes/i18n-поля)
         "richDescription", "sizes", "ingredients", "allergens", "mayContain",
     }
@@ -315,6 +317,31 @@ def test_preview_missing_selections_field_defaults_empty(client):
     r = client.post("/api/drinks/orange-fresh/preview", json={})
     assert r.status_code == 200
     assert r.json()["price"] == 22.0
+
+
+def test_nutrition_scales_with_size(client, admin):
+    """item 4: КБЖУ хранятся на 100 мл/г и масштабируются по выбранному размеру.
+    Дефолтный размер сохраняет исходные значения, больший — пропорционально больше."""
+    h = admin["headers"]
+    cat = client.get("/api/admin/catalog/drinks", headers=h).json()[0]["categoryId"]
+    d = client.post("/api/admin/catalog/drinks", headers=h, json={
+        "slug": "size-nutrition-test", "name": {"en": "Size test"}, "status": "published",
+        "basePrice": 10, "kcal": 50, "protein": 2, "fat": 1, "carbs": 8, "categoryId": cat}).json()
+    # 200 ml — дефолтный, 400 ml — двойной объём
+    client.put(f"/api/admin/catalog/drinks/{d['id']}/sizes", headers=h, json=[
+        {"volume": 200, "unit": "ml", "price": 10, "isDefault": True, "isActive": True, "sort": 0},
+        {"volume": 400, "unit": "ml", "price": 18, "isDefault": False, "isActive": True, "sort": 1},
+    ])
+    det = client.get("/api/drinks/size-nutrition-test").json()
+    assert det["kcalPer100"] == 50  # хранится на 100 мл
+    assert det["kcal"] == 100.0     # дефолтный 200 мл => 50 × 2
+    sizes = {int(s["volume"]): s["id"] for s in det["sizes"]}
+    base = client.post("/api/drinks/size-nutrition-test/preview",
+                       json={"selections": [], "sizeId": sizes[200]}).json()
+    big = client.post("/api/drinks/size-nutrition-test/preview",
+                      json={"selections": [], "sizeId": sizes[400]}).json()
+    assert base["kcal"] == 100.0 and base["protein"] == 4.0
+    assert big["kcal"] == 200.0 and big["protein"] == 8.0  # 400 мл => вдвое больше
 
 
 def test_preview_paid_addon_adds_price_and_kbju(client):

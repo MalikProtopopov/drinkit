@@ -102,6 +102,7 @@ def seed(db: Session):
                   description={"ru": desc_ru, "ar": "طازج وبدون سكر."},
                   ingredients=det["ingredients"], allergens=det["allergens"], may_contain=det["may"],
                   status=status, base_price=price, kcal=kcal, protein=p, fat=f, carbs=c,
+                  nutr_per_100=False,  # сид-значения абсолютные → backfill_nutrition_per_100 переведёт в per-100
                   category_id=cats[cat].id, video_url=video or f"/videos/{slug}.mp4",
                   preview_url=f"/videos/{slug}.jpg")
         db.add(d)

@@ -86,10 +86,15 @@ class Drink(Base):
     preview_url: Mapped[str | None] = mapped_column(String(300))
     video_url: Mapped[str | None] = mapped_column(String(300))
     base_price: Mapped[float] = mapped_column(Float, default=0)
-    kcal: Mapped[float] = mapped_column(Float, default=0)
-    protein: Mapped[float] = mapped_column(Float, default=0)
-    fat: Mapped[float] = mapped_column(Float, default=0)
-    carbs: Mapped[float] = mapped_column(Float, default=0)
+    # КБЖУ хранятся НА 100 мл/г (как у добавок). Итог для размера = значение × объём/100
+    # (см. services/drink_calc.drink_nutrition). Раньше тут лежали абсолютные значения на
+    # дефолтный размер — backfill_nutrition_per_100 однократно пересчитывает их в per-100.
+    kcal: Mapped[float] = mapped_column(Float, default=0)      # ккал на 100 мл/г
+    protein: Mapped[float] = mapped_column(Float, default=0)   # белки на 100 мл/г
+    fat: Mapped[float] = mapped_column(Float, default=0)       # жиры на 100 мл/г
+    carbs: Mapped[float] = mapped_column(Float, default=0)     # углеводы на 100 мл/г
+    # флаг завершённой миграции абсолют→per-100 (создаваемые в админке напитки сразу per-100)
+    nutr_per_100: Mapped[bool] = mapped_column(Boolean, default=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("drink_categories.id"))
 
     category = relationship("DrinkCategory", back_populates="drinks")

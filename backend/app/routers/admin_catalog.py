@@ -120,6 +120,19 @@ def create_unit(body: UnitIn, db: Session = Depends(get_db)):
     return {"id": u.id, "code": u.code, "name": u.name}
 
 
+@router.patch("/units/{unit_id}")
+def update_unit(unit_id: int, body: UnitIn, db: Session = Depends(get_db)):
+    u = db.get(Unit, unit_id)
+    if not u:
+        raise HTTPException(404, "NOT_FOUND")
+    clash = db.scalar(select(Unit).where(Unit.code == body.code))
+    if clash and clash.id != unit_id:
+        raise HTTPException(409, "CODE_TAKEN")
+    u.code, u.name = body.code, body.name
+    db.commit()
+    return {"id": u.id, "code": u.code, "name": u.name}
+
+
 # ---------- Категории добавок (ADM-S-02) ----------
 
 class AddonCategoryIn(BaseModel):
@@ -299,6 +312,7 @@ def create_drink(body: DrinkIn, db: Session = Depends(get_db)):
     d = Drink(slug=body.slug, name=body.name, description=body.description, status=body.status,
               preview_url=body.previewUrl, video_url=body.videoUrl, base_price=body.basePrice,
               kcal=body.kcal, protein=body.protein, fat=body.fat, carbs=body.carbs,
+              nutr_per_100=True,  # из админки КБЖУ вводятся сразу на 100 мл/г
               category_id=body.categoryId)
     db.add(d); db.commit()
     return _drink(d)
@@ -315,6 +329,7 @@ def update_drink(drink_id: int, body: DrinkIn, db: Session = Depends(get_db)):
     d.preview_url, d.video_url, d.base_price = body.previewUrl, body.videoUrl, body.basePrice
     d.kcal, d.protein, d.fat, d.carbs, d.category_id = (
         body.kcal, body.protein, body.fat, body.carbs, body.categoryId)
+    d.nutr_per_100 = True  # значения из админки — на 100 мл/г
     db.commit()
     return _drink(d)
 

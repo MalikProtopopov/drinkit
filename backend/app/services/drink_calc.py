@@ -48,6 +48,36 @@ def base_price(d) -> float:
     return (default or min(sizes, key=lambda s: s.price)).price
 
 
+def default_size(d):
+    """Дефолтный размер напитка (для расчёта КБЖУ/цены по умолчанию), иначе первый активный."""
+    sizes = active_sizes(d)
+    if not sizes:
+        return None
+    return next((s for s in sizes if s.is_default), sizes[0])
+
+
+def size_amount(s) -> float | None:
+    """Объём размера в базовых единицах per-100 (мл или г); л → мл. None — если размера нет."""
+    if s is None:
+        return None
+    return s.volume * 1000 if s.unit == "l" else s.volume
+
+
+def drink_nutrition(d, size=None) -> dict:
+    """КБЖУ напитка для размера: значения хранятся на 100 мл/г → итог = per100 × объём/100.
+    size=None → дефолтный размер. Без размеров значения трактуются как порция (factor=1)."""
+    if size is None:
+        size = default_size(d)
+    amount = size_amount(size)
+    f = (amount / 100.0) if amount else 1.0
+    return {
+        "kcal": round(d.kcal * f, 1),
+        "protein": round(d.protein * f, 1),
+        "fat": round(d.fat * f, 1),
+        "carbs": round(d.carbs * f, 1),
+    }
+
+
 def addon_payload(link, locale, portions: int | None = None):
     a = link.addon
     n = portions if portions is not None else link.default_portions
@@ -96,7 +126,9 @@ def preview_calc(drink, body: PreviewIn, locale: str, stop: dict) -> dict:
     elif sizes:
         size = next((s for s in sizes if s.is_default), sizes[0])
     total = size.price if size else drink.base_price
-    kcal, protein, fat, carbs = drink.kcal, drink.protein, drink.fat, drink.carbs
+    # КБЖУ базы масштабируются по выбранному размеру (значения хранятся на 100 мл/г)
+    n = drink_nutrition(drink, size)
+    kcal, protein, fat, carbs = n["kcal"], n["protein"], n["fat"], n["carbs"]
     by_category: dict[int, list] = {}
     detailed = []
 

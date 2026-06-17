@@ -1,27 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AdminShell } from "@/components/admin/AdminShell";
-import { Modal, Toggle, useToast } from "@/components/admin/AdminUI";
-import { MediaUpload } from "@/components/admin/MediaUpload";
+import { Toggle, useToast } from "@/components/admin/AdminUI";
 import { catalogApi, type AddonCat, type Unit } from "@/lib/adminApi";
 
 const SEL_LABEL = { single: "single", multi: "multiple", counter: "counter" } as const;
 
-/** ADM-S-02: категории добавок (тип выбора на уровне категории) + ADM-S-04: единицы. */
+/** ADM-S-02: категории добавок (тип выбора на уровне категории) + ADM-S-04: единицы.
+ *  Создание и редактирование — на отдельных страницах (categories/* и units/*). */
 function Inner() {
+  const router = useRouter();
   const toast = useToast();
   const [cats, setCats] = useState<AddonCat[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
-  const [catOpen, setCatOpen] = useState(false);
-  const [unitOpen, setUnitOpen] = useState(false);
-  const [nameEn, setNameEn] = useState("");
-  const [nameAr, setNameAr] = useState("");
-  const [iconUrl, setIconUrl] = useState("");
-  const [selType, setSelType] = useState<AddonCat["selectionType"]>("counter");
-  const [unitCode, setUnitCode] = useState("");
-  const [unitName, setUnitName] = useState("");
-  const [unitNameAr, setUnitNameAr] = useState("");
 
   const load = useCallback(() => {
     catalogApi.addonCategories().then(setCats).catch(() => {});
@@ -34,25 +27,34 @@ function Inner() {
       <div className="admin-panel">
         <div className="admin-panel-head">
           <div className="admin-panel-title">Add-on categories</div>
-          <button className="admin-btn sm" onClick={() => setCatOpen(true)}>+ Category</button>
+          <button className="admin-btn sm" onClick={() => router.push("/admin/catalog/groups/categories/new")}>
+            + Category
+          </button>
         </div>
         <p className="admin-meta" style={{ padding: "0 16px 8px" }}>
           The selection type is set here (default for all drinks) and can be overridden
-          per drink — the “Add-ons” tab in the drink editor.
+          per drink — the “Add-ons” tab in the drink editor. Click a row to edit name, icon and type.
         </p>
         <div className="admin-tablewrap"><table className="admin-table">
           <thead>
-            <tr><th>Name</th><th>Selection type</th><th>Active</th></tr>
+            <tr><th>Name (EN)</th><th>Name (AR)</th><th>Selection type</th><th>Active</th></tr>
           </thead>
           <tbody>
             {cats.map((c) => (
-              <tr key={c.id} className={!c.isActive ? "muted" : ""}>
+              <tr key={c.id} className={`admin-row-link ${!c.isActive ? "muted" : ""}`} style={{ cursor: "pointer" }}
+                  onClick={() => router.push(`/admin/catalog/groups/categories/${c.id}`)}>
                 <td>
-                  <strong>{c.name.en ?? c.name.ru ?? "—"}</strong>{" "}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {c.iconUrl && <img src={c.iconUrl} alt="" style={{ width: 24, height: 24, borderRadius: 6, objectFit: "cover" }} />}
+                    <strong>{c.name.en ?? "—"}</strong>
+                    {!c.name.en && <span className="admin-pill warn">no EN</span>}
+                  </div>
+                </td>
+                <td dir="rtl">
                   {c.name.ar ? <span className="admin-meta">{c.name.ar}</span>
                              : <span className="admin-pill warn">no AR</span>}
                 </td>
-                <td>
+                <td onClick={(e) => e.stopPropagation()}>
                   <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "#F5EFE7", borderRadius: 999 }}>
                     {(["single", "multi", "counter"] as const).map((s) => (
                       <button key={s} className="admin-btn sm"
@@ -64,7 +66,7 @@ function Inner() {
                     ))}
                   </div>
                 </td>
-                <td>
+                <td onClick={(e) => e.stopPropagation()}>
                   <Toggle defaultOn={c.isActive}
                           onChange={(v) => catalogApi.updateAddonCategory(c.id, { ...c, isActive: v })
                             .then(() => toast(v ? "Category active" : "Hidden from drink page", "info"))} />
@@ -78,79 +80,27 @@ function Inner() {
       <div className="admin-panel" style={{ marginTop: 16 }}>
         <div className="admin-panel-head">
           <div className="admin-panel-title">Units</div>
-          <button className="admin-btn sm" onClick={() => setUnitOpen(true)}>+ Unit</button>
+          <button className="admin-btn sm" onClick={() => router.push("/admin/catalog/groups/units/new")}>
+            + Unit
+          </button>
         </div>
+        <p className="admin-meta" style={{ padding: "0 16px 8px" }}>Click a row to edit the code or name.</p>
         <div className="admin-tablewrap"><table className="admin-table">
-          <thead><tr><th>Code</th><th>Name</th></tr></thead>
+          <thead><tr><th>Code</th><th>Name (EN)</th><th>Name (AR)</th></tr></thead>
           <tbody>
             {units.map((u) => (
-              <tr key={u.id}>
+              <tr key={u.id} className="admin-row-link" style={{ cursor: "pointer" }}
+                  onClick={() => router.push(`/admin/catalog/groups/units/${u.id}`)}>
                 <td><span className="admin-pill">{u.code}</span></td>
-                <td>{u.name.en ?? u.name.ru ?? "—"}</td>
+                <td>{u.name.en ?? <span className="admin-pill warn">no EN</span>}</td>
+                <td dir="rtl">{u.name.ar
+                  ? <span className="admin-meta">{u.name.ar}</span>
+                  : <span className="admin-pill warn">no AR</span>}</td>
               </tr>
             ))}
           </tbody>
         </table></div>
       </div>
-
-      <Modal open={catOpen} title="New add-on category" onClose={() => setCatOpen(false)}
-             onSubmit={async () => {
-               await catalogApi.createAddonCategory({
-                 name: { en: nameEn, ...(nameAr.trim() ? { ar: nameAr.trim() } : {}) },
-                 iconUrl: iconUrl || null, isActive: true, selectionType: selType });
-               setCatOpen(false); setNameEn(""); setNameAr(""); load(); toast("Category created");
-             }}
-             submitDisabled={!nameEn.trim()} submitLabel="Create">
-        <div className="admin-field">
-          <label className="admin-label">Name (EN)</label>
-          <input className="admin-input" autoFocus value={nameEn} onChange={(e) => setNameEn(e.target.value)} />
-        </div>
-        <div className="admin-field">
-          <label className="admin-label">Name (AR)</label>
-          <input className="admin-input" dir="rtl" value={nameAr} onChange={(e) => setNameAr(e.target.value)} />
-        </div>
-        <div className="admin-field">
-          <label className="admin-label">Category icon</label>
-          <MediaUpload accept="image" value={iconUrl} onChange={(url) => setIconUrl(url ?? "")} />
-        </div>
-        <div className="admin-field">
-          <label className="admin-label">Selection type</label>
-          <div style={{ display: "flex", gap: 6 }}>
-            {(["single", "multi", "counter"] as const).map((s) => (
-              <button key={s} className={`admin-btn ${selType === s ? "primary" : ""}`}
-                      onClick={() => setSelType(s)}>
-                {SEL_LABEL[s]}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Modal>
-
-      <Modal open={unitOpen} title="New unit" onClose={() => setUnitOpen(false)}
-             onSubmit={async () => {
-               await catalogApi.createUnit({ code: unitCode,
-                 name: { en: unitName, ...(unitNameAr.trim() ? { ar: unitNameAr.trim() } : {}) } });
-               setUnitOpen(false); setUnitCode(""); setUnitName(""); setUnitNameAr(""); load(); toast("Unit added");
-             }}
-             submitDisabled={!unitCode.trim() || !unitName.trim()} submitLabel="Add">
-        <div className="admin-grid-2">
-          <div className="admin-field">
-            <label className="admin-label">Code (Latin)</label>
-            <input className="admin-input mono" autoFocus value={unitCode}
-                   onChange={(e) => setUnitCode(e.target.value)} placeholder="g · ml · pcs" />
-          </div>
-          <div className="admin-field">
-            <label className="admin-label">Name (EN)</label>
-            <input className="admin-input" value={unitName}
-                   onChange={(e) => setUnitName(e.target.value)} placeholder="grams" />
-          </div>
-          <div className="admin-field">
-            <label className="admin-label">Name (AR)</label>
-            <input className="admin-input" dir="rtl" value={unitNameAr}
-                   onChange={(e) => setUnitNameAr(e.target.value)} placeholder="غرام" />
-          </div>
-        </div>
-      </Modal>
     </>
   );
 }
